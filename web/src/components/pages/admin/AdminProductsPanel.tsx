@@ -20,6 +20,7 @@ import { AdminFormActions } from "@/components/admin/AdminSideForm";
 import { useAdminFormUnsaved } from "@/components/admin/AdminUnsavedChangesProvider";
 import { AdminCardTitle } from "@/components/pages/admin/admin-shared";
 import {
+  effectiveItemPurchaseStandards,
   emptyShopCfg,
   loadShopCfgForItem,
   shopProductConfigsFromCfg,
@@ -85,6 +86,15 @@ export function AdminProductsPanel() {
 
   const unitsReady = units.length > 0;
 
+  const standardsForItemCode = useCallback(
+    (code: string) =>
+      effectiveItemPurchaseStandards(
+        items.find((i) => i.code === code),
+        itemPurchaseStandards
+      ),
+    [items, itemPurchaseStandards]
+  );
+
   const deepLinkItem =
     searchParams.get("item")?.trim() || searchParams.get("edit")?.trim() || null;
   const [deepLinkHandled, setDeepLinkHandled] = useState(false);
@@ -110,7 +120,7 @@ export function AdminProductsPanel() {
       suppliers,
       mapping,
       purchaseUnits,
-      itemPurchaseStandards
+      standardsForItemCode(it.code)
     );
     setShopCfg(next);
     setCfgBaseline(JSON.stringify(next));
@@ -121,7 +131,7 @@ export function AdminProductsPanel() {
     suppliers,
     mapping,
     purchaseUnits,
-    itemPurchaseStandards,
+    standardsForItemCode,
   ]);
 
   function loadProduct(code: string) {
@@ -141,7 +151,13 @@ export function AdminProductsPanel() {
     setNameTH(it.nameTH);
     setNameEN(it.nameEN);
     setNameKR(it.nameKR);
-    const next = loadShopCfgForItem(code, suppliers, mapping, purchaseUnits, itemPurchaseStandards);
+    const next = loadShopCfgForItem(
+      code,
+      suppliers,
+      mapping,
+      purchaseUnits,
+      standardsForItemCode(code)
+    );
     setShopCfg(next);
     setCfgBaseline(JSON.stringify(next));
   }
@@ -165,7 +181,7 @@ export function AdminProductsPanel() {
       editCode,
       shopCfg,
       suppliers,
-      itemPurchaseStandards,
+      standardsForItemCode(editCode),
       units,
       locale
     );
@@ -222,11 +238,11 @@ export function AdminProductsPanel() {
         suppliers,
         mapping,
         purchaseUnits,
-        itemPurchaseStandards
+        standardsForItemCode(editCode)
       );
       setShopCfg(next);
       setCfgBaseline(JSON.stringify(next));
-    }, [editCode, suppliers, items, mapping, purchaseUnits, itemPurchaseStandards]),
+    }, [editCode, suppliers, items, mapping, purchaseUnits, standardsForItemCode]),
   });
 
   function tryLoadProduct(code: string) {
@@ -351,7 +367,7 @@ export function AdminProductsPanel() {
 
                 <AdminItemShopUnitsEditor
                   itemCode={editCode}
-                  itemStandards={itemPurchaseStandards}
+                  itemStandards={standardsForItemCode(editCode)}
                   shopCfg={shopCfg}
                   onChange={setShopCfg}
                   suppliers={suppliers}

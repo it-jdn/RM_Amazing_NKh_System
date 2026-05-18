@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { buildDisplayName, sanitizeUserNamePart } from "@/lib/users/display-name";
 import { mapUserRow, type AppUserRow } from "@/lib/users/db";
 import { hashPin, validatePin } from "@/lib/users/pin";
+import { assertPinUniqueInRole } from "@/lib/users/pin-uniqueness";
 import type { AppRole } from "@/lib/types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -21,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const { data: existing, error: loadErr } = await supabase
       .from("app_users")
-      .select("id")
+      .select("id, role")
       .eq("id", id)
       .maybeSingle();
 
@@ -56,9 +57,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       patch.active = Boolean(body.active);
     }
     if (body.pin !== undefined && String(body.pin).trim()) {
-      const pinErr = validatePin(String(body.pin));
+      const newPin = String(body.pin).trim();
+      const pinErr = validatePin(newPin);
       if (pinErr) return jsonError(pinErr);
-      patch.pin_hash = await hashPin(String(body.pin));
+      const targetRole = (patch.role as AppRole | undefined) ?? (existing.role as AppRole);
+      const dupErr = await assertPinUniqueInRole(supabase, newPin, targetRole, id);
+      if (dupErr) return jsonError(dupErr);
+      patch.pin_hash = await hashPin(newPin);
     }
 
     if (patch.first_name !== undefined || patch.last_name !== undefined) {

@@ -142,4 +142,6 @@ export interface ReportFilters {
   suppCode?: string;
   itemCode?: string;
   categoryCode?: string;
+  page?: number;
+  pageSize?: number;
 }

@@ -15,13 +15,14 @@ import {
   fmt,
   formatAppDate,
   formatAppDateLong,
+  formatAppDateTime,
   formatAppMonthYear,
   getAppDayOfWeekShort,
   HIST_DATE_PRESETS,
   histDatePresetRange,
   todayISO,
 } from "@/lib/utils/format";
-import { aggregateTransactionsByItem } from "@/lib/domain/transactions";
+import { aggregateTransactionsByItem, latestTransactionAudit } from "@/lib/domain/transactions";
 import type { Locale } from "@/lib/i18n/types";
 import type { AppRole, Item, TransactionRow } from "@/lib/types";
 
@@ -362,6 +363,7 @@ function HistoryDetail({
   });
   const received = allItems.filter((i) => rxMap[i.code]);
   const allRows = [...received, ...allItems.filter((i) => !rxMap[i.code])];
+  const slipAudit = latestTransactionAudit(txns);
 
   return (
     <>
@@ -369,6 +371,17 @@ function HistoryDetail({
         <div>
           <DateTitle date={date} />
           <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>{suppName}</div>
+          {slipAudit ? (
+            <div className="hist-slip-audit">
+              <span>
+                {t("hist.savedBy")}: {slipAudit.savedByName?.trim() || t("hist.savedByUnknown")}
+              </span>
+              <span>
+                {t("hist.savedAt")}:{" "}
+                {slipAudit.savedAt ? formatAppDateTime(slipAudit.savedAt, locale) : "—"}
+              </span>
+            </div>
+          ) : null}
         </div>
         <div className="detail-hdr__actions">
           <DeleteIntakeBatchButton
@@ -393,6 +406,8 @@ function HistoryDetail({
               <th style={{ textAlign: "right" }}>{t("hist.value")}</th>
               <th style={{ textAlign: "right" }}>{t("hist.unitPrice")}</th>
               <th>{t("hist.note")}</th>
+              <th>{t("hist.savedBy")}</th>
+              <th>{t("hist.savedAt")}</th>
               <th>{t("hist.status")}</th>
             </tr>
           </thead>
@@ -443,6 +458,12 @@ function HistoryDetail({
                   </td>
                   <td style={{ fontSize: 12, color: "var(--muted)" }}>
                     {(isRx && txn.note) || ""}
+                  </td>
+                  <td className="hist-audit-cell">
+                    {isRx ? txn.savedByName?.trim() || t("hist.savedByUnknown") : "—"}
+                  </td>
+                  <td className="hist-audit-cell hist-audit-cell--time">
+                    {isRx && txn.savedAt ? formatAppDateTime(txn.savedAt, locale) : "—"}
                   </td>
                   <td style={{ textAlign: "center" }}>
                     <span className={`rx-badge ${isRx ? "rx-yes" : "rx-no"}`}>

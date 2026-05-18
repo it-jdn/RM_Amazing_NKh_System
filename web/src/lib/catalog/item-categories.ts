@@ -11,6 +11,9 @@ export const ITEM_CATEGORY_CODES: ItemCategoryCode[] = [
   "BEV",
 ];
 
+/** หมวดเริ่มต้นเมื่อสร้างสินค้าใหม่หรือไม่มีค่าใน DB */
+export const DEFAULT_ITEM_CATEGORY: ItemCategoryCode = "PANTRY";
+
 /** Used when DB migration not applied yet */
 export const FALLBACK_ITEM_CATEGORIES: ItemCategory[] = [
   {

@@ -22,6 +22,8 @@ export async function GET(req: Request) {
       .order("recorded_at", { ascending: true });
     if (suppCode) priceQuery = priceQuery.eq("supp_code", suppCode);
     if (itemCode) priceQuery = priceQuery.eq("item_code", itemCode);
+    if (dateFrom) priceQuery = priceQuery.gte("recorded_at", `${dateFrom}T00:00:00+07:00`);
+    if (dateTo) priceQuery = priceQuery.lte("recorded_at", `${dateTo}T23:59:59.999+07:00`);
 
     let txnQuery = supabase
       .from("transactions")

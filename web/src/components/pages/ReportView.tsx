@@ -1,15 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
+import { Bar, Line, Doughnut } from "react-chartjs-2";
 import { useAppData } from "@/context/AppDataContext";
 import { useLocale } from "@/context/LocaleContext";
 import {
@@ -19,21 +23,53 @@ import {
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { apiGet } from "@/lib/api/client";
 import { useToast } from "@/components/Toast";
-import { AppDateField } from "@/components/ui/AppDateField";
-import { daysAgoISO, fmt, formatAppDate, todayISO } from "@/lib/utils/format";
+import {
+  daysAgoISO,
+  fmt,
+  formatAppDate,
+  formatAppMonthYear,
+  todayISO,
+} from "@/lib/utils/format";
 import { ReportPriceCompare } from "@/components/pages/ReportPriceCompare";
+import { ReportFilters } from "@/components/reports/ReportFilters";
+import { ReportHeatmap } from "@/components/reports/ReportHeatmap";
+import { ReportKpiCard, ReportKpiGrid } from "@/components/reports/ReportKpiGrid";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 interface ReportData {
   success: boolean;
-  summary: { totalCost: number; totalTrans: number };
+  summary: {
+    totalCost: number;
+    totalTrans: number;
+    avgDailyCost: number;
+    daysWithActivity: number;
+    distinctItems: number;
+    distinctSuppliers: number;
+    totalQty: number;
+    avgPriceVariancePct: number | null;
+  };
+  previousPeriod?: {
+    summary: { totalCost: number; totalTrans: number };
+    changePct: { totalCost: number | null; totalTrans: number | null };
+  } | null;
   byCategory: {
     categoryCode: string;
     categoryNameTH: string;
     totalPrice: number;
     count: number;
     distinctItems: number;
+    sharePct: number;
   }[];
   itemCategories?: {
     code: string;
@@ -42,8 +78,32 @@ interface ReportData {
     nameKR: string;
     sortOrder: number;
   }[];
-  byItem: { itemName: string; qty: number; count: number; totalPrice: number }[];
-  byDate: { date: string; totalPrice: number; count: number }[];
+  byItem: {
+    itemCode: string;
+    itemName: string;
+    qty: number;
+    count: number;
+    totalPrice: number;
+    sharePct: number;
+  }[];
+  bySupp: {
+    suppCode: string;
+    suppName: string;
+    totalPrice: number;
+    count: number;
+    sharePct: number;
+  }[];
+  byDate: { date: string; totalPrice: number; totalQty: number; count: number }[];
+  cumulativeByDate: { date: string; cumulative: number }[];
+  topItemsByValue: ReportData["byItem"];
+  topItemsByQty: ReportData["byItem"];
+  priceVarianceByMonth: { month: string; avgVariancePct: number; sampleCount: number }[];
+  weeklyHeatmap: {
+    dayOfWeek: number;
+    weekStart: string;
+    totalPrice: number;
+    count: number;
+  }[];
   rows: {
     no?: number;
     date: string;
@@ -54,6 +114,17 @@ interface ReportData {
     mainUnit: string;
     totalPrice: number;
   }[];
+  pagination: { page: number; pageSize: number; totalRows: number; totalPages: number };
+}
+
+function wonTicks(v: string | number) {
+  return "₩" + fmt(Number(v));
+}
+
+function formatPctChange(v: number | null | undefined) {
+  if (v == null) return "—";
+  const sign = v > 0 ? "+" : "";
+  return `${sign}${v.toFixed(1)}%`;
 }
 
 export function ReportView() {
@@ -61,49 +132,138 @@ export function ReportView() {
   const itemCategories = categoriesFromApi.length ? categoriesFromApi : FALLBACK_ITEM_CATEGORIES;
   const { locale, t } = useLocale();
   const toast = useToast();
-  const [rFrom, setRFrom] = useState(daysAgoISO(30));
+  const [rFrom, setRFrom] = useState(daysAgoISO(29));
   const [rTo, setRTo] = useState(todayISO());
   const [rSupp, setRSupp] = useState("");
   const [rItem, setRItem] = useState("");
   const [rCategory, setRCategory] = useState("");
   const [data, setData] = useState<ReportData | null>(null);
   const [showCompare, setShowCompare] = useState(false);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [datePreset, setDatePreset] = useState("last30");
 
   const reportCategories =
     data?.itemCategories?.length ? data.itemCategories : itemCategories;
 
-  const itemOptions = useMemo(() => {
-    if (!rCategory) return items;
-    return items.filter((i) => i.categoryCode === rCategory);
-  }, [items, rCategory]);
+  function buildParams(p: number) {
+    const params = new URLSearchParams();
+    if (rFrom) params.set("dateFrom", rFrom);
+    if (rTo) params.set("dateTo", rTo);
+    if (rSupp) params.set("suppCode", rSupp);
+    if (rItem) params.set("itemCode", rItem);
+    if (rCategory) params.set("categoryCode", rCategory);
+    params.set("page", String(p));
+    params.set("pageSize", "50");
+    return params;
+  }
 
-  async function loadReport() {
+  async function loadReport(nextPage = 1) {
+    setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (rFrom) params.set("dateFrom", rFrom);
-      if (rTo) params.set("dateTo", rTo);
-      if (rSupp) params.set("suppCode", rSupp);
-      if (rItem) params.set("itemCode", rItem);
-      if (rCategory) params.set("categoryCode", rCategory);
-      const d = await apiGet<ReportData>(`/api/reports?${params}`);
+      const d = await apiGet<ReportData>(`/api/reports?${buildParams(nextPage)}`);
       if (!d.success) {
-        toast("โหลดรายงานผิดพลาด");
+        toast(t("report.loadError"));
         return;
       }
       setData(d);
+      setPage(nextPage);
       setShowCompare(true);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Error");
+      toast(e instanceof Error ? e.message : t("report.loadError"));
+    } finally {
+      setLoading(false);
     }
   }
 
-  const chartData = data
+  function exportCsv() {
+    const params = buildParams(1);
+    params.set("format", "csv");
+    params.set("pageSize", "10000");
+    window.open(`/api/reports?${params}`, "_blank");
+  }
+
+  function printReport() {
+    window.print();
+  }
+
+  const dailyLineData = data
     ? {
         labels: data.byDate.map((x) => formatAppDate(x.date, locale)),
         datasets: [
           {
-            label: "มูลค่า",
+            label: t("report.dailyTrend"),
             data: data.byDate.map((x) => x.totalPrice),
+            borderColor: "rgba(26,107,181,.95)",
+            backgroundColor: "rgba(26,107,181,.12)",
+            fill: true,
+            tension: 0.25,
+            yAxisID: "y",
+          },
+          ...(rItem
+            ? [
+                {
+                  label: t("report.dailyQty"),
+                  data: data.byDate.map((x) => x.totalQty),
+                  borderColor: "rgba(232,66,26,.9)",
+                  backgroundColor: "transparent",
+                  borderDash: [4, 4],
+                  tension: 0.25,
+                  yAxisID: "y1",
+                },
+              ]
+            : []),
+        ],
+      }
+    : null;
+
+  const cumulativeLineData = data
+    ? {
+        labels: data.cumulativeByDate.map((x) => formatAppDate(x.date, locale)),
+        datasets: [
+          {
+            label: t("report.cumulative"),
+            data: data.cumulativeByDate.map((x) => x.cumulative),
+            borderColor: "rgba(76,140,74,.95)",
+            backgroundColor: "rgba(76,140,74,.1)",
+            fill: true,
+            tension: 0.2,
+          },
+        ],
+      }
+    : null;
+
+  const categoryDoughnut = data?.byCategory.length
+    ? {
+        labels: data.byCategory.map((row) => {
+          const cat = reportCategories.find((c) => c.code === row.categoryCode);
+          return cat ? itemCategoryDisplayName(cat, locale) : row.categoryNameTH;
+        }),
+        datasets: [
+          {
+            data: data.byCategory.map((x) => x.totalPrice),
+            backgroundColor: [
+              "rgba(232,66,26,.75)",
+              "rgba(26,107,181,.75)",
+              "rgba(76,140,74,.75)",
+              "rgba(120,90,180,.75)",
+              "rgba(200,150,50,.75)",
+            ],
+          },
+        ],
+      }
+    : null;
+
+  const suppBarData = data?.bySupp.length
+    ? {
+        labels: data.bySupp.map((s) => {
+          const sup = suppliers.find((x) => x.code === s.suppCode);
+          return sup ? supplierDisplayName(sup, locale) : s.suppName;
+        }),
+        datasets: [
+          {
+            label: t("report.value"),
+            data: data.bySupp.map((x) => x.totalPrice),
             backgroundColor: "rgba(26,107,181,.45)",
             borderColor: "rgba(26,107,181,.9)",
             borderWidth: 1.5,
@@ -113,17 +273,13 @@ export function ReportView() {
       }
     : null;
 
-  const categoryChartData = data?.byCategory.length
+  const topValueBar = data?.topItemsByValue.length
     ? {
-        labels: data.byCategory.map((row) => {
-          const cat = reportCategories.find((c) => c.code === row.categoryCode);
-          return cat ? itemCategoryDisplayName(cat, locale) : row.categoryNameTH;
-        }),
+        labels: data.topItemsByValue.map((x) => x.itemName),
         datasets: [
           {
-            label: "มูลค่า",
-            data: data.byCategory.map((x) => x.totalPrice),
-            backgroundColor: "rgba(232,66,26,.4)",
+            data: data.topItemsByValue.map((x) => x.totalPrice),
+            backgroundColor: "rgba(232,66,26,.45)",
             borderColor: "rgba(232,66,26,.85)",
             borderWidth: 1.5,
             borderRadius: 4,
@@ -132,113 +288,233 @@ export function ReportView() {
       }
     : null;
 
+  const varianceLine = data?.priceVarianceByMonth.length
+    ? {
+        labels: data.priceVarianceByMonth.map((m) => {
+          const [y, mo] = m.month.split("-");
+          return formatAppMonthYear(y, mo, locale);
+        }),
+        datasets: [
+          {
+            label: t("report.varianceMonth"),
+            data: data.priceVarianceByMonth.map((m) => m.avgVariancePct),
+            borderColor: "rgba(200,100,30,.95)",
+            backgroundColor: "rgba(200,100,30,.15)",
+            fill: true,
+            tension: 0.2,
+          },
+        ],
+      }
+    : null;
+
+  const chartOpts = {
+    responsive: true,
+    plugins: { legend: { display: true, position: "top" as const } },
+  };
+
   return (
-    <div className="wrap">
-      <div className="card">
-        <div className="card-title">
-          <span className="dot dot-purple" />
-          <span>รายงานต้นทุนวัตถุดิบ</span>
-        </div>
-        <div className="form-row c5">
-          <div>
-            <label className="lbl">วันที่เริ่มต้น</label>
-            <AppDateField id="report-from" value={rFrom} onChange={setRFrom} placeholder="วันที่เริ่มต้น" />
-          </div>
-          <div>
-            <label className="lbl">วันที่สิ้นสุด</label>
-            <AppDateField id="report-to" value={rTo} onChange={setRTo} placeholder="วันที่สิ้นสุด" />
-          </div>
-          <div>
-            <label className="lbl">ร้านค้า</label>
-            <select value={rSupp} onChange={(e) => setRSupp(e.target.value)}>
-              <option value="">ทั้งหมด</option>
-              {suppliers.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {supplierDisplayName(s, locale)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="lbl">{t("report.category")}</label>
-            <select
-              value={rCategory}
-              onChange={(e) => {
-                const next = e.target.value;
-                setRCategory(next);
-                if (next && rItem) {
-                  const item = items.find((i) => i.code === rItem);
-                  if (item && item.categoryCode !== next) setRItem("");
-                }
-              }}
-            >
-              <option value="">{t("report.categoryAll")}</option>
-              {(itemCategories.length ? itemCategories : reportCategories).map((c) => (
-                <option key={c.code} value={c.code}>
-                  {itemCategoryDisplayName(c, locale)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="lbl">สินค้า</label>
-            <select value={rItem} onChange={(e) => setRItem(e.target.value)}>
-              <option value="">ทั้งหมด</option>
-              {itemOptions.map((i) => (
-                <option key={i.code} value={i.code}>
-                  {i.nameTH}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <button type="button" className="btn btn-primary" onClick={loadReport}>
-          แสดงรายงาน
-        </button>
-      </div>
+    <div className="wrap report-page">
+      <ReportFilters
+        dateFrom={rFrom}
+        dateTo={rTo}
+        suppCode={rSupp}
+        categoryCode={rCategory}
+        itemCode={rItem}
+        datePreset={datePreset}
+        onDateFrom={setRFrom}
+        onDateTo={setRTo}
+        onSuppCode={setRSupp}
+        onCategoryCode={setRCategory}
+        onItemCode={setRItem}
+        onDatePreset={setDatePreset}
+        suppliers={suppliers}
+        items={items}
+        itemCategories={itemCategories}
+        loading={loading}
+        hasData={!!data}
+        onSubmit={() => void loadReport(1)}
+        onExportCsv={exportCsv}
+        onPrint={printReport}
+      />
 
       {data && (
         <>
-          <div className="stat-grid">
-            <div className="stat-card">
-              <div className="s-lbl">มูลค่ารวม (₩)</div>
-              <div className="s-val">₩{fmt(data.summary.totalCost)}</div>
+          <ReportKpiGrid>
+            <ReportKpiCard
+              highlight
+              label={t("report.totalCost")}
+              value={`₩${fmt(data.summary.totalCost)}`}
+              sub={
+              data.previousPeriod
+                ? `${t("report.vsPrev")}: ${formatPctChange(data.previousPeriod.changePct.totalCost)}`
+                : undefined
+            } />
+            <ReportKpiCard
+              label={t("report.totalTrans")}
+              value={String(data.summary.totalTrans)}
+              sub={
+                data.previousPeriod
+                  ? `${t("report.vsPrev")}: ${formatPctChange(data.previousPeriod.changePct.totalTrans)}`
+                  : undefined
+              }
+            />
+            <ReportKpiCard label={t("report.avgDaily")} value={`₩${fmt(data.summary.avgDailyCost)}`} />
+            <ReportKpiCard
+              label={t("report.distinctItems")}
+              value={String(data.summary.distinctItems)}
+            />
+            <ReportKpiCard
+              label={t("report.distinctShops")}
+              value={String(data.summary.distinctSuppliers)}
+            />
+            <ReportKpiCard
+              label={t("report.priceVariance")}
+              value={
+                data.summary.avgPriceVariancePct != null
+                  ? `${formatPctChange(data.summary.avgPriceVariancePct)}`
+                  : "—"
+              }
+            />
+          </ReportKpiGrid>
+
+          <p className="admin-hint report-unit-note">{t("report.unitNote")}</p>
+
+          <div className="report-charts-grid">
+            <div className="card">
+              <div className="card-title">
+                <span className="dot dot-purple" />
+                <span>{t("report.dailyTrend")}</span>
+              </div>
+              {dailyLineData && (
+                <Line
+                  data={dailyLineData}
+                  options={{
+                    ...chartOpts,
+                    scales: {
+                      y: {
+                        position: "left",
+                        ticks: { callback: wonTicks },
+                      },
+                      ...(rItem
+                        ? {
+                            y1: {
+                              position: "right",
+                              grid: { drawOnChartArea: false },
+                              ticks: { callback: (v) => fmt(Number(v)) },
+                            },
+                          }
+                        : {}),
+                    },
+                  }}
+                />
+              )}
             </div>
-            <div className="stat-card">
-              <div className="s-lbl">จำนวนรายการ</div>
-              <div className="s-val">{data.summary.totalTrans}</div>
+
+            <div className="card">
+              <div className="card-title">
+                <span className="dot dot-green" />
+                <span>{t("report.cumulative")}</span>
+              </div>
+              {cumulativeLineData && (
+                <Line
+                  data={cumulativeLineData}
+                  options={{
+                    ...chartOpts,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { ticks: { callback: wonTicks } } },
+                  }}
+                />
+              )}
             </div>
           </div>
+
+          <div className="report-charts-grid report-charts-grid--3">
+            {categoryDoughnut && (
+              <div className="card">
+                <div className="card-title">
+                  <span className="dot dot-orange" />
+                  <span>{t("report.byCategory")}</span>
+                </div>
+                <Doughnut
+                  data={categoryDoughnut}
+                  options={{
+                    responsive: true,
+                    plugins: { legend: { position: "right" } },
+                  }}
+                />
+              </div>
+            )}
+            {suppBarData && (
+              <div className="card">
+                <div className="card-title">
+                  <span className="dot dot-blue" />
+                  <span>{t("report.byShop")}</span>
+                </div>
+                <Bar
+                  data={suppBarData}
+                  options={{
+                    indexAxis: "y" as const,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { ticks: { callback: wonTicks } } },
+                  }}
+                />
+              </div>
+            )}
+            {topValueBar && (
+              <div className="card">
+                <div className="card-title">
+                  <span className="dot dot-orange" />
+                  <span>{t("report.topValue")}</span>
+                </div>
+                <Bar
+                  data={topValueBar}
+                  options={{
+                    indexAxis: "y" as const,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { ticks: { callback: wonTicks } } },
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {varianceLine && (
+            <div className="card">
+              <div className="card-title">
+                <span className="dot dot-orange" />
+                <span>{t("report.varianceMonth")}</span>
+              </div>
+              <Line
+                data={varianceLine}
+                options={{
+                  ...chartOpts,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    y: {
+                      ticks: { callback: (v) => `${Number(v).toFixed(1)}%` },
+                    },
+                  },
+                }}
+              />
+            </div>
+          )}
+
+          <ReportHeatmap cells={data.weeklyHeatmap} title={t("report.heatmap")} />
 
           <div className="card">
             <div className="card-title">
               <span className="dot dot-orange" />
               <span>{t("report.byCategory")}</span>
             </div>
-            {categoryChartData && (
-              <Bar
-                data={categoryChartData}
-                options={{
-                  responsive: true,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    y: {
-                      ticks: {
-                        callback: (v) => "₩" + fmt(Number(v)),
-                      },
-                    },
-                  },
-                }}
-              />
-            )}
-            <div className="tbl-scroll" style={{ marginTop: 16 }}>
+            <div className="tbl-scroll">
               <table className="dtbl">
                 <thead>
                   <tr>
                     <th>{t("report.category")}</th>
                     <th>{t("report.categoryItems")}</th>
                     <th>{t("report.categoryTrans")}</th>
-                    <th>มูลค่า (₩)</th>
+                    <th>{t("report.share")}</th>
+                    <th>{t("report.value")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -255,76 +531,56 @@ export function ReportView() {
                           </td>
                           <td>{row.distinctItems}</td>
                           <td>{row.count}</td>
+                          <td>{row.sharePct.toFixed(1)}%</td>
                           <td className="gval">₩{fmt(row.totalPrice)}</td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={4} className="empty">
-                        ไม่มีข้อมูล
+                      <td colSpan={5} className="empty">
+                        {t("report.noData")}
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div className="card">
-            <div className="card-title">
-              <span className="dot dot-purple" />
-              <span>แนวโน้มมูลค่ารายวัน</span>
-            </div>
-            {chartData && (
-              <Bar
-                data={chartData}
-                options={{
-                  responsive: true,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    y: {
-                      ticks: {
-                        callback: (v) => "₩" + fmt(Number(v)),
-                      },
-                    },
-                  },
-                }}
-              />
-            )}
           </div>
 
           <div className="card">
             <div className="card-title">
               <span className="dot dot-blue" />
-              <span>สรุปตามสินค้า</span>
+              <span>{t("report.byItem")}</span>
             </div>
             <div className="tbl-scroll">
               <table className="dtbl">
                 <thead>
                   <tr>
-                    <th>สินค้า</th>
-                    <th>จำนวน</th>
-                    <th>รายการ</th>
-                    <th>มูลค่า (₩)</th>
+                    <th>{t("report.item")}</th>
+                    <th>{t("report.qty")}</th>
+                    <th>{t("report.lines")}</th>
+                    <th>{t("report.share")}</th>
+                    <th>{t("report.value")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.byItem.length ? (
                     data.byItem.map((x) => (
-                      <tr key={x.itemName}>
+                      <tr key={x.itemCode}>
                         <td>
                           <b>{x.itemName}</b>
                         </td>
                         <td className="gval">{fmt(x.qty)}</td>
                         <td>{x.count}</td>
+                        <td>{x.sharePct.toFixed(1)}%</td>
                         <td className="gval">₩{fmt(x.totalPrice)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="empty">
-                        ไม่มีข้อมูล
+                      <td colSpan={5} className="empty">
+                        {t("report.noData")}
                       </td>
                     </tr>
                   )}
@@ -333,10 +589,32 @@ export function ReportView() {
             </div>
           </div>
 
-          <div className="card">
+          <div className="card report-detail-card">
             <div className="card-title">
               <span className="dot dot-green" />
-              <span>รายการล่าสุด (300)</span>
+              <span>{t("report.latest")}</span>
+            </div>
+            <div className="report-pagination no-print">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={page <= 1 || loading}
+                onClick={() => void loadReport(page - 1)}
+              >
+                ←
+              </button>
+              <span>
+                {t("report.page")} {data.pagination.page} {t("report.of")}{" "}
+                {data.pagination.totalPages} ({data.pagination.totalRows})
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={page >= data.pagination.totalPages || loading}
+                onClick={() => void loadReport(page + 1)}
+              >
+                →
+              </button>
             </div>
             <div className="tbl-scroll">
               <table className="dtbl">
@@ -344,10 +622,10 @@ export function ReportView() {
                   <tr>
                     <th>#</th>
                     <th>วันที่</th>
-                    <th>ร้านค้า</th>
-                    <th>สินค้า</th>
-                    <th>จำนวน</th>
-                    <th>มูลค่า (₩)</th>
+                    <th>{t("report.shop")}</th>
+                    <th>{t("report.item")}</th>
+                    <th>{t("report.qty")}</th>
+                    <th>{t("report.value")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -371,7 +649,7 @@ export function ReportView() {
                   ) : (
                     <tr>
                       <td colSpan={6} className="empty">
-                        ไม่มีข้อมูล
+                        {t("report.noData")}
                       </td>
                     </tr>
                   )}
@@ -386,6 +664,7 @@ export function ReportView() {
             suppCode={rSupp}
             itemCode={rItem}
             active={showCompare}
+            suppliers={suppliers}
           />
         </>
       )}

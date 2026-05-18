@@ -1,4 +1,5 @@
 import type {
+  Item,
   ItemPurchaseUnit,
   ItemStandardPurchaseUnit,
   Mapping,
@@ -40,6 +41,30 @@ export function itemStandardsSorted(
   return standards
     .filter((s) => s.itemCode === itemCode)
     .sort((a, b) => a.sortOrder - b.sortOrder || (a.isDefault ? -1 : 1));
+}
+
+/** มาตรฐานจาก DB หรือ fallback จากหน่วยหลักบนสินค้า (กรณีสร้างก่อนมีตารางมาตรฐาน) */
+export function effectiveItemPurchaseStandards(
+  item: Item | undefined,
+  standards: ItemStandardPurchaseUnit[]
+): ItemStandardPurchaseUnit[] {
+  if (!item) return [];
+  const fromDb = itemStandardsSorted(item.code, standards);
+  if (fromDb.length) return fromDb;
+  if (!item.mainUnitCode || !item.subUnitCode) return [];
+  return [
+    {
+      itemCode: item.code,
+      mainUnitCode: item.mainUnitCode,
+      subUnitCode: item.subUnitCode,
+      mainUnit: item.unit || item.mainUnitCode,
+      subUnit: item.subUnit || item.subUnitCode,
+      convertRate: item.convertRate ?? 1,
+      isDefault: true,
+      sortOrder: 0,
+      active: true,
+    },
+  ];
 }
 
 export function buildShopStandardsList(

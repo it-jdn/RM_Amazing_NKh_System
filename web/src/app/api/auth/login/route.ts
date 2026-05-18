@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import bcrypt from "bcryptjs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { COOKIE_NAME, MAX_AGE, createSessionToken } from "@/lib/auth/session";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import type { AppRole } from "@/lib/types";
 import { buildDisplayName } from "@/lib/users/display-name";
+import { findUsersWithMatchingPin } from "@/lib/users/pin-uniqueness";
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,18 +23,19 @@ export async function POST(req: NextRequest) {
     const { data: users, error } = await query;
     if (error) throw error;
 
-    let matched = null;
-    for (const u of users || []) {
-      const ok = await bcrypt.compare(pin, u.pin_hash);
-      if (ok) {
-        matched = u;
-        break;
-      }
-    }
+    const matchedList = await findUsersWithMatchingPin(users || [], pin);
 
-    if (!matched) {
+    if (matchedList.length === 0) {
       return jsonError("PIN ไม่ถูกต้อง", 401);
     }
+    if (matchedList.length > 1) {
+      return jsonError(
+        "PIN นี้ซ้ำกับผู้ใช้หลายคนในบทบาทเดียวกัน ไม่สามารถเข้าสู่ระบบได้ กรุณาติดต่อผู้ดูแลระบบ",
+        403
+      );
+    }
+
+    const matched = users!.find((u) => u.id === matchedList[0].id)!;
 
     const displayName =
       buildDisplayName(String(matched.first_name || ""), String(matched.last_name || "")) ||

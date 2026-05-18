@@ -322,10 +322,25 @@ export function AdminItemsPanel() {
       const savedCode =
         isEdit && editingCode ? editingCode : (apiSucceeded(r) && r.itemCode ? r.itemCode : "");
 
-      if (savedCode && standardRows.length) {
+      const standardsPayload =
+        standardRows.length > 0
+          ? standardPayloadFromRows(standardRows)
+          : !isEdit && formMainUnitCode && formSubUnitCode
+            ? [
+                {
+                  mainUnitCode: formMainUnitCode,
+                  subUnitCode: formSubUnitCode,
+                  convertRate: parseFloat(formConvertRate) || 1,
+                  isDefault: true,
+                  sortOrder: 0,
+                },
+              ]
+            : [];
+
+      if (savedCode && standardsPayload.length) {
         const stdRes = await apiPatch<{ success?: boolean; message: string }>(
           `/api/items/${encodeURIComponent(savedCode)}/purchase-standards`,
-          { standards: standardPayloadFromRows(standardRows) }
+          { standards: standardsPayload }
         );
         if (!apiSucceeded(stdRes)) {
           toast(stdRes.message || "❌ บันทึกหน่วยมาตรฐานไม่สำเร็จ");

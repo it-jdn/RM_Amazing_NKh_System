@@ -14,7 +14,9 @@
     "db:migrate": "tsx scripts/apply-migrations.ts",
     "deploy:verify": "tsx scripts/verify-supabase.ts",
     "deploy:setup": "tsx scripts/deploy-phase1-setup.ts",
-    "deploy:print-vercel-env": "tsx scripts/print-vercel-env.ts"
+    "deploy:print-vercel-env": "tsx scripts/print-vercel-env.ts",
+    "reset:user-pins": "tsx scripts/reset-user-pins.ts",
+    "restore:team-users": "tsx scripts/restore-team-users.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

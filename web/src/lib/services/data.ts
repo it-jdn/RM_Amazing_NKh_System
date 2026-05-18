@@ -17,6 +17,13 @@ import { unitPrimaryName } from "@/lib/i18n/unit-display-name";
 import { formatPostgresError } from "@/lib/db/postgres-error";
 import { itemsTableHasCategoryCode } from "@/lib/db/schema-support";
 import { listMasterUnits, resolveUnitCode } from "@/lib/services/units";
+import {
+  aggregateReportRows,
+  buildCategoryFilter,
+  filterRowsByCategory,
+  type ReportTxnRow,
+} from "@/lib/reports/aggregate";
+import { previousPeriodRange, pctChange } from "@/lib/reports/period";
 import type {
   ItemCategory,
   ItemCategoryCode,
@@ -202,6 +209,48 @@ export async function saveItemPurchaseStandards(
   } catch (e) {
     return { ok: false, message: formatPostgresError(e) };
   }
+}
+
+/** สร้างแถวมาตรฐานเริ่มต้นถ้ายังไม่มี (สินค้าที่สร้างจาก intake / เมนูสินค้าแบบเก่า) */
+async function ensureDefaultItemPurchaseStandard(
+  supabase: ReturnType<typeof createAdminClient>,
+  itemCode: string,
+  mainUnitCode: string,
+  subUnitCode: string,
+  convertRate: number
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const code = String(itemCode || "").trim();
+  if (!code || !mainUnitCode || !subUnitCode) return { ok: true };
+
+  const { data: existing, error: selErr } = await supabase
+    .from("item_purchase_units")
+    .select("main_unit_code")
+    .eq("item_code", code)
+    .limit(1);
+  if (selErr) {
+    if (isMissingRelationError(selErr)) return { ok: true };
+    return { ok: false, message: formatPostgresError(selErr) };
+  }
+  if (existing?.length) return { ok: true };
+
+  const unitsResolved = await resolveMasterUnits(supabase, mainUnitCode, subUnitCode);
+  if (!unitsResolved.ok) return unitsResolved;
+
+  const { error } = await supabase.from("item_purchase_units").insert({
+    item_code: code,
+    main_unit_code: unitsResolved.mainUnitCode,
+    sub_unit_code: unitsResolved.subUnitCode,
+    convert_rate: convertRate > 0 ? convertRate : 1,
+    is_default: true,
+    sort_order: 0,
+    active: true,
+    updated_at: bangkokNow(),
+  });
+  if (error) {
+    if (isMissingRelationError(error)) return { ok: true };
+    return { ok: false, message: formatPostgresError(error) };
+  }
+  return { ok: true };
 }
 
 async function saveItemPurchaseStandardsInner(
@@ -910,6 +959,15 @@ export async function saveItemMaster(data: {
       return { ok: false, message: formatPostgresError(e) };
     }
 
+    const stdEnsure = await ensureDefaultItemPurchaseStandard(
+      supabase,
+      newCode,
+      unitsResolved.mainUnitCode,
+      unitsResolved.subUnitCode,
+      convertRate
+    );
+    if (!stdEnsure.ok) return stdEnsure;
+
     return {
       ok: true,
       message: `✅ บันทึกสินค้า "${nameTH}" สำเร็จ (${newCode})`,
@@ -949,6 +1007,15 @@ export async function saveItemMaster(data: {
   } catch (e) {
     return { ok: false, message: formatPostgresError(e) };
   }
+
+  const stdEnsure = await ensureDefaultItemPurchaseStandard(
+    supabase,
+    itemCode,
+    unitsResolved.mainUnitCode,
+    unitsResolved.subUnitCode,
+    convertRate
+  );
+  if (!stdEnsure.ok) return stdEnsure;
 
   return { ok: true, message: `✅ เพิ่มสินค้า "${nameTH}" สำเร็จ (${itemCode})`, itemCode };
 }
@@ -1055,6 +1122,28 @@ export async function addNewItemToSupplier(data: {
       { displayName: data.changedBy || "system", reason: "create" }
     );
   }
+
+  const { data: itemRow } = await supabase
+    .from("items")
+    .select("main_unit_code, sub_unit_code, convert_rate")
+    .eq("item_code", itemCode)
+    .maybeSingle();
+  const stdMain = itemRow?.main_unit_code
+    ? String(itemRow.main_unit_code)
+    : mainResolved.code;
+  const stdSub = itemRow?.sub_unit_code ? String(itemRow.sub_unit_code) : subResolved.code;
+  const stdRate =
+    itemRow?.convert_rate != null
+      ? parseFloat(String(itemRow.convert_rate)) || convertRate
+      : convertRate;
+  const stdEnsure = await ensureDefaultItemPurchaseStandard(
+    supabase,
+    itemCode,
+    stdMain,
+    stdSub,
+    stdRate
+  );
+  if (!stdEnsure.ok) return stdEnsure;
 
   const { data: maps } = await supabase
     .from("supplier_item_mapping")
@@ -1487,9 +1576,10 @@ export async function updateUnitPrice(
   return { ok: true, message: "✅ อัปเดตราคาสำเร็จ" };
 }
 
-export async function getReportData(filters: ReportFilters) {
-  const supabase = createAdminClient();
-  const categories = await listItemCategories().catch(() => [] as ItemCategory[]);
+async function loadReportTxnRows(
+  supabase: ReturnType<typeof createAdminClient>,
+  filters: ReportFilters
+) {
   const hasCategoryCol = await itemsTableHasCategoryCode(supabase);
   const itemsRes = hasCategoryCol
     ? await supabase.from("items").select("item_code, category_code")
@@ -1509,124 +1599,117 @@ export async function getReportData(filters: ReportFilters) {
     );
   }
 
-  const categoryFilter = filters.categoryCode?.trim();
-  const allowedItemCodes =
-    categoryFilter && isItemCategoryCode(categoryFilter)
-      ? new Set(
-          [...itemCategoryMap.entries()]
-            .filter(([, cat]) => cat === categoryFilter)
-            .map(([itemCode]) => itemCode)
-        )
-      : null;
+  const allowedItemCodes = buildCategoryFilter(filters.categoryCode, itemCategoryMap);
 
   let query = supabase.from("transactions").select("*");
-
+  if (filters.dateFrom) query = query.gte("txn_date", filters.dateFrom);
+  if (filters.dateTo) query = query.lte("txn_date", filters.dateTo);
   if (filters.suppCode) query = query.eq("supp_code", filters.suppCode);
   if (filters.itemCode) query = query.eq("item_code", filters.itemCode);
 
   const { data, error } = await query.order("txn_date", { ascending: true });
   if (error) throw error;
 
-  const filtered = (data || []).filter((t) => {
-    if (allowedItemCodes && !allowedItemCodes.has(String(t.item_code))) return false;
-    const d = toDateStr(t.txn_date);
-    if (!d) return false;
-    if (filters.dateFrom && d < filters.dateFrom) return false;
-    if (filters.dateTo && d > filters.dateTo) return false;
-    return true;
+  const filtered = filterRowsByCategory((data || []) as ReportTxnRow[], allowedItemCodes);
+  return { filtered, itemCategoryMap };
+}
+
+export async function getReportData(filters: ReportFilters) {
+  const supabase = createAdminClient();
+  const categories = await listItemCategories().catch(() => [] as ItemCategory[]);
+  const { filtered, itemCategoryMap } = await loadReportTxnRows(supabase, filters);
+
+  const aggregates = aggregateReportRows(filtered, itemCategoryMap, categories);
+
+  const page = Math.max(1, parseInt(String(filters.page || 1), 10) || 1);
+  const pageSize = Math.min(200, Math.max(10, parseInt(String(filters.pageSize || 50), 10) || 50));
+  const sortedRows = [...filtered].sort((a, b) => {
+    const da = toDateStr(a.txn_date);
+    const db = toDateStr(b.txn_date);
+    if (da !== db) return db.localeCompare(da);
+    return (Number(b.no) || 0) - (Number(a.no) || 0);
   });
+  const totalRows = sortedRows.length;
+  const pageRows = sortedRows.slice((page - 1) * pageSize, page * pageSize);
 
-  const totalCost = filtered.reduce((s, t) => s + (parseFloat(String(t.total_price)) || 0), 0);
-  const totalTrans = filtered.length;
+  let previousPeriod: {
+    summary: { totalCost: number; totalTrans: number };
+    changePct: { totalCost: number | null; totalTrans: number | null };
+  } | null = null;
 
-  const byItemMap: Record<
-    string,
-    { itemCode: string; itemName: string; qty: number; totalPrice: number; count: number }
-  > = {};
-  filtered.forEach((t) => {
-    const k = String(t.item_code);
-    if (!byItemMap[k]) {
-      byItemMap[k] = {
-        itemCode: k,
-        itemName: String(t.item_name_th),
-        qty: 0,
-        totalPrice: 0,
-        count: 0,
+  if (filters.dateFrom && filters.dateTo) {
+    const prevRange = previousPeriodRange(filters.dateFrom, filters.dateTo);
+    if (prevRange) {
+      const { filtered: prevFiltered } = await loadReportTxnRows(supabase, {
+        ...filters,
+        dateFrom: prevRange.dateFrom,
+        dateTo: prevRange.dateTo,
+      });
+      const prevAgg = aggregateReportRows(prevFiltered, itemCategoryMap, categories);
+      previousPeriod = {
+        summary: {
+          totalCost: prevAgg.summary.totalCost,
+          totalTrans: prevAgg.summary.totalTrans,
+        },
+        changePct: {
+          totalCost: pctChange(aggregates.summary.totalCost, prevAgg.summary.totalCost),
+          totalTrans: pctChange(aggregates.summary.totalTrans, prevAgg.summary.totalTrans),
+        },
       };
     }
-    byItemMap[k].qty += parseFloat(String(t.qty)) || 0;
-    byItemMap[k].totalPrice += parseFloat(String(t.total_price)) || 0;
-    byItemMap[k].count++;
-  });
-
-  const byDateMap: Record<string, { date: string; totalPrice: number; count: number }> = {};
-  filtered.forEach((t) => {
-    const d = toDateStr(t.txn_date);
-    if (!byDateMap[d]) byDateMap[d] = { date: d, totalPrice: 0, count: 0 };
-    byDateMap[d].totalPrice += parseFloat(String(t.total_price)) || 0;
-    byDateMap[d].count++;
-  });
-
-  const categoryMeta = new Map(categories.map((c) => [c.code, c]));
-  const byCategoryMap: Record<
-    string,
-    {
-      categoryCode: ItemCategoryCode;
-      categoryNameTH: string;
-      totalPrice: number;
-      count: number;
-      itemCount: Set<string>;
-    }
-  > = {};
-
-  filtered.forEach((t) => {
-    const itemCode = String(t.item_code);
-    const cat = itemCategoryMap.get(itemCode) || DEFAULT_ITEM_CATEGORY;
-    if (!byCategoryMap[cat]) {
-      const meta = categoryMeta.get(cat);
-      byCategoryMap[cat] = {
-        categoryCode: cat,
-        categoryNameTH: meta?.nameTH || cat,
-        totalPrice: 0,
-        count: 0,
-        itemCount: new Set(),
-      };
-    }
-    byCategoryMap[cat].totalPrice += parseFloat(String(t.total_price)) || 0;
-    byCategoryMap[cat].count++;
-    byCategoryMap[cat].itemCount.add(itemCode);
-  });
-
-  const byCategory = Object.values(byCategoryMap)
-    .map((row) => ({
-      categoryCode: row.categoryCode,
-      categoryNameTH: row.categoryNameTH,
-      totalPrice: row.totalPrice,
-      count: row.count,
-      distinctItems: row.itemCount.size,
-    }))
-    .sort((a, b) => b.totalPrice - a.totalPrice);
+  }
 
   return {
     success: true,
-    summary: { totalCost, totalTrans },
-    byCategory,
+    summary: aggregates.summary,
+    previousPeriod,
+    byCategory: aggregates.byCategory,
     itemCategories: categories,
-    byItem: Object.values(byItemMap).sort((a, b) => b.totalPrice - a.totalPrice),
-    byDate: Object.values(byDateMap).sort((a, b) => a.date.localeCompare(b.date)),
-    rows: filtered
-      .slice(-300)
-      .reverse()
-      .map((r) => ({
-        no: r.no,
-        date: toDateStr(r.txn_date),
-        suppCode: r.supp_code,
-        suppName: r.supp_name,
-        itemCode: r.item_code,
-        itemNameTH: r.item_name_th,
-        qty: r.qty,
-        mainUnit: r.main_unit,
-        totalPrice: r.total_price,
-      })),
+    byItem: aggregates.byItem,
+    bySupp: aggregates.bySupp,
+    byDate: aggregates.byDate,
+    cumulativeByDate: aggregates.cumulativeByDate,
+    topItemsByValue: aggregates.topItemsByValue,
+    topItemsByQty: aggregates.topItemsByQty,
+    priceVarianceByMonth: aggregates.priceVarianceByMonth,
+    weeklyHeatmap: aggregates.weeklyHeatmap,
+    rows: pageRows.map((r) => ({
+      no: r.no,
+      date: toDateStr(r.txn_date),
+      suppCode: r.supp_code,
+      suppName: r.supp_name,
+      itemCode: r.item_code,
+      itemNameTH: r.item_name_th,
+      qty: r.qty,
+      mainUnit: r.main_unit,
+      totalPrice: r.total_price,
+    })),
+    pagination: {
+      page,
+      pageSize,
+      totalRows,
+      totalPages: Math.max(1, Math.ceil(totalRows / pageSize)),
+    },
   };
+}
+
+export function reportRowsToCsv(
+  rows: Array<{
+    no?: number;
+    date: string;
+    suppName: string;
+    itemNameTH: string;
+    qty: number | string;
+    mainUnit: string;
+    totalPrice: number | string;
+  }>
+) {
+  const header = "no,date,shop,item,qty,unit,total_price";
+  const lines = rows.map((r) => {
+    const qty = String(r.qty).replace(/"/g, '""');
+    const shop = String(r.suppName).replace(/"/g, '""');
+    const item = String(r.itemNameTH).replace(/"/g, '""');
+    return `${r.no ?? ""},${r.date},"${shop}","${item}",${qty},${r.mainUnit},${r.totalPrice}`;
+  });
+  return [header, ...lines].join("\n");
 }

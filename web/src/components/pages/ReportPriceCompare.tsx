@@ -1,9 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
+import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { fmt, formatAppDate } from "@/lib/utils/format";
+import type { Supplier } from "@/lib/types";
+
+ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend);
 
 interface PriceHistRow {
   id: number;
@@ -18,6 +32,7 @@ interface PriceHistRow {
 interface IntakePoint {
   date: string;
   suppCode: string;
+  suppName?: string;
   itemCode: string;
   itemNameTH: string;
   mainUnit: string;
@@ -34,14 +49,16 @@ export function ReportPriceCompare(props: {
   suppCode: string;
   itemCode: string;
   active: boolean;
+  suppliers: Supplier[];
 }) {
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const [priceHistory, setPriceHistory] = useState<PriceHistRow[]>([]);
   const [intakePoints, setIntakePoints] = useState<IntakePoint[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!props.active) return;
+    setLoaded(false);
     const params = new URLSearchParams();
     if (props.dateFrom) params.set("dateFrom", props.dateFrom);
     if (props.dateTo) params.set("dateTo", props.dateTo);
@@ -63,39 +80,78 @@ export function ReportPriceCompare(props: {
       .catch(() => setLoaded(true));
   }, [props.active, props.dateFrom, props.dateTo, props.suppCode, props.itemCode]);
 
+  const priceChart = useMemo(() => {
+    const points = [...intakePoints].sort((a, b) => a.date.localeCompare(b.date));
+    if (!points.length) return null;
+    return {
+      labels: points.map((p) => formatAppDate(p.date, locale)),
+      datasets: [
+        {
+          label: t("report.intake"),
+          data: points.map((p) => p.unitPrice),
+          borderColor: "rgba(26,107,181,.95)",
+          backgroundColor: "rgba(26,107,181,.2)",
+          pointRadius: 4,
+          tension: 0.2,
+        },
+        {
+          label: t("report.standard"),
+          data: points.map((p) => p.standardPriceAtSave ?? null),
+          borderColor: "rgba(120,90,180,.85)",
+          borderDash: [6, 4],
+          pointRadius: 2,
+          tension: 0.1,
+        },
+      ],
+    };
+  }, [intakePoints, locale, t]);
+
+  function shopLabel(code: string) {
+    const s = props.suppliers.find((x) => x.code === code);
+    return s ? supplierDisplayName(s, locale) : code;
+  }
+
   if (!props.active || !loaded) return null;
 
-  const unitChanges = new Map<string, string>();
-  intakePoints.forEach((p) => {
-    const key = `${p.itemCode}|${p.suppCode}`;
-    const label = `${p.mainUnit} → ${p.subUnit} (×${p.convertRate})`;
-    const prev = unitChanges.get(key);
-    if (prev && prev !== label) {
-      unitChanges.set(key, `${prev} → ${label}`);
-    } else if (!prev) {
-      unitChanges.set(key, label);
-    }
-  });
-
   return (
-    <div className="card">
+    <div className="card report-price-compare">
       <div className="card-title">
         <span className="dot dot-orange" />
-        <span>เปรียบเทียบราคาและหน่วย (ประวัติ)</span>
+        <span>{t("report.priceCompare")}</span>
       </div>
+
+      {priceChart && (
+        <>
+          <p className="lbl" style={{ marginBottom: 8 }}>
+            {t("report.priceTrend")}
+          </p>
+          <Line
+            data={priceChart}
+            options={{
+              responsive: true,
+              plugins: { legend: { position: "top" } },
+              scales: {
+                y: {
+                  ticks: { callback: (v) => "₩" + fmt(Number(v)) },
+                },
+              },
+            }}
+          />
+        </>
+      )}
 
       {priceHistory.length > 0 && (
         <>
-          <p className="lbl" style={{ marginBottom: 8 }}>
-            ประวัติราคามาตรฐาน / ราคารับล่าสุด
+          <p className="lbl" style={{ margin: "16px 0 8px" }}>
+            {t("report.priceHistory")}
           </p>
           <div className="tbl-scroll">
             <table className="dtbl">
               <thead>
                 <tr>
-                  <th>วันที่</th>
-                  <th>ร้าน</th>
-                  <th>สินค้า</th>
+                  <th>{t("report.dateFrom")}</th>
+                  <th>{t("report.shop")}</th>
+                  <th>{t("report.item")}</th>
                   <th>ประเภท</th>
                   <th>แหล่ง</th>
                   <th>ราคา/หน่วย (₩)</th>
@@ -105,10 +161,16 @@ export function ReportPriceCompare(props: {
                 {priceHistory.map((r) => (
                   <tr key={r.id}>
                     <td>{r.recordedAt.slice(0, 10)}</td>
-                    <td>{r.suppCode}</td>
+                    <td>{shopLabel(r.suppCode)}</td>
                     <td>{r.itemCode}</td>
-                    <td>{r.priceKind === "standard" ? "มาตรฐาน" : "รับล่าสุด"}</td>
-                    <td>{r.source === "manual" ? "ตั้งค่า" : "รับสินค้า"}</td>
+                    <td>
+                      {r.priceKind === "standard"
+                        ? t("report.standard")
+                        : t("report.lastPurchase")}
+                    </td>
+                    <td>
+                      {r.source === "manual" ? t("report.manual") : t("report.intake")}
+                    </td>
                     <td className="gval">₩{fmt(r.unitPrice)}</td>
                   </tr>
                 ))}
@@ -121,18 +183,18 @@ export function ReportPriceCompare(props: {
       {intakePoints.length > 0 && (
         <>
           <p className="lbl" style={{ margin: "16px 0 8px" }}>
-            ราคาจริงต่อครั้งที่รับ (จาก snapshot)
+            {t("report.intakePrices")}
           </p>
           <div className="tbl-scroll">
             <table className="dtbl">
               <thead>
                 <tr>
-                  <th>วันที่</th>
-                  <th>สินค้า</th>
+                  <th>{t("report.dateFrom")}</th>
+                  <th>{t("report.item")}</th>
                   <th>หน่วย</th>
-                  <th>ราคามาตรฐาน ณ วันรับ</th>
-                  <th>ราคา/หน่วย จริง</th>
-                  <th>ยอดรวม</th>
+                  <th>{t("report.standard")}</th>
+                  <th>{t("report.intake")}</th>
+                  <th>{t("report.value")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,15 +220,8 @@ export function ReportPriceCompare(props: {
         </>
       )}
 
-      {[...unitChanges.entries()].filter(([, v]) => v.includes("→") && v.split("→").length > 2).length >
-        0 && (
-        <p style={{ marginTop: 12, fontSize: 13, opacity: 0.85 }}>
-          ตรวจพบการเปลี่ยนหน่วยในช่วงที่เลือก — ดูคอลัมน์หน่วยในตารางด้านบน
-        </p>
-      )}
-
       {!priceHistory.length && !intakePoints.length && (
-        <p className="empty">ไม่มีข้อมูลเปรียบเทียบในช่วงที่เลือก</p>
+        <p className="empty">{t("report.noData")}</p>
       )}
     </div>
   );

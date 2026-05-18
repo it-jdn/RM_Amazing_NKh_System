@@ -5,6 +5,33 @@ function aggregateKey(t: TransactionRow) {
   return intakeRowKey(t.itemCode, String(t.mainUnit || "").trim());
 }
 
+function isNewerSavedAt(a?: string, b?: string) {
+  if (!b) return false;
+  if (!a) return true;
+  return String(b) > String(a);
+}
+
+/** บันทึกล่าสุดในกลุ่มแถว (ใช้แสดงผู้บันทึก/เวลาในประวัติ) */
+export function latestTransactionAudit(rows: TransactionRow[]): {
+  savedAt?: string;
+  savedByName?: string;
+} | null {
+  let best: TransactionRow | null = null;
+  for (const r of rows) {
+    if (!r.savedAt && !r.savedByName) continue;
+    if (!best || isNewerSavedAt(best.savedAt, r.savedAt)) best = r;
+  }
+  if (!best) return null;
+  return { savedAt: best.savedAt, savedByName: best.savedByName };
+}
+
+function applyLatestAudit(target: TransactionRow, incoming: TransactionRow) {
+  if (isNewerSavedAt(target.savedAt, incoming.savedAt)) {
+    target.savedAt = incoming.savedAt;
+    target.savedByName = incoming.savedByName;
+  }
+}
+
 /** รวมหลายบันทึกของสินค้า+หน่วยเดียวกัน (วัน+ร้านเดียวกัน) เป็นยอดเดียว */
 export function aggregateTransactionsByItem(rows: TransactionRow[]): TransactionRow[] {
   const map = new Map<string, { row: TransactionRow; notes: string[] }>();
@@ -40,6 +67,7 @@ export function aggregateTransactionsByItem(rows: TransactionRow[]): Transaction
         : cur.row.unitPrice;
     if (t.note?.trim()) cur.notes.push(t.note.trim());
     cur.row.note = [...new Set(cur.notes)].join("; ");
+    applyLatestAudit(cur.row, t);
   }
 
   return Array.from(map.values()).map((c) => c.row);

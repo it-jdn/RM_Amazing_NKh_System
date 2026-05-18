@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { buildDisplayName, sanitizeUserNamePart } from "@/lib/users/display-name";
 import { mapUserRow, type AppUserRow } from "@/lib/users/db";
 import { hashPin, validatePin } from "@/lib/users/pin";
+import { assertPinUniqueInRole } from "@/lib/users/pin-uniqueness";
 import type { AppRole } from "@/lib/types";
 
 export async function GET() {
@@ -46,10 +47,13 @@ export async function POST(req: NextRequest) {
     const pinErr = validatePin(pin);
     if (pinErr) return jsonError(pinErr);
 
+    const supabase = createAdminClient();
+    const dupErr = await assertPinUniqueInRole(supabase, pin, role);
+    if (dupErr) return jsonError(dupErr);
+
     const pin_hash = await hashPin(pin);
     const display_name = buildDisplayName(firstName, lastName);
 
-    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("app_users")
       .insert({

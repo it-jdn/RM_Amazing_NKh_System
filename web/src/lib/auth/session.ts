@@ -47,7 +47,7 @@ export const ROLE_PAGES: Record<string, AppRole[]> = {
   "/history": ["operator", "admin", "manager"],
   "/intake": ["operator", "admin", "manager"],
   "/admin": ["admin", "manager"],
-  "/report": ["manager"],
+  "/report": ["manager", "admin"],
 };
 
 export function roleCanAccess(path: string, role: AppRole): boolean {
@@ -81,6 +81,9 @@ export function roleCanAccessApi(pathname: string, role: AppRole): boolean {
   }
   if (pathname.startsWith("/api/admin/units")) {
     return role === "admin";
+  }
+  if (pathname.startsWith("/api/units/pairs")) {
+    return role === "operator" || role === "admin" || role === "manager";
   }
   if (pathname.startsWith("/api/units")) {
     return role === "admin" || role === "manager";

@@ -29,7 +29,10 @@ import { extractSlipNoteFromRows } from "@/lib/domain/intake-slip-note";
 import { IntakeSlipStatusBar, type IntakeSlipStatus } from "@/components/intake/IntakeSlipStatusBar";
 import { IntakeStaleSaveModal } from "@/components/intake/IntakeStaleSaveModal";
 import { IntakeUnsavedNavigateModal } from "@/components/intake/IntakeUnsavedNavigateModal";
+import { UnitSelectFields } from "@/components/pages/admin/UnitSelectFields";
 import { AppDateField } from "@/components/ui/AppDateField";
+import { unitDisplayName } from "@/lib/i18n/unit-display-name";
+import type { UnitPairHint } from "@/lib/types";
 import { useModalLayer } from "@/hooks/useModalLayer";
 import { fmt, todayISO } from "@/lib/utils/format";
 import {
@@ -59,7 +62,7 @@ type SlipMetaResponse = {
 };
 
 export function IntakeView() {
-  const { suppliers, items, mapping, purchaseUnits, itemPurchaseStandards, reload, role } =
+  const { suppliers, items, mapping, purchaseUnits, itemPurchaseStandards, units, reload, role } =
     useAppData();
   const activeSuppliers = useMemo(
     () => sortSuppliersForPicker(suppliers.filter((s) => s.active !== false)),
@@ -89,11 +92,65 @@ export function IntakeView() {
     nameTH: "",
     nameEN: "",
     nameKR: "",
-    main: "",
-    sub: "",
+    mainUnitCode: "",
+    subUnitCode: "",
     conv: "1",
     price: "",
   });
+  const [qaPairHints, setQaPairHints] = useState<UnitPairHint[]>([]);
+
+  const qaMainUnits = useMemo(
+    () =>
+      [...units].sort(
+        (a, b) => b.usageCountMain - a.usageCountMain || a.nameTH.localeCompare(b.nameTH, "th")
+      ),
+    [units]
+  );
+  const qaSubUnits = useMemo(() => {
+    const hintScore = (code: string) =>
+      qaPairHints.find((p) => p.subUnitCode === code)?.useCount ?? 0;
+    return [...units].sort(
+      (a, b) =>
+        hintScore(b.unitCode) - hintScore(a.unitCode) ||
+        b.usageCountSub - a.usageCountSub ||
+        a.nameTH.localeCompare(b.nameTH, "th")
+    );
+  }, [units, qaPairHints]);
+
+  const loadQaPairHints = useCallback(async () => {
+    if (!qa.mainUnitCode) {
+      setQaPairHints([]);
+      return;
+    }
+    const params = new URLSearchParams({ mainUnitCode: qa.mainUnitCode });
+    if (suppSel) params.set("suppCode", suppSel);
+    try {
+      const res = await apiGet<{ success: boolean; pairs: UnitPairHint[] }>(
+        `/api/units/pairs?${params}`
+      );
+      if (res.success) setQaPairHints(res.pairs);
+    } catch {
+      setQaPairHints([]);
+    }
+  }, [qa.mainUnitCode, suppSel]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    setQa({
+      nameTH: "",
+      nameEN: "",
+      nameKR: "",
+      mainUnitCode: "",
+      subUnitCode: "",
+      conv: "1",
+      price: "",
+    });
+    setQaPairHints([]);
+  }, [showModal]);
+
+  useEffect(() => {
+    if (showModal) void loadQaPairHints();
+  }, [showModal, loadQaPairHints]);
 
   useModalLayer({ open: showModal, onClose: () => setShowModal(false) });
 
@@ -477,7 +534,13 @@ export function IntakeView() {
   }
 
   async function quickAdd() {
-    if (!qa.nameTH || !qa.main || !qa.sub) {
+    if (!qa.nameTH.trim() || !qa.mainUnitCode || !qa.subUnitCode) {
+      toast(t("intake.toastQaRequired"));
+      return;
+    }
+    const mainU = units.find((u) => u.unitCode === qa.mainUnitCode);
+    const subU = units.find((u) => u.unitCode === qa.subUnitCode);
+    if (!mainU || !subU) {
       toast(t("intake.toastQaRequired"));
       return;
     }
@@ -487,13 +550,23 @@ export function IntakeView() {
         itemNameTH: qa.nameTH,
         itemNameEN: qa.nameEN,
         itemNameKR: qa.nameKR,
-        mainUnit: qa.main,
-        subUnit: qa.sub,
+        mainUnitCode: qa.mainUnitCode,
+        subUnitCode: qa.subUnitCode,
+        mainUnit: unitDisplayName(mainU, locale),
+        subUnit: unitDisplayName(subU, locale),
         convertRate: qa.conv,
         unitPrice: qa.price,
       });
       toast(r.message);
-      setQa({ nameTH: "", nameEN: "", nameKR: "", main: "", sub: "", conv: "1", price: "" });
+      setQa({
+        nameTH: "",
+        nameEN: "",
+        nameKR: "",
+        mainUnitCode: "",
+        subUnitCode: "",
+        conv: "1",
+        price: "",
+      });
       setShowModal(false);
       await reload();
     } catch (e) {
@@ -715,11 +788,27 @@ export function IntakeView() {
                 <QaField label={t("intake.nameEn")} value={qa.nameEN} onChange={(v) => setQa({ ...qa, nameEN: v })} />
                 <QaField label={t("intake.nameKr")} value={qa.nameKR} onChange={(v) => setQa({ ...qa, nameKR: v })} />
               </div>
-              <div className="form-row c3">
-                <QaField label={t("intake.mainUnit")} value={qa.main} onChange={(v) => setQa({ ...qa, main: v })} />
-                <QaField label={t("intake.subUnit")} value={qa.sub} onChange={(v) => setQa({ ...qa, sub: v })} />
-                <QaField label={t("intake.convert")} value={qa.conv} onChange={(v) => setQa({ ...qa, conv: v })} type="number" />
-              </div>
+              {units.length === 0 ? (
+                <p className="hint intake-qa-units-hint">{t("intake.toastNoUnits")}</p>
+              ) : (
+                <UnitSelectFields
+                  mainUnits={qaMainUnits}
+                  subUnits={qaSubUnits}
+                  pairHints={qaPairHints}
+                  aMain={qa.mainUnitCode}
+                  setAMain={(code) => setQa({ ...qa, mainUnitCode: code })}
+                  aSub={qa.subUnitCode}
+                  setASub={(code) => setQa({ ...qa, subUnitCode: code })}
+                  aConv={qa.conv}
+                  setAConv={(v) => setQa({ ...qa, conv: v })}
+                  labels={{
+                    mainUnit: t("intake.mainUnit"),
+                    subUnit: t("intake.subUnit"),
+                    convert: t("intake.convert"),
+                    select: t("intake.selectUnit"),
+                  }}
+                />
+              )}
               <div className="form-row">
                 <QaField label={t("intake.unitPriceWon")} value={qa.price} onChange={(v) => setQa({ ...qa, price: v })} type="number" />
               </div>

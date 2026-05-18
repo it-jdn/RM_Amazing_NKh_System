@@ -3,6 +3,8 @@ import { requireSession } from "@/lib/auth/api";
 import { jsonError, jsonOk } from "@/lib/api/response";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapUserRow, type AppUserRow } from "@/lib/users/db";
+import { assertPinUniqueInRole } from "@/lib/users/pin-uniqueness";
+import type { AppRole } from "@/lib/types";
 
 export async function GET() {
   const auth = await requireSession();
@@ -31,7 +33,7 @@ export async function PATCH(req: NextRequest) {
 
     const { data: row, error: loadErr } = await supabase
       .from("app_users")
-      .select("pin_hash")
+      .select("pin_hash, role")
       .eq("id", auth.session.userId)
       .maybeSingle();
 
@@ -55,6 +57,14 @@ export async function PATCH(req: NextRequest) {
       const ok = await verifyPin(currentPin, row.pin_hash);
       if (!ok) return jsonError("PIN ปัจจุบันไม่ถูกต้อง", 401);
     }
+
+    const dupErr = await assertPinUniqueInRole(
+      supabase,
+      newPin,
+      row.role as AppRole,
+      auth.session.userId
+    );
+    if (dupErr) return jsonError(dupErr);
 
     const pin_hash = await hashPin(newPin);
     const { error } = await supabase
