@@ -42,7 +42,7 @@ async function main() {
     process.exit(1);
   }
 
-  const files = [...MIGRATION_ORDER];
+  const files: string[] = [...MIGRATION_ORDER];
   if (includeSeedPins) {
     files.splice(1, 0, "002_seed_pins.sql");
   }

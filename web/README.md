@@ -56,12 +56,47 @@ Open **http://localhost:3000**
 
 If you see `ERR_CONNECTION_REFUSED`, ensure `npm run dev` is running from **`web/`** (not the repo root).
 
-## Deploy to Vercel
+## Deploy to Vercel (Production Phase 1)
 
-1. Push this repo to GitHub.
-2. Import project in [Vercel](https://vercel.com) — **Root Directory: `web`**.
-3. Add environment variables from `.env.local`.
-4. Deploy.
+### 1. Supabase production
+
+1. สร้างโปรเจกต์ Supabase ใหม่ (แยกจาก dev) → รัน migration `001`–`012` ใน SQL Editor  
+   หรือใส่ `DATABASE_URL` แล้วรัน `DEPLOY_ENV=production npm run db:migrate`
+2. คัดลอก `web/.env.production.example` → `web/.env.production.local` แล้วใส่ keys + `SESSION_SECRET` ใหม่ (`openssl rand -base64 32`)
+3. เติมข้อมูลครั้งแรก:
+
+```bash
+cd web
+DEPLOY_ENV=production npm run deploy:verify    # ตรวจตาราง
+DEPLOY_ENV=production npm run deploy:setup     # seed + import CSV (โปรเจกต์ว่าง)
+# หรือแยกทีละคำสั่ง: seed:pins, import:csv, import:transactions
+```
+
+### 2. GitHub
+
+จาก root repo (`RM_Amazing_NKh_System/`):
+
+```bash
+git remote add origin https://github.com/YOUR_ORG/RM_Amazing_NKh_System.git
+git push -u origin main
+```
+
+### 3. Vercel
+
+1. [vercel.com/new](https://vercel.com/new) → Import repo → **Root Directory: `web`**
+2. Environment Variables (Production) — คัดลอกจากเครื่องคุณ:
+
+```bash
+cd web && DEPLOY_ENV=production npm run deploy:print-vercel-env
+```
+
+   ใส่ใน Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`, `TZ=Asia/Bangkok`
+3. Deploy → แจก URL `https://….vercel.app`
+
+### 4. หลัง deploy
+
+- เปลี่ยน PIN เริ่มต้น (1111/2222/3333) ที่ `/admin/users`
+- ทดสอบ `/login` → `/intake` → บันทึก → `/history` → `/report` (manager)
 
 ## Project structure
 
