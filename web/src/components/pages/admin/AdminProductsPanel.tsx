@@ -5,16 +5,24 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAppData } from "@/context/AppDataContext";
 import { AdminCatalogFilter } from "@/components/admin/AdminCatalogFilter";
+import { AdminItemsCatalogSortTh, ItemShopChips } from "@/components/admin/AdminItemsCatalogTableUi";
 import { apiPost } from "@/lib/api/client";
 import { apiSucceeded } from "@/lib/api/success";
 import { useToast } from "@/components/Toast";
 import { useLocale } from "@/context/LocaleContext";
+import { FALLBACK_ITEM_CATEGORIES } from "@/lib/catalog/item-categories";
+import {
+  itemCategoryLabel,
+  itemSubNames,
+  itemUnitSummary,
+  sortFilterItemsCatalog,
+  type ItemsCatalogSortKey,
+} from "@/lib/admin/items-catalog-list";
 import { filterItemsByShop } from "@/lib/domain/item-filter";
 import {
   buildItemShopCodesMap,
   itemLinkedShopNames,
 } from "@/lib/domain/item-linked-shops";
-import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { AdminItemShopUnitsEditor } from "@/components/admin/AdminItemShopUnitsEditor";
 import { AdminFormActions } from "@/components/admin/AdminSideForm";
 import { useAdminFormUnsaved } from "@/components/admin/AdminUnsavedChangesProvider";
@@ -28,18 +36,19 @@ import {
   type ShopCfg,
 } from "@/lib/admin/item-shop-units-config";
 
-function subNames(nameEN: string, nameKR: string) {
-  const parts = [nameEN, nameKR].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "—";
-}
-
-function compareItemCodes(a: string, b: string) {
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
-}
-
 export function AdminProductsPanel() {
-  const { suppliers, items, mapping, purchaseUnits, itemPurchaseStandards, units, reload, role } =
-    useAppData();
+  const {
+    suppliers,
+    items,
+    mapping,
+    purchaseUnits,
+    itemPurchaseStandards,
+    units,
+    itemCategories: categoriesFromApi,
+    reload,
+    role,
+  } = useAppData();
+  const itemCategories = categoriesFromApi.length ? categoriesFromApi : FALLBACK_ITEM_CATEGORIES;
   const { locale, t } = useLocale();
   const toast = useToast();
   const searchParams = useSearchParams();
@@ -51,14 +60,11 @@ export function AdminProductsPanel() {
   const [shopCfg, setShopCfg] = useState<Record<string, ShopCfg>>({});
   const [filterSupp, setFilterSupp] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<ItemsCatalogSortKey>("code");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [saving, setSaving] = useState(false);
   const [cfgBaseline, setCfgBaseline] = useState("");
   const [refreshAfterSaveCode, setRefreshAfterSaveCode] = useState<string | null>(null);
-
-  const filteredItems = useMemo(() => {
-    const list = filterItemsByShop(items, mapping, filterSupp);
-    return [...list].sort((a, b) => compareItemCodes(a.code, b.code));
-  }, [items, mapping, filterSupp]);
 
   const shopCodesByItem = useMemo(() => buildItemShopCodesMap(mapping), [mapping]);
 
@@ -67,20 +73,50 @@ export function AdminProductsPanel() {
     [shopCodesByItem, suppliers, locale]
   );
 
-  const displayedItems = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return filteredItems;
-    return filteredItems.filter((i) => {
-      const shops = linkedShopNames(i.code).join(" ").toLowerCase();
-      return (
-        i.code.toLowerCase().includes(q) ||
-        i.nameTH.toLowerCase().includes(q) ||
-        i.nameEN.toLowerCase().includes(q) ||
-        i.nameKR.toLowerCase().includes(q) ||
-        shops.includes(q)
-      );
-    });
-  }, [filteredItems, searchQuery, linkedShopNames]);
+  const noShopsLabel = t("admin.items.noShops");
+
+  function handleSort(column: ItemsCatalogSortKey) {
+    if (sortKey === column) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(column);
+      setSortDir("asc");
+    }
+  }
+
+  const displayedItems = useMemo(
+    () =>
+      sortFilterItemsCatalog({
+        items,
+        mapping,
+        filterSupp,
+        searchQuery,
+        sortKey,
+        sortDir,
+        itemCategories,
+        locale,
+        units,
+        linkedShopNames,
+        noShopsLabel,
+      }),
+    [
+      items,
+      mapping,
+      filterSupp,
+      searchQuery,
+      sortKey,
+      sortDir,
+      itemCategories,
+      locale,
+      units,
+      linkedShopNames,
+      noShopsLabel,
+    ]
+  );
+
+  const filteredItems = useMemo(
+    () => filterItemsByShop(items, mapping, filterSupp),
+    [items, mapping, filterSupp]
+  );
 
   const dirty = !!editCode && JSON.stringify(shopCfg) !== cfgBaseline;
 
@@ -282,12 +318,47 @@ export function AdminProductsPanel() {
           />
           {displayedItems.length ? (
             <div className="admin-shop-table-wrap">
-              <table className="admin-shop-table admin-shop-table--cards">
+              <table className="admin-shop-table admin-shop-table--cards admin-items-table">
                 <thead>
                   <tr>
                     <th className="admin-shop-table__order-h">{t("admin.table.rowCol")}</th>
-                    <th>{t("admin.items.code")}</th>
-                    <th>{t("admin.items.nameTh")}</th>
+                    <AdminItemsCatalogSortTh
+                      label={t("admin.items.code")}
+                      column="code"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                    <AdminItemsCatalogSortTh
+                      label={t("admin.items.nameTh")}
+                      column="nameTH"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                    <AdminItemsCatalogSortTh
+                      label={t("admin.items.categoryCol")}
+                      column="category"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                    <AdminItemsCatalogSortTh
+                      label={t("admin.items.shopsCol")}
+                      column="shops"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="admin-items-table__shops"
+                    />
+                    <AdminItemsCatalogSortTh
+                      label={t("admin.items.unitsCol")}
+                      column="units"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="admin-items-table__units"
+                    />
                     <th className="admin-items-table__sub">{t("admin.items.namesSub")}</th>
                     <th />
                   </tr>
@@ -306,10 +377,31 @@ export function AdminProductsPanel() {
                       </td>
                       <td data-label={t("admin.items.nameTh")}>{i.nameTH}</td>
                       <td
+                        className="admin-shop-table__sub"
+                        data-label={t("admin.items.categoryCol")}
+                      >
+                        {itemCategoryLabel(i.categoryCode, itemCategories, locale)}
+                      </td>
+                      <td
+                        className="admin-items-table__shops"
+                        data-label={t("admin.items.shopsCol")}
+                      >
+                        <ItemShopChips
+                          names={linkedShopNames(i.code)}
+                          emptyLabel={noShopsLabel}
+                        />
+                      </td>
+                      <td
+                        className="admin-shop-table__sub admin-items-table__units"
+                        data-label={t("admin.items.unitsCol")}
+                      >
+                        {itemUnitSummary(i, units, locale)}
+                      </td>
+                      <td
                         className="admin-shop-table__sub admin-items-table__sub"
                         data-label={t("admin.items.namesSub")}
                       >
-                        {subNames(i.nameEN, i.nameKR)}
+                        {itemSubNames(i.nameEN, i.nameKR)}
                       </td>
                       <td className="admin-shop-table__actions" data-label="">
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => tryLoadProduct(i.code)}>
