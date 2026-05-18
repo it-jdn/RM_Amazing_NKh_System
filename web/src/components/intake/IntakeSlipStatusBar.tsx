@@ -1,6 +1,7 @@
 "use client";
 
 import { DeleteIntakeBatchButton } from "@/components/intake/DeleteIntakeBatchButton";
+import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import { IconRefresh } from "@/components/icons/AppIcons";
 import { useLocale } from "@/context/LocaleContext";
 import { formatAppDateTime } from "@/lib/utils/format";
@@ -18,6 +19,8 @@ type Props = {
   hasDuplicateRows: boolean;
   role: AppRole;
   suppCode: string;
+  loading?: boolean;
+  saving?: boolean;
   reloading: boolean;
   onReload: () => void;
   onReset: () => void;
@@ -35,6 +38,8 @@ export function IntakeSlipStatusBar({
   intakeDate,
   suppCode,
   shopName,
+  loading,
+  saving,
   reloading,
   onReload,
   onReset,
@@ -43,26 +48,43 @@ export function IntakeSlipStatusBar({
 }: Props) {
   const { locale, t } = useLocale();
 
-  const statusLabel =
-    status === "saved"
-      ? t("intake.slipStatus.saved")
-      : status === "modified"
-        ? t("intake.slipStatus.modified")
-        : status === "draft"
-          ? t("intake.slipStatus.draft")
-          : t("intake.slipStatus.new");
+  const effectiveStatus = saving ? "saving" : loading ? "loading" : status;
 
-  const showReload = status !== "new" || showSavedActions;
+  const statusLabel =
+    effectiveStatus === "saving"
+      ? t("intake.slipStatus.saving")
+      : effectiveStatus === "loading"
+        ? t("intake.slipStatus.loading")
+        : effectiveStatus === "saved"
+          ? t("intake.slipStatus.saved")
+          : effectiveStatus === "modified"
+            ? t("intake.slipStatus.modified")
+            : effectiveStatus === "draft"
+              ? t("intake.slipStatus.draft")
+              : t("intake.slipStatus.new");
+
+  const showReload = !loading && !saving && (status !== "new" || showSavedActions);
 
   return (
-    <div className="intake-slip-bar" role="status" aria-live="polite">
+    <div
+      className={`intake-slip-bar intake-slip-bar--prominent intake-slip-bar--${effectiveStatus}`}
+      role="status"
+      aria-live="polite"
+      aria-busy={loading || saving || undefined}
+    >
       <div className="intake-slip-bar__row">
-        <div className="intake-slip-bar__status">
-          <span className={`intake-slip-status__dot intake-slip-status__dot--${status}`} aria-hidden />
-          <span className="intake-slip-status__text">{statusLabel}</span>
-          {status !== "new" ? (
-            <span className="intake-slip-bar__count">{t("intake.products", { n: productCount })}</span>
-          ) : null}
+        <div className="intake-slip-bar__main-col">
+          <p className="intake-slip-bar__shop">{shopName}</p>
+          <div className="intake-slip-bar__status">
+            <span
+              className={`intake-slip-status__dot intake-slip-status__dot--${effectiveStatus}`}
+              aria-hidden
+            />
+            <span className="intake-slip-status__text">{statusLabel}</span>
+            {!loading && !saving && status !== "new" ? (
+              <span className="intake-slip-bar__count">{t("intake.products", { n: productCount })}</span>
+            ) : null}
+          </div>
         </div>
         <div className="intake-slip-bar__tools">
           {showReload ? (
@@ -77,7 +99,7 @@ export function IntakeSlipStatusBar({
               <IconRefresh size={18} className={reloading ? "intake-icon-btn__spin" : undefined} />
             </button>
           ) : null}
-          {showSavedActions ? (
+          {showSavedActions && !loading && !saving ? (
             <>
               <button type="button" className="intake-slip-link" onClick={onReset}>
                 {t("intake.resetForm")}
@@ -94,7 +116,12 @@ export function IntakeSlipStatusBar({
           ) : null}
         </div>
       </div>
-      {savedAt ? (
+
+      {loading ? (
+        <IntakeLoadPanel message={t("intake.slipStatus.loadingDetail")} compact />
+      ) : null}
+
+      {!loading && savedAt ? (
         <p className="intake-slip-bar__meta">
           {t("intake.savedMeta", {
             when: formatAppDateTime(savedAt, locale),
@@ -102,7 +129,10 @@ export function IntakeSlipStatusBar({
           })}
         </p>
       ) : null}
-      {hasDuplicateRows ? <p className="intake-slip-bar__warn">{t("intake.duplicateRowsWarning")}</p> : null}
+
+      {!loading && hasDuplicateRows ? (
+        <p className="intake-slip-bar__warn">{t("intake.duplicateRowsWarning")}</p>
+      ) : null}
     </div>
   );
 }

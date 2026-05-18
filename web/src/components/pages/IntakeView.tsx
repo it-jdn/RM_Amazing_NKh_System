@@ -27,6 +27,7 @@ import {
 import { isServerSlipNewer, maxSavedAtFromRows } from "@/lib/domain/intake-slip";
 import { extractSlipNoteFromRows } from "@/lib/domain/intake-slip-note";
 import { IntakeDayOverview } from "@/components/intake/IntakeDayOverview";
+import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import { IntakeSlipStatusBar, type IntakeSlipStatus } from "@/components/intake/IntakeSlipStatusBar";
 import { IntakeStaleSaveModal } from "@/components/intake/IntakeStaleSaveModal";
 import { IntakeUnsavedNavigateModal } from "@/components/intake/IntakeUnsavedNavigateModal";
@@ -88,6 +89,7 @@ export function IntakeView() {
   const [showStaleSave, setShowStaleSave] = useState(false);
   const [staleMeta, setStaleMeta] = useState({ maxSavedAt: "", savedByName: "" });
   const [reloadingSlip, setReloadingSlip] = useState(false);
+  const [loadingSlip, setLoadingSlip] = useState(false);
   const [saving, setSaving] = useState(false);
   const [qa, setQa] = useState({
     nameTH: "",
@@ -207,6 +209,7 @@ export function IntakeView() {
 
   const loadExisting = useCallback(async () => {
     if (!suppSel || !intakeDate) return;
+    setLoadingSlip(true);
     try {
       const d = await apiGet<{ success: boolean; rows: TransactionRow[] }>(
         `/api/transactions?dateFrom=${intakeDate}&dateTo=${intakeDate}&suppCode=${suppSel}`
@@ -270,6 +273,8 @@ export function IntakeView() {
       setSlipSnapshotAt(maxSavedAtFromRows(rows as TransactionRow[]));
     } catch {
       /* ignore */
+    } finally {
+      setLoadingSlip(false);
     }
   }, [suppSel, intakeDate, mapping, purchaseUnits, itemPurchaseStandards]);
 
@@ -579,6 +584,59 @@ export function IntakeView() {
   const shopName = selectedSupp ? supplierDisplayName(selectedSupp, locale) : suppSel;
   const wrapClass = `wrap intake-page${suppSel ? " wrap--with-sticky-save" : ""}`;
 
+  const slipStatusLabel =
+    saving
+      ? t("intake.slipStatus.saving")
+      : loadingSlip
+        ? t("intake.slipStatus.loading")
+        : slipStatus === "saved"
+          ? t("intake.slipStatus.saved")
+          : slipStatus === "modified"
+            ? t("intake.slipStatus.modified")
+            : slipStatus === "draft"
+              ? t("intake.slipStatus.draft")
+              : t("intake.slipStatus.new");
+
+  const slipStatusChipClass = saving
+    ? "saving"
+    : loadingSlip
+      ? "loading"
+      : slipStatus;
+
+  function renderSlipStatusBar() {
+    if (!suppSel) return null;
+    return (
+      <IntakeSlipStatusBar
+        status={slipStatus}
+        shopName={shopName}
+        intakeDate={intakeDate}
+        savedAt={lastAudit?.savedAt}
+        savedByName={lastAudit?.savedByName}
+        productCount={slipProductCount}
+        hasDuplicateRows={hasDuplicateRows}
+        role={role}
+        suppCode={suppSel}
+        loading={loadingSlip}
+        saving={saving}
+        reloading={reloadingSlip}
+        onReload={() => void reloadLatest()}
+        onReset={() => {
+          if (!confirm(t("intake.resetConfirm"))) return;
+          void loadExisting();
+        }}
+        onDeleted={() => {
+          setRowVals({});
+          setSlipNote("");
+          setExistingTxns([]);
+          setBaselineVals({});
+          setBaselineSlipNote("");
+          setSlipSnapshotAt("");
+        }}
+        showSavedActions={existingTxns.length > 0}
+      />
+    );
+  }
+
   return (
     <div className={wrapClass}>
       <div className="card intake-setup-card intake-desktop-only">
@@ -622,36 +680,7 @@ export function IntakeView() {
           setSuppSel={(v) => requestNavigate({ kind: "supp", value: v })}
           suppliers={activeSuppliers}
         />
-        {suppSel ? (
-          <>
-            <IntakeSlipStatusBar
-              status={slipStatus}
-              shopName={shopName}
-              intakeDate={intakeDate}
-              savedAt={lastAudit?.savedAt}
-              savedByName={lastAudit?.savedByName}
-              productCount={slipProductCount}
-              hasDuplicateRows={hasDuplicateRows}
-              role={role}
-              suppCode={suppSel}
-              reloading={reloadingSlip}
-              onReload={() => void reloadLatest()}
-              onReset={() => {
-                if (!confirm(t("intake.resetConfirm"))) return;
-                void loadExisting();
-              }}
-              onDeleted={() => {
-                setRowVals({});
-                setSlipNote("");
-                setExistingTxns([]);
-                setBaselineVals({});
-                setBaselineSlipNote("");
-                setSlipSnapshotAt("");
-              }}
-              showSavedActions={existingTxns.length > 0}
-            />
-          </>
-        ) : null}
+        {suppSel ? renderSlipStatusBar() : null}
       </div>
 
       {!suppSel ? (
@@ -667,6 +696,18 @@ export function IntakeView() {
         <>
 
           <p className="intake-hint intake-hint--desktop">{t("intake.hint")}</p>
+
+          <div className="intake-desktop-only intake-slip-bar-wrap">{renderSlipStatusBar()}</div>
+
+          <div
+            className={`intake-form-body${loadingSlip ? " intake-form-body--loading" : ""}`}
+            aria-busy={loadingSlip || saving || undefined}
+          >
+            {loadingSlip ? (
+              <div className="intake-form-load-overlay">
+                <IntakeLoadPanel message={t("intake.slipStatus.loadingDetail")} />
+              </div>
+            ) : null}
 
           <div className="intake-mobile-only intake-cards-section">
             <IntakeItemCards
@@ -697,17 +738,26 @@ export function IntakeView() {
             <IntakeSlipNoteBar value={slipNote} onChange={setSlipNote} />
           </div>
 
+          </div>
+
           <IntakeStickyBar
             sumCount={sumCount}
             sumTotal={sumTotal}
             formFilled={formFilledCount}
             formTotal={filteredItems.length}
-            saving={saving}
+            saving={saving || loadingSlip}
             shopName={shopName}
             onSave={requestSave}
           />
 
           <div className="sum-bar sum-bar--desktop">
+            <div
+              className={`intake-slip-status-chip intake-slip-status-chip--${slipStatusChipClass}`}
+              role="status"
+            >
+              <span className="intake-slip-status-chip__dot" aria-hidden />
+              <span>{slipStatusLabel}</span>
+            </div>
             <div className="sum-item">
               <div style={{ fontSize: 10, opacity: 0.7 }}>{t("intake.rowsFilled")}</div>
               <div className="s-val">{sumCount}</div>
@@ -720,11 +770,11 @@ export function IntakeView() {
             <button
               type="button"
               className="btn btn-green"
-              disabled={saving}
+              disabled={saving || loadingSlip}
               onClick={requestSave}
               style={{ marginLeft: "auto" }}
             >
-              {saving ? t("intake.saving") : t("intake.save")}
+              {saving ? t("intake.saving") : loadingSlip ? t("intake.slipStatus.loading") : t("intake.save")}
             </button>
           </div>
         </>

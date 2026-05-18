@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
+import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import {
   aggregateDayByShop,
   type ShopDayRow,
@@ -72,6 +73,11 @@ export function IntakeDayOverview({
     [suppliers]
   );
 
+  const progressPct =
+    overview.totalShopCount > 0
+      ? Math.round((overview.savedShopCount / overview.totalShopCount) * 100)
+      : 0;
+
   function displayName(row: ShopDayRow) {
     const supp = suppByCode.get(row.suppCode);
     return supp ? supplierDisplayName(supp, locale) : row.suppName;
@@ -93,20 +99,57 @@ export function IntakeDayOverview({
           <span>{t("intake.dayOverview.title")}</span>
         </div>
         <p className="intake-day-overview__date">{formatAppDate(intakeDate, locale)}</p>
+
         {loading ? (
-          <p className="intake-day-overview__loading">{t("intake.dayOverview.loading")}</p>
+          <IntakeLoadPanel message={t("intake.dayOverview.loading")} />
         ) : error ? (
-          <p className="intake-day-overview__error">{t("intake.dayOverview.loadError")}</p>
+          <div className="intake-day-overview__error-box">
+            <p className="intake-day-overview__error">{t("intake.dayOverview.loadError")}</p>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadDay()}>
+              {t("intake.dayOverview.retry")}
+            </button>
+          </div>
         ) : (
-          <p className="intake-day-overview__summary">
-            {t("intake.dayOverview.summary", {
-              saved: overview.savedShopCount,
-              total: overview.totalShopCount,
-              amount: fmt(overview.dayTotal),
-            })}
-          </p>
+          <>
+            <div className="intake-day-overview__kpi-row">
+              <div className="intake-day-overview__kpi">
+                <span className="intake-day-overview__kpi-label">{t("intake.dayOverview.savedShops")}</span>
+                <span className="intake-day-overview__kpi-value">
+                  {overview.savedShopCount}/{overview.totalShopCount}
+                </span>
+              </div>
+              <div className="intake-day-overview__kpi intake-day-overview__kpi--total">
+                <span className="intake-day-overview__kpi-label">{t("intake.totalWon")}</span>
+                <span className="intake-day-overview__kpi-value">₩{fmt(overview.dayTotal)}</span>
+              </div>
+            </div>
+            <div className="intake-day-overview__progress" aria-hidden>
+              <div
+                className="intake-day-overview__progress-fill"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <p className="intake-day-overview__summary">
+              {t("intake.dayOverview.summary", {
+                saved: overview.savedShopCount,
+                total: overview.totalShopCount,
+                amount: fmt(overview.dayTotal),
+              })}
+            </p>
+          </>
         )}
       </div>
+
+      {loading ? (
+        <section className="intake-day-overview__section intake-day-overview__section--saved">
+          <h3 className="intake-day-overview__section-title">{t("intake.dayOverview.saved")}</h3>
+          <ul className="intake-day-overview__skeleton" aria-hidden>
+            {[1, 2, 3, 4].map((i) => (
+              <li key={i} className="intake-day-overview__skeleton-row" />
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {!loading && !error ? (
         <SavedShopSection
@@ -148,10 +191,13 @@ function SavedShopSection({
             <li key={row.suppCode}>
               <button
                 type="button"
-                className="intake-day-overview__row"
+                className="intake-day-overview__row intake-day-overview__row--saved"
                 onClick={() => onSelect(row.suppCode)}
               >
-                <span className="intake-day-overview__row-name">{displayName(row)}</span>
+                <span className="intake-day-overview__row-head">
+                  <span className="intake-day-overview__row-name">{displayName(row)}</span>
+                  <span className="intake-day-overview__badge">{t("intake.slipStatus.saved")}</span>
+                </span>
                 <span className="intake-day-overview__row-meta">
                   <span>
                     {t("intake.dayOverview.lines", { n: row.lineCount })}
