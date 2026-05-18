@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useLocale } from "@/context/LocaleContext";
+import { ITEM_FILTER_UNLINKED } from "@/lib/domain/item-filter";
 import { sortSuppliersForPicker } from "@/lib/domain/supplier-sort";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import type { Supplier } from "@/lib/types";
@@ -15,6 +16,8 @@ export function AdminCatalogFilter(props: {
   onSearchChange?: (query: string) => void;
   searchLabel?: string;
   searchPlaceholder?: string;
+  /** Show "not linked to any shop" filter option (items / products lists). */
+  showUnlinkedOption?: boolean;
 }) {
   const { locale, t } = useLocale();
   const sorted = useMemo(
@@ -51,6 +54,9 @@ export function AdminCatalogFilter(props: {
             onChange={(e) => props.onChange(e.target.value)}
           >
             <option value="">{t("admin.catalog.filterAll")}</option>
+            {props.showUnlinkedOption !== false ? (
+              <option value={ITEM_FILTER_UNLINKED}>{t("admin.catalog.filterUnlinked")}</option>
+            ) : null}
             {sorted.map((s) => (
               <option key={s.code} value={s.code}>
                 {supplierDisplayName(s, locale)}

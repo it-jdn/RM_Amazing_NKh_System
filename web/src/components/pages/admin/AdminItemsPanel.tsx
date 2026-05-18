@@ -69,6 +69,34 @@ function compareItemCodes(a: string, b: string) {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
 
+type ItemsSortKey = "code" | "nameTH" | "category" | "shops" | "units";
+
+function ItemsTableSortTh(props: {
+  label: string;
+  column: ItemsSortKey;
+  sortKey: ItemsSortKey;
+  sortDir: "asc" | "desc";
+  onSort: (column: ItemsSortKey) => void;
+  className?: string;
+}) {
+  const active = props.sortKey === props.column;
+  return (
+    <th className={props.className}>
+      <button
+        type="button"
+        className={`admin-table-sort${active ? ` admin-table-sort--active admin-table-sort--${props.sortDir}` : ""}`}
+        onClick={() => props.onSort(props.column)}
+        aria-sort={active ? (props.sortDir === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <span>{props.label}</span>
+        <span className="admin-table-sort__icon" aria-hidden>
+          {active ? (props.sortDir === "asc" ? "▲" : "▼") : "⇅"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 function categoryLabel(
   code: ItemCategoryCode,
   categories: { code: ItemCategoryCode; nameTH: string; nameEN: string; nameKR: string }[],
@@ -107,6 +135,8 @@ export function AdminItemsPanel() {
 
   const [filterSupp, setFilterSupp] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<ItemsSortKey>("code");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const [formCode, setFormCode] = useState("");
   const [formNameTH, setFormNameTH] = useState("");
@@ -178,27 +208,82 @@ export function AdminItemsPanel() {
     [shopCodesByItem, suppliers, locale]
   );
 
-  const filteredItems = useMemo(() => {
-    const list = filterItemsByShop(items, mapping, filterSupp);
-    return [...list].sort((a, b) => compareItemCodes(a.code, b.code));
-  }, [items, mapping, filterSupp]);
+  const filteredItems = useMemo(
+    () => filterItemsByShop(items, mapping, filterSupp),
+    [items, mapping, filterSupp]
+  );
+
+  const noShopsLabel = t("admin.items.noShops");
+
+  function handleSort(column: ItemsSortKey) {
+    if (sortKey === column) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(column);
+      setSortDir("asc");
+    }
+  }
 
   const displayedItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return filteredItems;
-    return filteredItems.filter((i) => {
-      const cat = categoryLabel(i.categoryCode, itemCategories, locale).toLowerCase();
-      const shops = linkedShopNames(i.code).join(" ").toLowerCase();
-      return (
-        i.code.toLowerCase().includes(q) ||
-        i.nameTH.toLowerCase().includes(q) ||
-        i.nameEN.toLowerCase().includes(q) ||
-        i.nameKR.toLowerCase().includes(q) ||
-        cat.includes(q) ||
-        shops.includes(q)
-      );
+    let list = q
+      ? filteredItems.filter((i) => {
+          const cat = categoryLabel(i.categoryCode, itemCategories, locale).toLowerCase();
+          const shops = linkedShopNames(i.code).join(" ").toLowerCase();
+          return (
+            i.code.toLowerCase().includes(q) ||
+            i.nameTH.toLowerCase().includes(q) ||
+            i.nameEN.toLowerCase().includes(q) ||
+            i.nameKR.toLowerCase().includes(q) ||
+            cat.includes(q) ||
+            shops.includes(q) ||
+            noShopsLabel.toLowerCase().includes(q)
+          );
+        })
+      : filteredItems;
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    list = [...list].sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "code":
+          cmp = compareItemCodes(a.code, b.code);
+          break;
+        case "nameTH":
+          cmp = a.nameTH.localeCompare(b.nameTH, locale, { sensitivity: "base" });
+          break;
+        case "category":
+          cmp = categoryLabel(a.categoryCode, itemCategories, locale).localeCompare(
+            categoryLabel(b.categoryCode, itemCategories, locale),
+            locale,
+            { sensitivity: "base" }
+          );
+          break;
+        case "shops": {
+          const av = linkedShopNames(a.code).join(" · ") || noShopsLabel;
+          const bv = linkedShopNames(b.code).join(" · ") || noShopsLabel;
+          cmp = av.localeCompare(bv, locale, { sensitivity: "base" });
+          break;
+        }
+        case "units":
+          cmp = unitSummary(a, units, locale).localeCompare(unitSummary(b, units, locale), locale, {
+            sensitivity: "base",
+          });
+          break;
+      }
+      return cmp * dir;
     });
-  }, [filteredItems, searchQuery, itemCategories, locale, linkedShopNames]);
+    return list;
+  }, [
+    filteredItems,
+    searchQuery,
+    sortKey,
+    sortDir,
+    itemCategories,
+    locale,
+    linkedShopNames,
+    units,
+    noShopsLabel,
+  ]);
 
   function resetForm() {
     setEditingCode(null);
@@ -498,11 +583,43 @@ export function AdminItemsPanel() {
                 <thead>
                   <tr>
                     <th className="admin-shop-table__order-h">{t("admin.table.rowCol")}</th>
-                    <th>{t("admin.items.code")}</th>
-                    <th>{t("admin.items.nameTh")}</th>
-                    <th>{t("admin.items.categoryCol")}</th>
-                    <th className="admin-items-table__shops">{t("admin.items.shopsCol")}</th>
-                    <th className="admin-items-table__units">{t("admin.items.unitsCol")}</th>
+                    <ItemsTableSortTh
+                      label={t("admin.items.code")}
+                      column="code"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                    <ItemsTableSortTh
+                      label={t("admin.items.nameTh")}
+                      column="nameTH"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                    <ItemsTableSortTh
+                      label={t("admin.items.categoryCol")}
+                      column="category"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                    <ItemsTableSortTh
+                      label={t("admin.items.shopsCol")}
+                      column="shops"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="admin-items-table__shops"
+                    />
+                    <ItemsTableSortTh
+                      label={t("admin.items.unitsCol")}
+                      column="units"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="admin-items-table__units"
+                    />
                     <th className="admin-items-table__sub">{t("admin.items.namesSub")}</th>
                     <th />
                   </tr>
