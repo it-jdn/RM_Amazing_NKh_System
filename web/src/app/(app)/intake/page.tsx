@@ -1,5 +1,5 @@
-import { IntakeView } from "@/components/pages/IntakeView";
+import { redirect } from "next/navigation";
 
 export default function IntakePage() {
-  return <IntakeView />;
+  redirect("/receiving");
 }

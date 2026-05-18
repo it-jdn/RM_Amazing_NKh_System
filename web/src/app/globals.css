@@ -1816,6 +1816,9 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     border-bottom: 1px solid #c5d9f7;
     border-radius: 12px;
   }
+  .intake-page:not(:has(.intake-cards-section)) .intake-day-overview {
+    margin-top: 0;
+  }
   .intake-context-panel .intake-slip-bar {
     margin: 8px 0 0;
     padding: 8px 0 6px;
@@ -3044,6 +3047,116 @@ input.intake-touch-input,
 }
 .intake-page .intake-form-top {
   gap: 12px;
+}
+.intake-day-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.intake-day-overview__header .card-title {
+  margin-bottom: 6px;
+}
+.intake-day-overview__date {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.intake-day-overview__summary {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+  font-family: var(--font-mono);
+}
+.intake-day-overview__loading,
+.intake-day-overview__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.intake-day-overview__error {
+  color: #b45309;
+}
+.intake-day-overview__section {
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.intake-day-overview__section-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.intake-day-overview__section--saved .intake-day-overview__section-title {
+  color: #2e7d32;
+}
+.intake-day-overview__section--pending .intake-day-overview__section-title {
+  color: #b45309;
+}
+.intake-day-overview__empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 8px 0;
+}
+.intake-day-overview__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.intake-day-overview__row {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 12px 14px;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.intake-day-overview__row:hover {
+  background: #eef4ff;
+  border-color: #c5d9f7;
+}
+.intake-day-overview__row-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.intake-day-overview__row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  flex: 0 1 auto;
+}
+.intake-day-overview__row-total {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--navy);
+}
+.intake-day-overview__saved-by {
+  font-size: 11px;
+  opacity: 0.85;
 }
 .intake-search-input {
   flex: 1;

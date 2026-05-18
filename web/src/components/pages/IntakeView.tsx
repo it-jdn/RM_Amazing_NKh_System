@@ -26,6 +26,7 @@ import {
 } from "@/lib/domain/intake-row-draft";
 import { isServerSlipNewer, maxSavedAtFromRows } from "@/lib/domain/intake-slip";
 import { extractSlipNoteFromRows } from "@/lib/domain/intake-slip-note";
+import { IntakeDayOverview } from "@/components/intake/IntakeDayOverview";
 import { IntakeSlipStatusBar, type IntakeSlipStatus } from "@/components/intake/IntakeSlipStatusBar";
 import { IntakeStaleSaveModal } from "@/components/intake/IntakeStaleSaveModal";
 import { IntakeUnsavedNavigateModal } from "@/components/intake/IntakeUnsavedNavigateModal";
@@ -653,7 +654,16 @@ export function IntakeView() {
         ) : null}
       </div>
 
-      {suppSel && (
+      {!suppSel ? (
+        <IntakeDayOverview
+          intakeDate={intakeDate}
+          suppliers={activeSuppliers}
+          items={items}
+          mapping={mapping}
+          purchaseUnits={purchaseUnits}
+          onSelectShop={(code) => requestNavigate({ kind: "supp", value: code })}
+        />
+      ) : (
         <>
 
           <p className="intake-hint intake-hint--desktop">{t("intake.hint")}</p>

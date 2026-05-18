@@ -96,7 +96,7 @@ cd web && DEPLOY_ENV=production npm run deploy:print-vercel-env
 ### 4. หลัง deploy
 
 - เปลี่ยน PIN เริ่มต้น (1111/2222/3333) ที่ `/admin/users`
-- ทดสอบ `/login` → `/intake` → บันทึก → `/history` → `/report` (manager)
+- ทดสอบ `/login` → `/receiving` → บันทึก → `/history` → `/report` (manager)
 
 ## Project structure
 
@@ -138,7 +138,7 @@ Legacy files and CSVs: [`../Backup/`](../Backup/).
 
 ทดสอบด้วย Chrome DevTools (iPhone) หรือมือถือจริง หลัง `npm run dev`:
 
-1. Login เป็น **operator** (PIN `1111`) → ไป `/intake`
+1. Login เป็น **operator** (PIN `1111`) → ไป `/receiving`
 2. เลือกวันที่ + ร้าน → การ์ดสินค้า (จอเล็ก)
 3. สินค้าหลายหน่วยซื้อเข้า → เลือกหน่วยใน dropdown
 4. กรอก qty + ราคารวม → บันทึก

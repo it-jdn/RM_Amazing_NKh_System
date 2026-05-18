@@ -27,7 +27,7 @@ import type { AppRole } from "@/lib/types";
 type MenuIcon = ComponentType<{ size?: number; className?: string }>;
 
 const MAIN_LINKS: { href: string; labelKey: MessageKey; Icon: MenuIcon; roles: AppRole[] }[] = [
-  { href: "/intake", labelKey: "nav.intake", Icon: IconInbox, roles: ["operator", "admin", "manager"] },
+  { href: "/receiving", labelKey: "nav.intake", Icon: IconInbox, roles: ["operator", "admin", "manager"] },
   { href: "/history", labelKey: "nav.history", Icon: IconClipboardList, roles: ["operator", "admin", "manager"] },
   { href: "/report", labelKey: "nav.report", Icon: IconChartBar, roles: ["manager", "admin"] },
   { href: "/profile", labelKey: "nav.profile", Icon: IconUser, roles: ["operator", "admin", "manager"] },
@@ -36,7 +36,7 @@ const MAIN_LINKS: { href: string; labelKey: MessageKey; Icon: MenuIcon; roles: A
 const SETTINGS_ROLES: AppRole[] = ["admin", "manager"];
 
 function pathActive(pathname: string, href: string) {
-  if (href === "/intake" || href === "/history" || href === "/report") {
+  if (href === "/receiving" || href === "/history" || href === "/report") {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
   return pathname === href;

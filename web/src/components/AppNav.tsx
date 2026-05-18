@@ -14,7 +14,7 @@ import { NavSettingsMenu } from "@/components/nav/NavSettingsMenu";
 import { NavUserMenu } from "@/components/nav/NavUserMenu";
 
 const TABS: { href: string; labelKey: MessageKey; roles: AppRole[] }[] = [
-  { href: "/intake", labelKey: "nav.intake", roles: ["operator", "admin", "manager"] },
+  { href: "/receiving", labelKey: "nav.intake", roles: ["operator", "admin", "manager"] },
   { href: "/history", labelKey: "nav.history", roles: ["operator", "admin", "manager"] },
   { href: "/report", labelKey: "nav.report", roles: ["manager", "admin"] },
 ];
@@ -37,7 +37,7 @@ export function AppNav({
   const showSettings = SETTINGS_ROLES.includes(role);
 
   function tabActive(href: string) {
-    if (href === "/intake" || href === "/history" || href === "/report") {
+    if (href === "/receiving" || href === "/history" || href === "/report") {
       return pathname === href || pathname.startsWith(`${href}/`);
     }
     return pathname === href;

@@ -45,7 +45,7 @@ export { COOKIE_NAME, MAX_AGE };
 
 export const ROLE_PAGES: Record<string, AppRole[]> = {
   "/history": ["operator", "admin", "manager"],
-  "/intake": ["operator", "admin", "manager"],
+  "/receiving": ["operator", "admin", "manager"],
   "/admin": ["admin", "manager"],
   "/report": ["manager", "admin"],
 };
