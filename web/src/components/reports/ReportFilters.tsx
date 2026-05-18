@@ -8,7 +8,7 @@ import {
 } from "@/lib/catalog/item-categories";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { AppDateField } from "@/components/ui/AppDateField";
-import { histDatePresetRange } from "@/lib/utils/format";
+import { formatAppDate, histDatePresetRange } from "@/lib/utils/format";
 import type { Item, ItemCategory, Supplier } from "@/lib/types";
 
 const REPORT_PRESETS = [
@@ -37,6 +37,7 @@ type Props = {
   itemCategories: ItemCategory[];
   loading: boolean;
   hasData: boolean;
+  dataDateRange?: { dateFrom: string; dateTo: string } | null;
   onPrint: () => void;
 };
 
@@ -58,11 +59,15 @@ export function ReportFilters({
   itemCategories,
   loading,
   hasData,
+  dataDateRange,
   onPrint,
 }: Props) {
   const { locale, t } = useLocale();
   const categories = itemCategories.length ? itemCategories : FALLBACK_ITEM_CATEGORIES;
   const datesDisabled = datePreset === "all";
+  const displayFrom =
+    datesDisabled && dataDateRange?.dateFrom ? dataDateRange.dateFrom : dateFrom;
+  const displayTo = datesDisabled && dataDateRange?.dateTo ? dataDateRange.dateTo : dateTo;
 
   const itemOptions = useMemo(() => {
     if (!categoryCode) return items;
@@ -124,6 +129,17 @@ export function ReportFilters({
         </div>
       </div>
 
+      {datePreset === "all" && !loading && hasData ? (
+        <p className="report-filters__data-range" role="status">
+          {dataDateRange
+            ? t("report.dataRange", {
+                from: formatAppDate(dataDateRange.dateFrom, locale),
+                to: formatAppDate(dataDateRange.dateTo, locale),
+              })
+            : t("report.dataRangeEmpty")}
+        </p>
+      ) : null}
+
       <div className="report-filters__fields">
         <div className="filter-group filter-group--date">
           <label className="lbl" htmlFor="report-from">
@@ -131,7 +147,7 @@ export function ReportFilters({
           </label>
           <AppDateField
             id="report-from"
-            value={dateFrom}
+            value={displayFrom}
             onChange={(v) => onManualDate("from", v)}
             placeholder={t("report.dateFrom")}
             aria-label={t("report.dateFrom")}
@@ -144,7 +160,7 @@ export function ReportFilters({
           </label>
           <AppDateField
             id="report-to"
-            value={dateTo}
+            value={displayTo}
             onChange={(v) => onManualDate("to", v)}
             placeholder={t("report.dateTo")}
             aria-label={t("report.dateTo")}

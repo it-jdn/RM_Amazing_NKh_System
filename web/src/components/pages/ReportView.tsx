@@ -45,6 +45,7 @@ ChartJS.register(
 
 interface ReportData {
   success: boolean;
+  dataDateRange?: { dateFrom: string; dateTo: string } | null;
   summary: {
     totalCost: number;
     totalTrans: number;
@@ -369,6 +370,7 @@ export function ReportView() {
         itemCategories={itemCategories}
         loading={loading}
         hasData={!!data}
+        dataDateRange={data?.dataDateRange ?? null}
         onPrint={printReport}
       />
 

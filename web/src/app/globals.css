@@ -5581,6 +5581,17 @@ input.intake-touch-input,
   width: 100%;
   margin-bottom: 8px;
 }
+.report-filters__data-range {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  background: var(--bllt);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
 .report-filters__fields {
   display: flex;
   flex-wrap: wrap;

@@ -23,6 +23,7 @@ import {
   filterRowsByCategory,
   type ReportTxnRow,
 } from "@/lib/reports/aggregate";
+import { reportDataDateRange } from "@/lib/reports/date-range";
 import { previousPeriodRange, pctChange } from "@/lib/reports/period";
 import type {
   ItemCategory,
@@ -1659,8 +1660,11 @@ export async function getReportData(filters: ReportFilters) {
     }
   }
 
+  const dataDateRange = reportDataDateRange(aggregates.byDate);
+
   return {
     success: true,
+    dataDateRange,
     summary: aggregates.summary,
     previousPeriod,
     byCategory: aggregates.byCategory,
