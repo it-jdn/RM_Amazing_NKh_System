@@ -2,7 +2,7 @@ import type { Locale } from "./types";
 
 const messages = {
   th: {
-    "brand.subtitle": "Inventory System",
+    "brand.subtitle": "ระบบจัดการสินค้าคงคลัง",
     "nav.intake": "รับสินค้า",
     "nav.history": "ประวัติรับสินค้า",
     "nav.settings": "การตั้งค่า",
@@ -145,6 +145,8 @@ const messages = {
     "report.exportExcel": "ส่งออก Excel",
     "report.loading": "กำลังโหลด…",
     "report.print": "พิมพ์",
+    "report.filtersExpand": "แสดงตัวกรอง",
+    "report.filtersCollapse": "ซ่อนตัวกรอง",
     "report.page": "หน้า",
     "report.of": "จาก",
     "report.dataRange": "ช่วงข้อมูลในรายงาน: {from} – {to}",
@@ -485,7 +487,7 @@ const messages = {
     "lang.label": "ภาษา",
   },
   en: {
-    "brand.subtitle": "Inventory System",
+    "brand.subtitle": "Inventory Management System",
     "nav.intake": "Receive goods",
     "nav.history": "Receive history",
     "nav.settings": "Settings",
@@ -628,6 +630,8 @@ const messages = {
     "report.exportExcel": "Export Excel",
     "report.loading": "Loading…",
     "report.print": "Print",
+    "report.filtersExpand": "Show filters",
+    "report.filtersCollapse": "Hide filters",
     "report.page": "Page",
     "report.of": "of",
     "report.dataRange": "Report data: {from} – {to}",
@@ -968,7 +972,7 @@ const messages = {
     "lang.label": "Language",
   },
   kr: {
-    "brand.subtitle": "Inventory System",
+    "brand.subtitle": "재고 관리 시스템",
     "nav.intake": "입고",
     "nav.history": "입고 이력",
     "nav.settings": "설정",
@@ -1111,6 +1115,8 @@ const messages = {
     "report.exportExcel": "Excel보내기",
     "report.loading": "불러오는 중…",
     "report.print": "인쇄",
+    "report.filtersExpand": "필터 표시",
+    "report.filtersCollapse": "필터 숨기기",
     "report.page": "페이지",
     "report.of": "/",
     "report.dataRange": "보고서 데이터: {from} – {to}",

@@ -54,7 +54,11 @@ export function AppNav({
       <nav className={`nav nav--drawer${isOperator ? " nav--operator" : ""}`}>
         <div className="nav-left">
           <AppMobileMenu role={role} displayName={displayName} onLogout={logout} />
-          <NavBrand subtitle={t("brand.subtitle")} compact={isOperator} />
+          <NavBrand
+            subtitle={t("brand.subtitle")}
+            compact={isOperator}
+            drawerNav={drawerNav}
+          />
         </div>
         <div className="nav-tabs">
           {visibleTabs.map((tab) => (
@@ -80,24 +84,44 @@ export function AppNav({
   );
 }
 
-function NavBrand({ subtitle, compact }: { subtitle: string; compact?: boolean }) {
+function NavBrand({
+  subtitle,
+  compact,
+  drawerNav,
+}: {
+  subtitle: string;
+  compact?: boolean;
+  drawerNav: boolean;
+}) {
+  const ariaLabel = drawerNav ? subtitle : `Amazing Nongkhai — ${subtitle}`;
+
   return (
     <Link
       href="/"
       className={`nav-brand${compact ? " nav-brand--compact" : ""}`}
-      aria-label={`Amazing Nongkhai — ${subtitle}`}
+      aria-label={ariaLabel}
     >
       <Image
         src="/amazing-nkh-logo.png"
-        alt="Amazing Nongkhai"
+        alt=""
         width={54}
         height={38}
         className="nav-brand__logo"
         priority
       />
       <div className="nav-brand__text">
-        <div className="brand-text">Amazing Nongkhai</div>
-        <div className="brand-sub">{subtitle}</div>
+        {drawerNav ? (
+          <div className="brand-text brand-text--mobile-title">{subtitle}</div>
+        ) : (
+          <div className="brand-text brand-text--desktop-title">
+            <span className="brand-name">Amazing Nongkhai</span>
+            <span className="brand-sep" aria-hidden>
+              {" "}
+              |{" "}
+            </span>
+            <span className="brand-tagline">{subtitle}</span>
+          </div>
+        )}
       </div>
     </Link>
   );

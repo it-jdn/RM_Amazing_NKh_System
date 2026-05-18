@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAppData } from "@/context/AppDataContext";
@@ -28,6 +29,7 @@ import {
 import { unitDisplayName } from "@/lib/i18n/unit-display-name";
 import { AdminItemStandardUnitsEditor } from "@/components/admin/AdminItemStandardUnitsEditor";
 import { AdminCardTitle } from "@/components/pages/admin/admin-shared";
+import { useCompactAdminLayout } from "@/hooks/useCompactAdminLayout";
 import {
   initStandardRowsForEdit,
   standardPayloadFromRows,
@@ -119,8 +121,12 @@ export function AdminItemsPanel() {
   const [formBaseline, setFormBaseline] = useState("");
   const [standardRows, setStandardRows] = useState<StandardUnitRow[]>([]);
   const [refreshAfterSaveCode, setRefreshAfterSaveCode] = useState<string | null>(null);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [sheetMounted, setSheetMounted] = useState(false);
+  const compactLayout = useCompactAdminLayout();
 
   const isEdit = editingCode !== null;
+  const formSheetOpen = compactLayout && (isEdit || addSheetOpen);
 
   const formSnapshot = useMemo(
     () =>
@@ -205,6 +211,26 @@ export function AdminItemsPanel() {
     setFormConvertRate("1");
     setFormCategoryCode("");
     setStandardRows([]);
+    setAddSheetOpen(false);
+  }
+
+  function closeFormSheet() {
+    if (dirty && !window.confirm(t("admin.items.discardConfirm"))) return;
+    resetForm();
+  }
+
+  function startAdd() {
+    setEditingCode(null);
+    setFormCode("");
+    setFormNameTH("");
+    setFormNameEN("");
+    setFormNameKR("");
+    setFormMainUnitCode("");
+    setFormSubUnitCode("");
+    setFormConvertRate("1");
+    setFormCategoryCode("");
+    setStandardRows([]);
+    setAddSheetOpen(true);
   }
 
   function startEdit(i: Item) {
@@ -228,9 +254,21 @@ export function AdminItemsPanel() {
     const item = items.find((i) => i.code === deepLinkCode);
     if (item) {
       startEdit(item);
+      setAddSheetOpen(true);
       setDeepLinkHandled(true);
     }
   }, [deepLinkCode, items, deepLinkHandled]);
+
+  useEffect(() => setSheetMounted(true), []);
+
+  useEffect(() => {
+    if (!formSheetOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [formSheetOpen]);
 
   useEffect(() => {
     if (editingCode && !filteredItems.some((i) => i.code === editingCode)) {
@@ -380,7 +418,14 @@ export function AdminItemsPanel() {
 
   function tryStartEdit(i: Item) {
     if (editingCode === i.code) return;
-    guardAction(() => startEdit(i), dirty);
+    guardAction(() => {
+      startEdit(i);
+      setAddSheetOpen(true);
+    }, dirty);
+  }
+
+  function tryStartAdd() {
+    guardAction(() => startAdd(), dirty);
   }
 
   async function deleteItemRow() {
@@ -408,11 +453,25 @@ export function AdminItemsPanel() {
     }
   }
 
+  const formTitle = isEdit ? t("admin.items.editTitle") : t("admin.items.addTitle");
+
   return (
     <div className="admin-settings-page admin-settings-page--items">
       <div className="admin-settings-split admin-settings-split--items">
         <div className="card admin-settings-split__list">
-          <AdminCardTitle title={t("admin.items.listTitle")} dot="blue" />
+          <div className="admin-items-list-head">
+            <AdminCardTitle title={t("admin.items.listTitle")} dot="blue" />
+            {compactLayout && !formSheetOpen ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm admin-items-list-head__add"
+                onClick={tryStartAdd}
+                disabled={!unitsReady}
+              >
+                {t("admin.items.addTitle")}
+              </button>
+            ) : null}
+          </div>
           {!unitsReady && (
             <p className="admin-warn" style={{ marginTop: 8 }}>
               {t("admin.items.unitsMissing")}{" "}
@@ -506,6 +565,7 @@ export function AdminItemsPanel() {
         </div>
 
 
+        {!compactLayout && (
         <AdminSideForm
           className="admin-side-form--items"
           isEdit={isEdit}
@@ -639,7 +699,179 @@ export function AdminItemsPanel() {
             </AdminFormSection>
           )}
         </AdminSideForm>
+        )}
       </div>
+
+      {formSheetOpen && sheetMounted
+        ? createPortal(
+            <div className="admin-item-form-sheet-portal" role="presentation">
+              <button
+                type="button"
+                className="admin-form-sheet__backdrop"
+                aria-label={t("intake.cancel")}
+                onClick={closeFormSheet}
+              />
+              <div className="admin-item-form-sheet" role="dialog" aria-modal="true" aria-labelledby="admin-item-form-sheet-title">
+                <header className="admin-side-form-sheet-panel__hdr">
+                  <h2 id="admin-item-form-sheet-title" className="admin-side-form-sheet-panel__title">
+                    {formTitle}
+                  </h2>
+                  <button
+                    type="button"
+                    className="admin-side-form-sheet-panel__close"
+                    onClick={closeFormSheet}
+                    aria-label={t("intake.cancel")}
+                  >
+                    ×
+                  </button>
+                </header>
+                <AdminSideForm
+                  className="admin-side-form--items admin-side-form--in-sheet"
+                  hideHeader
+                  isEdit={isEdit}
+                  addTitle={t("admin.items.addTitle")}
+                  editTitle={t("admin.items.editTitle")}
+                  dot={isEdit ? "purple" : "orange"}
+                  footer={
+                    <AdminFormActions
+                      primaryLabel={isEdit ? t("admin.items.save") : t("admin.items.submit")}
+                      onPrimary={handlePrimarySave}
+                      saving={saving}
+                      disabled={!unitsReady}
+                      showCancel
+                      cancelLabel={isEdit ? t("admin.items.cancelEdit") : t("admin.items.cancel")}
+                      onCancel={() => {
+                        if (dirty && !confirm(t("admin.items.discardConfirm"))) return;
+                        resetForm();
+                      }}
+                      showDelete={isAdmin && isEdit}
+                      deleteLabel={t("admin.items.delete")}
+                      onDelete={deleteItemRow}
+                      deleting={deleting}
+                    />
+                  }
+                >
+                  <AdminFormSection title={t("admin.form.sectionSettings")}>
+                    <div className="admin-items-form-meta">
+                      <AdminFormField
+                        label={t("admin.items.code")}
+                        hint={isEdit ? undefined : t("admin.items.codeHint")}
+                      >
+                        <input
+                          type="text"
+                          className="admin-form-input--code"
+                          value={formCode}
+                          onChange={(e) => setFormCode(e.target.value.toUpperCase())}
+                          placeholder={isEdit ? undefined : "P0001"}
+                          autoCapitalize="characters"
+                          readOnly={isEdit}
+                        />
+                      </AdminFormField>
+                      <AdminFormField label={t("admin.items.category")}>
+                        <select
+                          value={formCategoryCode}
+                          onChange={(e) =>
+                            setFormCategoryCode(e.target.value as ItemCategoryCode | "")
+                          }
+                        >
+                          <option value="">{t("admin.items.selectCategory")}</option>
+                          {itemCategories.map((c) => (
+                            <option key={c.code} value={c.code}>
+                              {itemCategoryDisplayName(c, locale)}
+                            </option>
+                          ))}
+                        </select>
+                      </AdminFormField>
+                    </div>
+                  </AdminFormSection>
+
+                  <AdminFormSection title={t("admin.form.sectionNames")}>
+                    <AdminFormField label={t("admin.items.nameTh")}>
+                      <input
+                        type="text"
+                        value={formNameTH}
+                        onChange={(e) => setFormNameTH(e.target.value)}
+                      />
+                    </AdminFormField>
+                    <div className="admin-form-lang-grid">
+                      <AdminFormField label={t("admin.items.nameEn")}>
+                        <input
+                          type="text"
+                          value={formNameEN}
+                          onChange={(e) => setFormNameEN(e.target.value)}
+                        />
+                      </AdminFormField>
+                      <AdminFormField label={t("admin.items.nameKr")}>
+                        <input
+                          type="text"
+                          value={formNameKR}
+                          onChange={(e) => setFormNameKR(e.target.value)}
+                        />
+                      </AdminFormField>
+                    </div>
+                  </AdminFormSection>
+
+                  {!isEdit ? (
+                    <AdminFormSection title={t("admin.items.sectionUnitsShort")}>
+                      <div className="admin-items-form-units">
+                        <AdminFormField label={t("admin.link.mainUnit")}>
+                          <select
+                            value={formMainUnitCode}
+                            onChange={(e) => setFormMainUnitCode(e.target.value)}
+                            disabled={!unitsReady}
+                          >
+                            <option value="">{t("admin.link.select")}</option>
+                            {sortedUnits.map((u) => (
+                              <option key={u.unitCode} value={u.unitCode}>
+                                {unitDisplayName(u, locale)}
+                              </option>
+                            ))}
+                          </select>
+                        </AdminFormField>
+                        <AdminFormField label={t("admin.link.subUnit")}>
+                          <select
+                            value={formSubUnitCode}
+                            onChange={(e) => setFormSubUnitCode(e.target.value)}
+                            disabled={!unitsReady}
+                          >
+                            <option value="">{t("admin.link.select")}</option>
+                            {sortedUnits.map((u) => (
+                              <option key={u.unitCode} value={u.unitCode}>
+                                {unitDisplayName(u, locale)}
+                              </option>
+                            ))}
+                          </select>
+                        </AdminFormField>
+                        <AdminFormField
+                          label={t("admin.link.convert")}
+                          className="admin-items-form-units__convert"
+                        >
+                          <input
+                            type="number"
+                            min="0.0001"
+                            step="any"
+                            value={formConvertRate}
+                            onChange={(e) => setFormConvertRate(e.target.value)}
+                            disabled={!unitsReady}
+                          />
+                        </AdminFormField>
+                      </div>
+                    </AdminFormSection>
+                  ) : (
+                    <AdminFormSection title={t("admin.items.standardUnitsSection")}>
+                      <AdminItemStandardUnitsEditor
+                        rows={standardRows}
+                        onChange={setStandardRows}
+                        units={units}
+                      />
+                    </AdminFormSection>
+                  )}
+                </AdminSideForm>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

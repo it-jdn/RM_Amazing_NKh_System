@@ -9,7 +9,7 @@ import { useLocale } from "@/context/LocaleContext";
 import { useDrawerNav } from "@/hooks/useDrawerNav";
 import { useDropdownTransition } from "@/hooks/useDropdownTransition";
 import type { AppRole } from "@/lib/types";
-import { userDisplayInitial } from "@/lib/users/display-name";
+import { userDisplayInitial, userNavLabelName } from "@/lib/users/display-name";
 
 type MenuPos = { top: number; left: number; minWidth: number };
 
@@ -32,7 +32,9 @@ export function NavUserMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
-  const name = displayName?.trim() || role;
+  const fullName = displayName?.trim() || role;
+  const triggerLabel =
+    displayName?.trim() ? userNavLabelName(displayName) || fullName : fullName;
   const profileActive = pathname === "/profile" || pathname.startsWith("/profile/");
 
   useEffect(() => setMounted(true), []);
@@ -109,7 +111,7 @@ export function NavUserMenu({
         }}
       >
         <li className="nav-user-menu__identity" role="presentation">
-          <span className="nav-user-menu__identity-name">{name}</span>
+          <span className="nav-user-menu__identity-name">{fullName}</span>
           <span className="nav-user-menu__identity-role">{roleLabel()}</span>
         </li>
         <li role="presentation" className="nav-user-menu__divider" />
@@ -157,10 +159,14 @@ export function NavUserMenu({
         </span>
         {!drawerNav ? (
           <>
-            <span className="nav-user-menu__label">{name}</span>
+            <span className="nav-user-menu__label">{triggerLabel}</span>
             <IconChevronDown size={14} className={`nav-settings__chev ${open ? "open" : ""}`} />
           </>
-        ) : null}
+        ) : (
+          <span className="nav-user-menu__label nav-user-menu__label--drawer" title={fullName}>
+            {triggerLabel}
+          </span>
+        )}
       </button>
       {mounted && menuPanel ? createPortal(menuPanel, document.body) : null}
     </div>

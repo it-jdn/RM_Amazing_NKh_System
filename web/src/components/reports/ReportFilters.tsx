@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocale } from "@/context/LocaleContext";
 import {
   FALLBACK_ITEM_CATEGORIES,
   itemCategoryDisplayName,
 } from "@/lib/catalog/item-categories";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { AppDateField } from "@/components/ui/AppDateField";
+import { IconChevronDown } from "@/components/icons/AppIcons";
 import { formatAppDate, histDatePresetRange } from "@/lib/utils/format";
 import type { Item, ItemCategory, Supplier } from "@/lib/types";
 
@@ -18,6 +20,14 @@ const REPORT_PRESETS = [
   { id: "thisMonth", key: "report.presetMonth" },
   { id: "lastMonth", key: "report.presetLastMonth" },
 ] as const;
+
+const PRESET_LABEL: Record<string, MessageKey> = {
+  all: "hist.preset.all",
+  last7: "report.preset7",
+  last30: "report.preset30",
+  thisMonth: "report.presetMonth",
+  lastMonth: "report.presetLastMonth",
+};
 
 type Props = {
   dateFrom: string;
@@ -63,6 +73,7 @@ export function ReportFilters({
   onPrint,
 }: Props) {
   const { locale, t } = useLocale();
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const categories = itemCategories.length ? itemCategories : FALLBACK_ITEM_CATEGORIES;
   const datesDisabled = datePreset === "all";
   const displayFrom =
@@ -73,6 +84,54 @@ export function ReportFilters({
     if (!categoryCode) return items;
     return items.filter((i) => i.categoryCode === categoryCode);
   }, [items, categoryCode]);
+
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [];
+
+    if (datePreset === "all") {
+      if (dataDateRange) {
+        parts.push(
+          `${formatAppDate(dataDateRange.dateFrom, locale)} – ${formatAppDate(dataDateRange.dateTo, locale)}`
+        );
+      } else {
+        parts.push(t("hist.preset.all"));
+      }
+    } else if (datePreset !== "custom" && PRESET_LABEL[datePreset]) {
+      parts.push(t(PRESET_LABEL[datePreset]));
+    } else if (displayFrom || displayTo) {
+      const from = displayFrom ? formatAppDate(displayFrom, locale) : "…";
+      const to = displayTo ? formatAppDate(displayTo, locale) : "…";
+      parts.push(`${from} – ${to}`);
+    }
+
+    if (suppCode) {
+      const shop = suppliers.find((s) => s.code === suppCode);
+      parts.push(shop ? supplierDisplayName(shop, locale) : suppCode);
+    }
+    if (categoryCode) {
+      const cat = categories.find((c) => c.code === categoryCode);
+      parts.push(cat ? itemCategoryDisplayName(cat, locale) : categoryCode);
+    }
+    if (itemCode) {
+      const item = items.find((i) => i.code === itemCode);
+      parts.push(item?.nameTH || itemCode);
+    }
+
+    return parts.join(" · ");
+  }, [
+    categories,
+    categoryCode,
+    dataDateRange,
+    datePreset,
+    displayFrom,
+    displayTo,
+    itemCode,
+    items,
+    locale,
+    suppCode,
+    suppliers,
+    t,
+  ]);
 
   function applyPreset(id: string) {
     const { from, to } = histDatePresetRange(id);
@@ -95,128 +154,176 @@ export function ReportFilters({
     }
   }
 
+  function renderPrintBtn(key: string) {
+    if (!hasData) return null;
+    return (
+      <button
+        key={key}
+        type="button"
+        className="btn btn-ghost btn-sm report-filters__print-btn"
+        onClick={onPrint}
+      >
+        {t("report.print")}
+      </button>
+    );
+  }
+
   return (
-    <div className="report-filters no-print">
+    <div
+      className={`report-filters no-print${filtersOpen ? "" : " report-filters--collapsed"}`}
+    >
       <div className="report-filters__top">
-        <h1 className="report-filters__title">{t("report.title")}</h1>
-        <div className="report-filters__actions">
+        <button
+          type="button"
+          className="report-filters__toggle"
+          onClick={() => setFiltersOpen((v) => !v)}
+          aria-expanded={filtersOpen}
+          aria-controls="report-filters-panel"
+          aria-label={filtersOpen ? t("report.filtersCollapse") : t("report.filtersExpand")}
+        >
+          <IconChevronDown
+            size={18}
+            className={`report-filters__chev${filtersOpen ? " report-filters__chev--open" : ""}`}
+            aria-hidden
+          />
+        </button>
+        <div className="report-filters__title-wrap">
+          <h1 className="report-filters__title">{t("report.title")}</h1>
+          {!filtersOpen && filterSummary ? (
+            <p className="report-filters__summary">{filterSummary}</p>
+          ) : null}
+        </div>
+        <div className="report-filters__actions report-filters__actions--desktop">
           {loading ? (
             <span className="report-filters__loading" aria-live="polite">
               {t("report.loading")}
             </span>
           ) : null}
-          {hasData ? (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onPrint}>
-              {t("report.print")}
-            </button>
+        </div>
+        {loading ? (
+          <span className="report-filters__loading report-filters__loading--mobile" aria-live="polite">
+            {t("report.loading")}
+          </span>
+        ) : null}
+        {!filtersOpen ? (
+          <div className="report-filters__actions report-filters__actions--collapsed-print">
+            {renderPrintBtn("print")}
+          </div>
+        ) : null}
+      </div>
+
+      <div
+        id="report-filters-panel"
+        className={`report-filters__body${filtersOpen ? "" : " report-filters__body--collapsed"}`}
+        aria-hidden={!filtersOpen}
+      >
+        <div className="report-filters__body-inner">
+          <div className="hist-presets report-filters__presets">
+            <span className="hist-presets__label">{t("hist.period")}</span>
+            <div className="hist-presets__chips">
+              {REPORT_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`sort-toggle hist-preset-btn ${datePreset === p.id ? "active" : ""}`}
+                  onClick={() => applyPreset(p.id)}
+                >
+                  {t(p.key)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {datePreset === "all" && !loading && hasData ? (
+            <p className="report-filters__data-range" role="status">
+              {dataDateRange
+                ? t("report.dataRange", {
+                    from: formatAppDate(dataDateRange.dateFrom, locale),
+                    to: formatAppDate(dataDateRange.dateTo, locale),
+                  })
+                : t("report.dataRangeEmpty")}
+            </p>
           ) : null}
-        </div>
-      </div>
 
-      <div className="hist-presets report-filters__presets">
-        <span className="hist-presets__label">{t("hist.period")}</span>
-        <div className="hist-presets__chips">
-          {REPORT_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`sort-toggle hist-preset-btn ${datePreset === p.id ? "active" : ""}`}
-              onClick={() => applyPreset(p.id)}
-            >
-              {t(p.key)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {datePreset === "all" && !loading && hasData ? (
-        <p className="report-filters__data-range" role="status">
-          {dataDateRange
-            ? t("report.dataRange", {
-                from: formatAppDate(dataDateRange.dateFrom, locale),
-                to: formatAppDate(dataDateRange.dateTo, locale),
-              })
-            : t("report.dataRangeEmpty")}
-        </p>
-      ) : null}
-
-      <div className="report-filters__fields">
-        <div className="filter-group filter-group--date">
-          <label className="lbl" htmlFor="report-from">
-            {t("report.dateFrom")}
-          </label>
-          <AppDateField
-            id="report-from"
-            value={displayFrom}
-            onChange={(v) => onManualDate("from", v)}
-            placeholder={t("report.dateFrom")}
-            aria-label={t("report.dateFrom")}
-            disabled={datesDisabled}
-          />
-        </div>
-        <div className="filter-group filter-group--date">
-          <label className="lbl" htmlFor="report-to">
-            {t("report.dateTo")}
-          </label>
-          <AppDateField
-            id="report-to"
-            value={displayTo}
-            onChange={(v) => onManualDate("to", v)}
-            placeholder={t("report.dateTo")}
-            aria-label={t("report.dateTo")}
-            disabled={datesDisabled}
-          />
-        </div>
-        <div className="filter-group">
-          <label className="lbl" htmlFor="report-supp">
-            {t("report.shop")}
-          </label>
-          <select
-            id="report-supp"
-            value={suppCode}
-            onChange={(e) => onSuppCode(e.target.value)}
-          >
-            <option value="">{t("report.all")}</option>
-            {suppliers.map((s) => (
-              <option key={s.code} value={s.code}>
-                {supplierDisplayName(s, locale)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="lbl" htmlFor="report-cat">
-            {t("report.category")}
-          </label>
-          <select
-            id="report-cat"
-            value={categoryCode}
-            onChange={(e) => onCategoryChange(e.target.value)}
-          >
-            <option value="">{t("report.categoryAll")}</option>
-            {categories.map((c) => (
-              <option key={c.code} value={c.code}>
-                {itemCategoryDisplayName(c, locale)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group filter-group--grow">
-          <label className="lbl" htmlFor="report-item">
-            {t("report.item")}
-          </label>
-          <select
-            id="report-item"
-            value={itemCode}
-            onChange={(e) => onItemCode(e.target.value)}
-          >
-            <option value="">{t("report.all")}</option>
-            {itemOptions.map((i) => (
-              <option key={i.code} value={i.code}>
-                {i.nameTH}
-              </option>
-            ))}
-          </select>
+          <div className="report-filters__fields">
+            <div className="filter-group filter-group--date">
+              <label className="lbl" htmlFor="report-from">
+                {t("report.dateFrom")}
+              </label>
+              <AppDateField
+                id="report-from"
+                value={displayFrom}
+                onChange={(v) => onManualDate("from", v)}
+                placeholder={t("report.dateFrom")}
+                aria-label={t("report.dateFrom")}
+                disabled={datesDisabled}
+              />
+            </div>
+            <div className="filter-group filter-group--date">
+              <label className="lbl" htmlFor="report-to">
+                {t("report.dateTo")}
+              </label>
+              <AppDateField
+                id="report-to"
+                value={displayTo}
+                onChange={(v) => onManualDate("to", v)}
+                placeholder={t("report.dateTo")}
+                aria-label={t("report.dateTo")}
+                disabled={datesDisabled}
+              />
+            </div>
+            <div className="filter-group">
+              <label className="lbl" htmlFor="report-supp">
+                {t("report.shop")}
+              </label>
+              <select
+                id="report-supp"
+                value={suppCode}
+                onChange={(e) => onSuppCode(e.target.value)}
+              >
+                <option value="">{t("report.all")}</option>
+                {suppliers.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {supplierDisplayName(s, locale)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="lbl" htmlFor="report-cat">
+                {t("report.category")}
+              </label>
+              <select
+                id="report-cat"
+                value={categoryCode}
+                onChange={(e) => onCategoryChange(e.target.value)}
+              >
+                <option value="">{t("report.categoryAll")}</option>
+                {categories.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {itemCategoryDisplayName(c, locale)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group filter-group--grow">
+              <label className="lbl" htmlFor="report-item">
+                {t("report.item")}
+              </label>
+              <select
+                id="report-item"
+                value={itemCode}
+                onChange={(e) => onItemCode(e.target.value)}
+              >
+                <option value="">{t("report.all")}</option>
+                {itemOptions.map((i) => (
+                  <option key={i.code} value={i.code}>
+                    {i.nameTH}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
     </div>

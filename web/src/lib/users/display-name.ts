@@ -20,6 +20,15 @@ export function buildDisplayName(firstName: string, lastName: string): string {
   return [first, last].filter(Boolean).join(" ");
 }
 
+/** Nav profile button: omit last whitespace-separated segment (family name). */
+export function userNavLabelName(displayName?: string): string {
+  const trimmed = sanitizeUserNamePart(displayName ?? "");
+  if (!trimmed) return "";
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return trimmed;
+  return parts.slice(0, -1).join(" ");
+}
+
 const THAI_CONSONANT = /[\u0E01-\u0E2E]/;
 
 /** Avatar / profile initial: first Thai consonant (e.g. แอดมิน → อ), else first letter uppercased. */

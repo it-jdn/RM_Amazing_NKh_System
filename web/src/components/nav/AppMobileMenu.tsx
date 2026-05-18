@@ -12,9 +12,11 @@ import {
   IconChartBar,
   IconClipboardList,
   IconInbox,
+  IconLogOut,
   IconUser,
   IconX,
 } from "@/components/icons/AppIcons";
+import { userDisplayInitial } from "@/lib/users/display-name";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { useAdminUnsavedOptional } from "@/components/admin/AdminUnsavedChangesProvider";
 import {
@@ -44,6 +46,12 @@ function pathActive(pathname: string, href: string) {
 
 function settingsItemActive(pathname: string, item: AdminNavItem) {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+function roleLabel(role: AppRole, t: (key: MessageKey) => string) {
+  if (role === "operator") return t("role.operator");
+  if (role === "manager") return t("role.manager");
+  return t("role.admin");
 }
 
 type Props = {
@@ -146,7 +154,6 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
             <div className="operator-menu__brand">
               <span className="operator-menu__title">Amazing Nongkhai</span>
               <span className="operator-menu__subtitle">{t("brand.subtitle")}</span>
-              {displayName ? <span className="operator-menu__user">{displayName}</span> : null}
             </div>
             <button type="button" className="operator-menu__close" onClick={close} aria-label={t("intake.cancel")}>
               <IconX size={18} />
@@ -226,9 +233,23 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
           </div>
 
           <footer className="operator-menu__footer">
-            <button type="button" className="operator-menu__logout" onClick={handleLogout}>
-              {t("nav.logout")}
-            </button>
+            <div className="operator-menu__account">
+              <div className="operator-menu__account-info">
+                <span className="operator-menu__account-avatar" aria-hidden>
+                  {userDisplayInitial(displayName)}
+                </span>
+                <div className="operator-menu__account-text">
+                  <span className="operator-menu__account-name">
+                    {displayName?.trim() || roleLabel(role, t)}
+                  </span>
+                  <span className="operator-menu__account-role">{roleLabel(role, t)}</span>
+                </div>
+              </div>
+              <button type="button" className="operator-menu__logout-btn" onClick={handleLogout}>
+                <IconLogOut size={16} className="operator-menu__logout-icon" aria-hidden />
+                <span>{t("nav.logout")}</span>
+              </button>
+            </div>
           </footer>
         </aside>
       </div>

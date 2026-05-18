@@ -8,6 +8,7 @@ export function AdminSideForm(props: {
   editTitle: string;
   dot?: "orange" | "purple" | "blue" | "green";
   className?: string;
+  hideHeader?: boolean;
   children: React.ReactNode;
   footer: React.ReactNode;
   extra?: React.ReactNode;
@@ -26,17 +27,19 @@ export function AdminSideForm(props: {
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="admin-side-form__header">
-        <div className="admin-side-form__title-wrap">
-          <span className={`admin-side-form__dot admin-side-form__dot--${dot}`} aria-hidden />
-          <h2 className="admin-side-form__title">{props.isEdit ? props.editTitle : props.addTitle}</h2>
+      {props.hideHeader ? null : (
+        <div className="admin-side-form__header">
+          <div className="admin-side-form__title-wrap">
+            <span className={`admin-side-form__dot admin-side-form__dot--${dot}`} aria-hidden />
+            <h2 className="admin-side-form__title">{props.isEdit ? props.editTitle : props.addTitle}</h2>
+          </div>
+          <span
+            className={`admin-form-mode-badge ${props.isEdit ? "admin-form-mode-badge--edit" : "admin-form-mode-badge--add"}`}
+          >
+            {props.isEdit ? t("admin.form.modeEdit") : t("admin.form.modeAdd")}
+          </span>
         </div>
-        <span
-          className={`admin-form-mode-badge ${props.isEdit ? "admin-form-mode-badge--edit" : "admin-form-mode-badge--add"}`}
-        >
-          {props.isEdit ? t("admin.form.modeEdit") : t("admin.form.modeAdd")}
-        </span>
-      </div>
+      )}
 
       <div className="admin-side-form__body">{props.children}</div>
 
