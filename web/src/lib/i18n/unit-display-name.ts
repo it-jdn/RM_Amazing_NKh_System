@@ -1,0 +1,16 @@
+import type { Locale } from "./types";
+import type { UnitOption } from "@/lib/types";
+
+export function unitDisplayName(unit: UnitOption, locale: Locale): string {
+  const th = unit.nameTH?.trim() || "";
+  const en = unit.nameEN?.trim() || "";
+  const kr = unit.nameKR?.trim() || "";
+  if (locale === "en") return en || th;
+  if (locale === "kr") return kr || en || th;
+  return th || en || kr;
+}
+
+/** Primary label for DB snapshots (Thai first). */
+export function unitPrimaryName(unit: Pick<UnitOption, "nameTH" | "nameEN" | "nameKR">): string {
+  return unit.nameTH?.trim() || unit.nameEN?.trim() || unit.nameKR?.trim() || "";
+}
