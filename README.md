@@ -13,92 +13,137 @@
 
 ```
 RM_Amazing_NKh_System/
-├── web/                                         # แอปหลัก (พัฒนา · รัน · deploy ที่นี่)
+├── web/                                              # แอปหลัก (พัฒนา · รัน · deploy ที่นี่)
 │   ├── public/
 │   │   └── amazing-nkh-logo.png
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── (app)/                           # หน้าหลังล็อกอิน
-│   │   │   │   ├── intake/                      # รับสินค้า
-│   │   │   │   ├── history/                     # ประวัติรับสินค้า
-│   │   │   │   ├── report/                      # รายงานต้นทุน
-│   │   │   │   ├── profile/                     # โปรไฟล์ผู้ใช้
-│   │   │   │   ├── admin/                       # การตั้งค่า (admin / manager)
-│   │   │   │   │   ├── shops/                   # ร้านค้า
-│   │   │   │   │   ├── units/                   # หน่วยสินค้า (admin)
-│   │   │   │   │   ├── items/                   # สินค้า + หน่วยซื้อเข้ามาตรฐาน
-│   │   │   │   │   ├── products/                # ผูกสินค้ากับร้าน + หน่วย/ราคาต่อร้าน
-│   │   │   │   │   ├── users/                   # ผู้ใช้ (admin)
-│   │   │   │   │   ├── link/                    # (legacy redirect / ลิงก์เก่า)
-│   │   │   │   │   └── prices/                  # (legacy / ราคา)
+│   │   │   ├── (app)/                                # หน้าหลังล็อกอิน
+│   │   │   │   ├── receiving/                        # รับสินค้า (หน้าหลัก)
+│   │   │   │   ├── intake/                           # redirect → /receiving
+│   │   │   │   ├── history/                          # ประวัติรับสินค้า
+│   │   │   │   ├── report/                           # รายงานต้นทุน
+│   │   │   │   ├── profile/                          # โปรไฟล์ผู้ใช้
+│   │   │   │   ├── admin/                            # การตั้งค่า (admin / manager)
+│   │   │   │   │   ├── shops/                        # ร้านค้า
+│   │   │   │   │   ├── units/                        # หน่วยสินค้า (admin)
+│   │   │   │   │   ├── items/                        # สินค้า + หน่วยซื้อเข้ามาตรฐาน
+│   │   │   │   │   ├── products/                     # ผูกสินค้ากับร้าน + หน่วย/ราคาต่อร้าน
+│   │   │   │   │   ├── users/                        # ผู้ใช้ (admin)
+│   │   │   │   │   ├── link/                         # redirect → /admin/products
+│   │   │   │   │   ├── prices/                       # redirect → /admin/products
+│   │   │   │   │   ├── layout.tsx                    # AdminSubNav + chrome
+│   │   │   │   │   └── page.tsx                      # redirect ไป shops
 │   │   │   │   └── layout.tsx
-│   │   │   ├── login/                           # ล็อกอิน PIN + สลับภาษา
-│   │   │   ├── api/                             # REST API (แทน Google Apps Script)
+│   │   │   ├── login/                                # ล็อกอิน PIN + สลับภาษา
+│   │   │   ├── api/                                  # REST API (แทน Google Apps Script)
 │   │   │   │   ├── auth/login|logout/
 │   │   │   │   ├── data/initial/
-│   │   │   │   ├── suppliers/                   # CRUD + reorder + check
-│   │   │   │   ├── items/                       # catalog + [code] + purchase-standards
-│   │   │   │   ├── products/setup/              # ผูกร้าน + หน่วยซื้อเข้าต่อร้าน
-│   │   │   │   ├── units/                       # หน่วยมาตรฐาน + pairs
+│   │   │   │   ├── suppliers/                        # CRUD + reorder + check
+│   │   │   │   ├── items/                            # catalog + [code] + purchase-standards
+│   │   │   │   ├── products/setup/                   # ผูกร้าน + หน่วยซื้อเข้าต่อร้าน
+│   │   │   │   ├── units/                            # หน่วยมาตรฐาน + pairs
 │   │   │   │   ├── mapping/price/
-│   │   │   │   ├── transactions/                # GET/POST + replace + batch + slip-meta
-│   │   │   │   ├── reports/                     # + price-history
-│   │   │   │   ├── users/                       # + me
+│   │   │   │   ├── transactions/                     # GET/POST + replace + batch + slip-meta
+│   │   │   │   ├── reports/                          # + price-history
+│   │   │   │   ├── users/                            # + me
 │   │   │   │   └── admin/units/rebuild/
-│   │   │   ├── page.tsx                         # redirect ตาม role
+│   │   │   ├── page.tsx                              # redirect ตาม role
 │   │   │   ├── layout.tsx
-│   │   │   └── globals.css
+│   │   │   └── globals.css                           # UI ทั้งแอป + admin mobile
 │   │   ├── components/
-│   │   │   ├── pages/                           # IntakeView, HistoryView, ReportView, Admin*Panel
-│   │   │   ├── intake/                          # หน่วยซื้อเข้า, slip note, modals บันทึก
-│   │   │   ├── operator/                        # มือถือ: การ์ด, sticky bar, date/supplier picker
-│   │   │   ├── admin/                           # ฟอร์มสินค้า, หน่วยมาตรฐาน/ต่อร้าน, unsaved guard
-│   │   │   ├── nav/                             # AppNav, เมนูตั้งค่า, mobile menu
-│   │   │   ├── ui/                              # AppDateField ฯลฯ
+│   │   │   ├── pages/                                # หน้าหลักต่อ route
+│   │   │   │   ├── IntakeView.tsx                    # /receiving
+│   │   │   │   ├── HistoryView.tsx
+│   │   │   │   ├── ReportView.tsx, ReportPriceCompare.tsx
+│   │   │   │   ├── ProfileView.tsx
+│   │   │   │   └── admin/                            # Admin*Panel ต่อเมนูตั้งค่า
+│   │   │   │       ├── AdminItemsPanel.tsx
+│   │   │   │       ├── AdminProductsPanel.tsx        # ผูกสินค้ากับร้าน
+│   │   │   │       ├── AdminShopsPanel.tsx
+│   │   │   │       ├── AdminUnitsPanel.tsx
+│   │   │   │       ├── AdminUsersPanel.tsx
+│   │   │   │       ├── AdminLinkPanel.tsx            # (legacy UI — route redirect)
+│   │   │   │       └── admin-shared.tsx
+│   │   │   ├── intake/                               # หน่วยซื้อเข้า, slip, modals, สรุปรายวัน
+│   │   │   │   ├── IntakeDayOverview.tsx
+│   │   │   │   ├── IntakePurchaseUnitSelect.tsx
+│   │   │   │   ├── IntakeSlipNote*.tsx, IntakeSaveConfirmModal.tsx
+│   │   │   │   └── …
+│   │   │   ├── operator/                             # มือถือ: การ์ด, sticky bar, picker
+│   │   │   ├── reports/                              # ตัวกรอง/ตาราง/KPI รายงาน
+│   │   │   │   ├── ReportFilters.tsx
+│   │   │   │   ├── ReportKpiGrid.tsx, ReportTableSection.tsx
+│   │   │   │   └── ReportHeatmap.tsx
+│   │   │   ├── admin/
+│   │   │   │   ├── AdminCatalogFilter.tsx            # กรองร้าน + ค้นหา (+ ยังไม่ผูกร้าน)
+│   │   │   │   ├── AdminItemsCatalogTableUi.tsx      # sort header + chips ร้าน
+│   │   │   │   ├── AdminSideForm.tsx
+│   │   │   │   ├── AdminItemShopUnitsEditor.tsx
+│   │   │   │   ├── AdminItemStandardUnitsEditor.tsx
+│   │   │   │   ├── AdminUnsavedChangesProvider.tsx
+│   │   │   │   ├── AdminSubNav.tsx, AdminLayoutChrome.tsx
+│   │   │   │   └── …
+│   │   │   ├── nav/                                  # AppMobileMenu, NavUserMenu, settings
+│   │   │   ├── ui/                                   # AppDateField
+│   │   │   ├── icons/AppIcons.tsx
 │   │   │   ├── AppNav.tsx
 │   │   │   ├── LocaleSwitcher.tsx
 │   │   │   └── Toast.tsx
 │   │   ├── context/
-│   │   │   ├── AppDataContext.tsx               # suppliers, items, mapping, purchase units
-│   │   │   └── LocaleContext.tsx                # TH / EN / KR
+│   │   │   ├── AppDataContext.tsx                    # suppliers, items, mapping, standards
+│   │   │   └── LocaleContext.tsx                     # TH / EN / KR
 │   │   ├── hooks/
-│   │   │   └── useDrawerNav.ts
+│   │   │   ├── useDrawerNav.ts
+│   │   │   ├── useCompactAdminLayout.ts              # ≤960px: bottom sheet ฟอร์ม admin
+│   │   │   ├── useDropdownTransition.ts
+│   │   │   └── useModalLayer.ts
 │   │   ├── lib/
-│   │   │   ├── auth/                            # session, middleware paths, intake permissions
-│   │   │   ├── i18n/                            # messages, ชื่อสินค้า/ร้าน/หน่วย
-│   │   │   ├── domain/                          # transactions, purchase-units, intake-slip ฯลฯ
-│   │   │   ├── admin/                           # config แถวหน่วยมาตรฐาน / ต่อร้าน
-│   │   │   ├── catalog/                         # หมวดหมู่สินค้า
-│   │   │   ├── services/                        # data.ts, units.ts, catalog-history
-│   │   │   ├── db/                              # postgres-error, schema-support
-│   │   │   ├── navigation/                      # admin-nav
+│   │   │   ├── auth/                                 # session, paths, intake permissions
+│   │   │   ├── i18n/                                 # messages, ชื่อสินค้า/ร้าน/หน่วย
+│   │   │   ├── domain/
+│   │   │   │   ├── transactions.ts, purchase-units.ts
+│   │   │   │   ├── intake-slip.ts, intake-day-overview.ts
+│   │   │   │   ├── item-filter.ts, item-linked-shops.ts
+│   │   │   │   └── supplier-sort.ts, units.ts
+│   │   │   ├── admin/
+│   │   │   │   ├── items-catalog-list.ts             # filter/sort รายการสินค้า (items + products)
+│   │   │   │   ├── item-standard-units-config.ts
+│   │   │   │   └── item-shop-units-config.ts
+│   │   │   ├── reports/                              # aggregate, period, date-range, export-excel
+│   │   │   ├── catalog/item-categories.ts
+│   │   │   ├── services/data.ts, units.ts, …
+│   │   │   ├── users/                                # PIN, display-name, db
+│   │   │   ├── db/                                   # postgres-error, schema-support
+│   │   │   ├── navigation/admin-nav.ts
 │   │   │   ├── supabase/admin.ts
 │   │   │   ├── api/client.ts, response.ts, success.ts
 │   │   │   ├── types.ts
 │   │   │   └── utils/
-│   │   └── middleware.ts                        # PIN session + role guard
+│   │   └── middleware.ts                             # PIN session + role guard
 │   ├── scripts/
-│   │   ├── seed-pins.ts
-│   │   ├── import-from-csv.ts
-│   │   ├── import-transactions.ts
+│   │   ├── seed-pins.ts, import-from-csv.ts, import-transactions.ts
 │   │   ├── build-units-from-transactions.ts
+│   │   ├── deploy-phase1-setup.ts, verify-supabase.ts
+│   │   ├── apply-migrations.ts, print-vercel-env.ts
+│   │   ├── load-deploy-env.ts, reset-user-pins.ts
 │   │   ├── fix-gramma-unit.mjs
 │   │   └── item-category-mapping.csv
-│   ├── supabase/migrations/                     # รันตามลำดับเลข (ดูตารางด้านล่าง)
-│   ├── .env.example
-│   ├── .env.local                               # ค่าจริง (ไม่ commit)
+│   ├── supabase/migrations/                          # 001–012 (ดูตารางด้านล่าง)
+│   ├── .env.example, .env.production.example
+│   ├── .env.local                                  # ค่าจริง (ไม่ commit)
 │   ├── package.json
 │   ├── vercel.json
 │   └── README.md
 │
-├── Backup/                                      # ระบบเดิม + ข้อมูลต้นทาง (ไม่ใช้ runtime)
+├── Backup/                                           # ระบบเดิม + ข้อมูลต้นทาง (ไม่ใช้ runtime)
 │   ├── index.html
 │   ├── code.gs
 │   └── DB File/
-│       ├── Ex Data/                             # CSV สำหรับ npm run import:csv
-│       └── RM Amazing Nongkhai - DB.xlsx        # สำหรับ import:transactions
+│       ├── Ex Data/                                  # CSV สำหรับ npm run import:csv
+│       └── RM Amazing Nongkhai - DB.xlsx             # สำหรับ import:transactions
 │
-└── README.md                                    # ไฟล์นี้
+└── README.md                                         # ไฟล์นี้
 ```
 
 > **สำคัญ:** `package.json` อยู่ใน `web/` — รันคำสั่ง `npm` จากโฟลเดอร์ `web` เสมอ (ไม่ใช่โฟลเดอร์ราก)
@@ -118,18 +163,19 @@ RM_Amazing_NKh_System/
 
 | หน้า | Path | บทบาท |
 |------|------|--------|
-| รับสินค้า | `/receiving` | operator, admin, manager |
+| รับสินค้า | `/receiving` (`/intake` redirect) | operator, admin, manager |
 | ประวัติรับสินค้า | `/history` | operator, admin, manager |
 | รายงาน | `/report` | manager, admin |
 | โปรไฟล์ | `/profile` | ทุก role |
 | ตั้งค่า — ร้านค้า | `/admin/shops` | admin, manager |
 | ตั้งค่า — หน่วยสินค้า | `/admin/units` | admin |
 | ตั้งค่า — สินค้า | `/admin/items` | admin, manager |
-| ตั้งค่า — ผูกสินค้ากับร้าน | `/admin/products` | admin, manager |
+| ตั้งค่า — ผูกสินค้ากับร้าน | `/admin/products` (`/admin/link`, `/admin/prices` redirect) | admin, manager |
 | ตั้งค่า — ผู้ใช้ | `/admin/users` | admin |
 
 - ล็อกอิน **PIN** ที่ `/login`
 - หลังล็อกอิน: **operator** → `/receiving`, **admin/manager** → `/history`
+- รายการสินค้าใน **สินค้า** และ **ผูกสินค้ากับร้าน**: กรองตามร้าน (รวม **ยังไม่ผูกร้าน**), ค้นหา, sort คอลัมน์ (รหัส · ชื่อ · หมวด · ร้านที่ผูก · หน่วย)
 - ภาษา UI: **ไทย / English / 한국어**
 - ชื่อสินค้า ร้านค้า และหน่วยแสดงตามภาษาที่เลือก (fallback ชื่อไทย)
 
@@ -139,12 +185,13 @@ RM_Amazing_NKh_System/
 |------|--------|-----------|
 | **มาตรฐานสินค้า** | `/admin/items` → หน่วยซื้อเข้ามาตรฐาน | กำหนดแพ็ค→ฟอง (30), ฟอง→ฟอง (1) ฯลฯ — ไม่มีราคา |
 | **เปิดใช้ต่อร้าน** | `/admin/products` | เลือกมาตรฐานที่ร้านใช้ + ราคามาตรฐาน + หน่วยเริ่มต้น |
-| **รับสินค้า** | `/receiving` | dropdown เลือกหน่วยซื้อเข้า (ถ้ามีมากกว่า 1 แบบ) |
+| **รับสินค้า** | `/receiving` | dropdown เลือกหน่วยซื้อเข้า (ถ้ามีมากกว่า 1 แบบ); สรุปร้านที่มี draft วันนั้นก่อนเลือกร้าน |
 
 ตัวอย่างไข่ไก่: แถว 1 **แพ็ค → ฟอง (30)** เป็นหน่วยเริ่มต้น, แถว 2 **ฟอง → ฟอง (1)** สำหรับซื้อเป็นฟองเดี่ยว
 
 ### หน้ารับสินค้า (`/receiving`)
 
+- มือถือ: ภาพรวมร้านในวันที่เลือก (บันทึกแล้ว / draft ค้าง) ก่อนเข้ารายการสินค้า
 - เลือก **วันที่รับ** + **ร้านค้า** แล้วกรอกจำนวน / ราคารวมต่อรายการ
 - สินค้าที่มีหลายหน่วยซื้อเข้า → เลือกหน่วยก่อนกรอกจำนวน
 - มือถือ: การ์ดต่อสินค้า + แถบบันทึกติดล่าง; จอใหญ่: ตาราง
@@ -245,6 +292,8 @@ npm run seed:pins
 npm run import:csv
 npm run import:transactions
 npm run build:units      # สร้างหน่วยจากประวัติ transaction
+npm run deploy:verify    # ตรวจ Supabase ก่อน deploy (ใช้กับ DEPLOY_ENV=production)
+npm run deploy:setup     # seed + import ครั้งแรกบน production
 ```
 
 ---
@@ -279,6 +328,8 @@ Logic หลักถูกย้ายไป:
 - [`web/src/lib/services/data.ts`](web/src/lib/services/data.ts) — Supabase data layer
 - [`web/src/lib/domain/transactions.ts`](web/src/lib/domain/transactions.ts) — รวมรายการ, ราคา, แปลงหน่วย
 - [`web/src/lib/domain/purchase-units.ts`](web/src/lib/domain/purchase-units.ts) — ตัวเลือกหน่วยตอนรับของ
+- [`web/src/lib/reports/aggregate.ts`](web/src/lib/reports/aggregate.ts) — สรุปรายงานต้นทุน
+- [`web/src/lib/admin/items-catalog-list.ts`](web/src/lib/admin/items-catalog-list.ts) — กรอง/เรียงรายการสินค้าใน admin
 
 ---
 
