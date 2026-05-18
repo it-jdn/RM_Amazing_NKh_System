@@ -12,10 +12,11 @@ import { histDatePresetRange } from "@/lib/utils/format";
 import type { Item, ItemCategory, Supplier } from "@/lib/types";
 
 const REPORT_PRESETS = [
-  { id: "last7", key: "report.preset7" as const },
-  { id: "last30", key: "report.preset30" as const },
-  { id: "thisMonth", key: "report.presetMonth" as const },
-  { id: "lastMonth", key: "report.presetLastMonth" as const },
+  { id: "all", key: "hist.preset.all" },
+  { id: "last7", key: "report.preset7" },
+  { id: "last30", key: "report.preset30" },
+  { id: "thisMonth", key: "report.presetMonth" },
+  { id: "lastMonth", key: "report.presetLastMonth" },
 ] as const;
 
 type Props = {
@@ -36,8 +37,6 @@ type Props = {
   itemCategories: ItemCategory[];
   loading: boolean;
   hasData: boolean;
-  onSubmit: () => void;
-  onExportCsv: () => void;
   onPrint: () => void;
 };
 
@@ -59,12 +58,11 @@ export function ReportFilters({
   itemCategories,
   loading,
   hasData,
-  onSubmit,
-  onExportCsv,
   onPrint,
 }: Props) {
   const { locale, t } = useLocale();
   const categories = itemCategories.length ? itemCategories : FALLBACK_ITEM_CATEGORIES;
+  const datesDisabled = datePreset === "all";
 
   const itemOptions = useMemo(() => {
     if (!categoryCode) return items;
@@ -97,23 +95,15 @@ export function ReportFilters({
       <div className="report-filters__top">
         <h1 className="report-filters__title">{t("report.title")}</h1>
         <div className="report-filters__actions">
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={loading}
-            onClick={onSubmit}
-          >
-            {t("report.show")}
-          </button>
+          {loading ? (
+            <span className="report-filters__loading" aria-live="polite">
+              {t("report.loading")}
+            </span>
+          ) : null}
           {hasData ? (
-            <>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onExportCsv}>
-                {t("report.exportCsv")}
-              </button>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={onPrint}>
-                {t("report.print")}
-              </button>
-            </>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onPrint}>
+              {t("report.print")}
+            </button>
           ) : null}
         </div>
       </div>
@@ -145,6 +135,7 @@ export function ReportFilters({
             onChange={(v) => onManualDate("from", v)}
             placeholder={t("report.dateFrom")}
             aria-label={t("report.dateFrom")}
+            disabled={datesDisabled}
           />
         </div>
         <div className="filter-group filter-group--date">
@@ -157,6 +148,7 @@ export function ReportFilters({
             onChange={(v) => onManualDate("to", v)}
             placeholder={t("report.dateTo")}
             aria-label={t("report.dateTo")}
+            disabled={datesDisabled}
           />
         </div>
         <div className="filter-group">

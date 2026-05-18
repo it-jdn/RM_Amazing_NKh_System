@@ -5286,6 +5286,26 @@ input.intake-touch-input,
   margin-bottom: 12px;
   font-size: 0.9rem;
 }
+.report-filters__loading {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+.report-table-section__head {
+  width: 100%;
+}
+.report-table-section__title {
+  flex: 1;
+  min-width: 0;
+}
+.report-table-section__export {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.app-date-field--disabled .app-date-field__btn {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .report-heatmap-wrap {
   overflow-x: auto;
 }

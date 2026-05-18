@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -23,17 +23,13 @@ import {
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { apiGet } from "@/lib/api/client";
 import { useToast } from "@/components/Toast";
-import {
-  daysAgoISO,
-  fmt,
-  formatAppDate,
-  formatAppMonthYear,
-  todayISO,
-} from "@/lib/utils/format";
+import { fmt, formatAppDate } from "@/lib/utils/format";
+import { downloadExcelTable } from "@/lib/reports/export-excel";
 import { ReportPriceCompare } from "@/components/pages/ReportPriceCompare";
 import { ReportFilters } from "@/components/reports/ReportFilters";
 import { ReportHeatmap } from "@/components/reports/ReportHeatmap";
 import { ReportKpiCard, ReportKpiGrid } from "@/components/reports/ReportKpiGrid";
+import { ReportTableSection } from "@/components/reports/ReportTableSection";
 
 ChartJS.register(
   CategoryScale,
@@ -121,70 +117,130 @@ function wonTicks(v: string | number) {
   return "₩" + fmt(Number(v));
 }
 
-function formatPctChange(v: number | null | undefined) {
-  if (v == null) return "—";
-  const sign = v > 0 ? "+" : "";
-  return `${sign}${v.toFixed(1)}%`;
-}
-
 export function ReportView() {
   const { suppliers, items, itemCategories: categoriesFromApi } = useAppData();
   const itemCategories = categoriesFromApi.length ? categoriesFromApi : FALLBACK_ITEM_CATEGORIES;
   const { locale, t } = useLocale();
   const toast = useToast();
-  const [rFrom, setRFrom] = useState(daysAgoISO(29));
-  const [rTo, setRTo] = useState(todayISO());
+  const [rFrom, setRFrom] = useState("");
+  const [rTo, setRTo] = useState("");
   const [rSupp, setRSupp] = useState("");
   const [rItem, setRItem] = useState("");
   const [rCategory, setRCategory] = useState("");
   const [data, setData] = useState<ReportData | null>(null);
   const [showCompare, setShowCompare] = useState(false);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [datePreset, setDatePreset] = useState("last30");
+  const [datePreset, setDatePreset] = useState("all");
 
   const reportCategories =
     data?.itemCategories?.length ? data.itemCategories : itemCategories;
 
-  function buildParams(p: number) {
-    const params = new URLSearchParams();
-    if (rFrom) params.set("dateFrom", rFrom);
-    if (rTo) params.set("dateTo", rTo);
-    if (rSupp) params.set("suppCode", rSupp);
-    if (rItem) params.set("itemCode", rItem);
-    if (rCategory) params.set("categoryCode", rCategory);
-    params.set("page", String(p));
-    params.set("pageSize", "50");
-    return params;
-  }
+  const categoryLabel = useCallback(
+    (categoryCode: string, fallbackTH: string) => {
+      const cat = reportCategories.find((c) => c.code === categoryCode);
+      return cat ? itemCategoryDisplayName(cat, locale) : fallbackTH;
+    },
+    [reportCategories, locale]
+  );
 
-  async function loadReport(nextPage = 1) {
+  const excelRange = rFrom && rTo ? `${rFrom}_${rTo}` : "all";
+
+  const loadReport = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await apiGet<ReportData>(`/api/reports?${buildParams(nextPage)}`);
+      const params = new URLSearchParams();
+      if (rFrom) params.set("dateFrom", rFrom);
+      if (rTo) params.set("dateTo", rTo);
+      if (rSupp) params.set("suppCode", rSupp);
+      if (rItem) params.set("itemCode", rItem);
+      if (rCategory) params.set("categoryCode", rCategory);
+      params.set("page", "1");
+      params.set("pageSize", "100000");
+
+      const d = await apiGet<ReportData>(`/api/reports?${params}`);
       if (!d.success) {
         toast(t("report.loadError"));
         return;
       }
       setData(d);
-      setPage(nextPage);
       setShowCompare(true);
     } catch (e) {
       toast(e instanceof Error ? e.message : t("report.loadError"));
     } finally {
       setLoading(false);
     }
-  }
+  }, [rFrom, rTo, rSupp, rItem, rCategory, t, toast]);
 
-  function exportCsv() {
-    const params = buildParams(1);
-    params.set("format", "csv");
-    params.set("pageSize", "10000");
-    window.open(`/api/reports?${params}`, "_blank");
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadReport();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [loadReport]);
 
   function printReport() {
     window.print();
+  }
+
+  function exportCategoryExcel() {
+    if (!data) return;
+    const rowCol = t("admin.table.rowCol");
+    downloadExcelTable(
+      `report-by-category-${excelRange}.xlsx`,
+      t("report.byCategory"),
+      [
+        rowCol,
+        t("report.category"),
+        t("report.categoryItems"),
+        t("report.categoryTrans"),
+        t("report.share"),
+        t("report.value"),
+      ],
+      data.byCategory.map((row, i) => [
+        i + 1,
+        categoryLabel(row.categoryCode, row.categoryNameTH),
+        row.distinctItems,
+        row.count,
+        `${row.sharePct.toFixed(1)}%`,
+        row.totalPrice,
+      ])
+    );
+  }
+
+  function exportItemExcel() {
+    if (!data) return;
+    const rowCol = t("admin.table.rowCol");
+    downloadExcelTable(
+      `report-by-item-${excelRange}.xlsx`,
+      t("report.byItem"),
+      [rowCol, t("report.item"), t("report.qty"), t("report.lines"), t("report.share"), t("report.value")],
+      data.byItem.map((x, i) => [
+        i + 1,
+        x.itemName,
+        x.qty,
+        x.count,
+        `${x.sharePct.toFixed(1)}%`,
+        x.totalPrice,
+      ])
+    );
+  }
+
+  function exportDetailExcel() {
+    if (!data) return;
+    const rowCol = t("admin.table.rowCol");
+    downloadExcelTable(
+      `report-intake-detail-${excelRange}.xlsx`,
+      t("report.latest"),
+      [rowCol, t("intake.date"), t("report.shop"), t("report.item"), t("report.qty"), t("report.value")],
+      data.rows.map((r, i) => [
+        i + 1,
+        r.date,
+        r.suppName || r.suppCode,
+        r.itemNameTH,
+        `${r.qty} ${r.mainUnit}`,
+        r.totalPrice,
+      ])
+    );
   }
 
   const dailyLineData = data
@@ -288,25 +344,6 @@ export function ReportView() {
       }
     : null;
 
-  const varianceLine = data?.priceVarianceByMonth.length
-    ? {
-        labels: data.priceVarianceByMonth.map((m) => {
-          const [y, mo] = m.month.split("-");
-          return formatAppMonthYear(y, mo, locale);
-        }),
-        datasets: [
-          {
-            label: t("report.varianceMonth"),
-            data: data.priceVarianceByMonth.map((m) => m.avgVariancePct),
-            borderColor: "rgba(200,100,30,.95)",
-            backgroundColor: "rgba(200,100,30,.15)",
-            fill: true,
-            tension: 0.2,
-          },
-        ],
-      }
-    : null;
-
   const chartOpts = {
     responsive: true,
     plugins: { legend: { display: true, position: "top" as const } },
@@ -332,8 +369,6 @@ export function ReportView() {
         itemCategories={itemCategories}
         loading={loading}
         hasData={!!data}
-        onSubmit={() => void loadReport(1)}
-        onExportCsv={exportCsv}
         onPrint={printReport}
       />
 
@@ -344,36 +379,11 @@ export function ReportView() {
               highlight
               label={t("report.totalCost")}
               value={`₩${fmt(data.summary.totalCost)}`}
-              sub={
-              data.previousPeriod
-                ? `${t("report.vsPrev")}: ${formatPctChange(data.previousPeriod.changePct.totalCost)}`
-                : undefined
-            } />
-            <ReportKpiCard
-              label={t("report.totalTrans")}
-              value={String(data.summary.totalTrans)}
-              sub={
-                data.previousPeriod
-                  ? `${t("report.vsPrev")}: ${formatPctChange(data.previousPeriod.changePct.totalTrans)}`
-                  : undefined
-              }
             />
             <ReportKpiCard label={t("report.avgDaily")} value={`₩${fmt(data.summary.avgDailyCost)}`} />
             <ReportKpiCard
               label={t("report.distinctItems")}
               value={String(data.summary.distinctItems)}
-            />
-            <ReportKpiCard
-              label={t("report.distinctShops")}
-              value={String(data.summary.distinctSuppliers)}
-            />
-            <ReportKpiCard
-              label={t("report.priceVariance")}
-              value={
-                data.summary.avgPriceVariancePct != null
-                  ? `${formatPctChange(data.summary.avgPriceVariancePct)}`
-                  : "—"
-              }
             />
           </ReportKpiGrid>
 
@@ -478,38 +488,19 @@ export function ReportView() {
             )}
           </div>
 
-          {varianceLine && (
-            <div className="card">
-              <div className="card-title">
-                <span className="dot dot-orange" />
-                <span>{t("report.varianceMonth")}</span>
-              </div>
-              <Line
-                data={varianceLine}
-                options={{
-                  ...chartOpts,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    y: {
-                      ticks: { callback: (v) => `${Number(v).toFixed(1)}%` },
-                    },
-                  },
-                }}
-              />
-            </div>
-          )}
-
           <ReportHeatmap cells={data.weeklyHeatmap} title={t("report.heatmap")} />
 
-          <div className="card">
-            <div className="card-title">
-              <span className="dot dot-orange" />
-              <span>{t("report.byCategory")}</span>
-            </div>
+          <ReportTableSection
+            title={t("report.byCategory")}
+            dot="orange"
+            onExportExcel={exportCategoryExcel}
+            exportDisabled={!data.byCategory.length}
+          >
             <div className="tbl-scroll">
               <table className="dtbl">
                 <thead>
                   <tr>
+                    <th>{t("admin.table.rowCol")}</th>
                     <th>{t("report.category")}</th>
                     <th>{t("report.categoryItems")}</th>
                     <th>{t("report.categoryTrans")}</th>
@@ -519,26 +510,21 @@ export function ReportView() {
                 </thead>
                 <tbody>
                   {data.byCategory.length ? (
-                    data.byCategory.map((row) => {
-                      const cat = reportCategories.find((c) => c.code === row.categoryCode);
-                      const label = cat
-                        ? itemCategoryDisplayName(cat, locale)
-                        : row.categoryNameTH;
-                      return (
-                        <tr key={row.categoryCode}>
-                          <td>
-                            <b>{label}</b>
-                          </td>
-                          <td>{row.distinctItems}</td>
-                          <td>{row.count}</td>
-                          <td>{row.sharePct.toFixed(1)}%</td>
-                          <td className="gval">₩{fmt(row.totalPrice)}</td>
-                        </tr>
-                      );
-                    })
+                    data.byCategory.map((row, i) => (
+                      <tr key={row.categoryCode}>
+                        <td className="row-num">{i + 1}</td>
+                        <td>
+                          <b>{categoryLabel(row.categoryCode, row.categoryNameTH)}</b>
+                        </td>
+                        <td>{row.distinctItems}</td>
+                        <td>{row.count}</td>
+                        <td>{row.sharePct.toFixed(1)}%</td>
+                        <td className="gval">₩{fmt(row.totalPrice)}</td>
+                      </tr>
+                    ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="empty">
+                      <td colSpan={6} className="empty">
                         {t("report.noData")}
                       </td>
                     </tr>
@@ -546,17 +532,19 @@ export function ReportView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </ReportTableSection>
 
-          <div className="card">
-            <div className="card-title">
-              <span className="dot dot-blue" />
-              <span>{t("report.byItem")}</span>
-            </div>
+          <ReportTableSection
+            title={t("report.byItem")}
+            dot="blue"
+            onExportExcel={exportItemExcel}
+            exportDisabled={!data.byItem.length}
+          >
             <div className="tbl-scroll">
               <table className="dtbl">
                 <thead>
                   <tr>
+                    <th>{t("admin.table.rowCol")}</th>
                     <th>{t("report.item")}</th>
                     <th>{t("report.qty")}</th>
                     <th>{t("report.lines")}</th>
@@ -566,8 +554,9 @@ export function ReportView() {
                 </thead>
                 <tbody>
                   {data.byItem.length ? (
-                    data.byItem.map((x) => (
+                    data.byItem.map((x, i) => (
                       <tr key={x.itemCode}>
+                        <td className="row-num">{i + 1}</td>
                         <td>
                           <b>{x.itemName}</b>
                         </td>
@@ -579,7 +568,7 @@ export function ReportView() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="empty">
+                      <td colSpan={6} className="empty">
                         {t("report.noData")}
                       </td>
                     </tr>
@@ -587,41 +576,20 @@ export function ReportView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </ReportTableSection>
 
-          <div className="card report-detail-card">
-            <div className="card-title">
-              <span className="dot dot-green" />
-              <span>{t("report.latest")}</span>
-            </div>
-            <div className="report-pagination no-print">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={page <= 1 || loading}
-                onClick={() => void loadReport(page - 1)}
-              >
-                ←
-              </button>
-              <span>
-                {t("report.page")} {data.pagination.page} {t("report.of")}{" "}
-                {data.pagination.totalPages} ({data.pagination.totalRows})
-              </span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={page >= data.pagination.totalPages || loading}
-                onClick={() => void loadReport(page + 1)}
-              >
-                →
-              </button>
-            </div>
+          <ReportTableSection
+            title={t("report.latest")}
+            dot="green"
+            onExportExcel={exportDetailExcel}
+            exportDisabled={!data.rows.length}
+          >
             <div className="tbl-scroll">
               <table className="dtbl">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>วันที่</th>
+                    <th>{t("admin.table.rowCol")}</th>
+                    <th>{t("intake.date")}</th>
                     <th>{t("report.shop")}</th>
                     <th>{t("report.item")}</th>
                     <th>{t("report.qty")}</th>
@@ -630,11 +598,9 @@ export function ReportView() {
                 </thead>
                 <tbody>
                   {data.rows.length ? (
-                    data.rows.map((r) => (
-                      <tr key={`${r.no}-${r.date}-${r.itemNameTH}`}>
-                        <td style={{ color: "var(--muted)", fontFamily: "IBM Plex Mono, monospace" }}>
-                          {r.no}
-                        </td>
+                    data.rows.map((r, i) => (
+                      <tr key={`${r.date}-${r.suppCode}-${r.itemNameTH}-${i}`}>
+                        <td className="row-num">{i + 1}</td>
                         <td>{formatAppDate(r.date, locale)}</td>
                         <td>{r.suppName || r.suppCode}</td>
                         <td>
@@ -656,7 +622,7 @@ export function ReportView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </ReportTableSection>
 
           <ReportPriceCompare
             dateFrom={rFrom}

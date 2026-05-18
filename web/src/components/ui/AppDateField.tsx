@@ -12,6 +12,7 @@ type Props = {
   placeholder?: string;
   className?: string;
   "aria-label"?: string;
+  disabled?: boolean;
 };
 
 /** Date picker with locale-formatted label (e.g. 17 พ.ค. 69) */
@@ -22,12 +23,14 @@ export function AppDateField({
   placeholder,
   className,
   "aria-label": ariaLabel,
+  disabled,
 }: Props) {
   const { locale } = useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
   const label = value ? formatAppDate(value, locale) : placeholder ?? "";
 
   function openPicker() {
+    if (disabled) return;
     const el = inputRef.current;
     if (!el) return;
     try {
@@ -38,11 +41,14 @@ export function AppDateField({
   }
 
   return (
-    <div className={`app-date-field${className ? ` ${className}` : ""}`}>
+    <div
+      className={`app-date-field${className ? ` ${className}` : ""}${disabled ? " app-date-field--disabled" : ""}`}
+    >
       <button
         type="button"
         className="app-date-field__btn"
         onClick={openPicker}
+        disabled={disabled}
         aria-label={ariaLabel ?? placeholder}
       >
         <span className="app-date-field__label">{label}</span>
