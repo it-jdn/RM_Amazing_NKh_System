@@ -355,6 +355,10 @@ export function IntakeView() {
     requestNavigate({ kind: "slip", slipId, suppCode, slipNo });
   }
 
+  function goBackToOverview() {
+    requestNavigate({ kind: "supp", value: "" });
+  }
+
   function startNewSlip() {
     if (activeSlipId === "") return;
     if (isDirty && !confirm(t("intake.unsavedNewSlipConfirm"))) return;
@@ -693,8 +697,6 @@ export function IntakeView() {
         readOnly={readOnly}
         loading={loadingSlip}
         saving={saving}
-        reloading={reloadingSlip}
-        onReload={() => void reloadLatest()}
         onReset={() => {
           if (!confirm(t("intake.resetConfirm"))) return;
           if (activeSlipId) void loadSlipById(activeSlipId);
@@ -720,9 +722,16 @@ export function IntakeView() {
   return (
     <div className={wrapClass}>
       <div className="card intake-setup-card intake-desktop-only">
-        <div className="card-title">
-          <span className="dot dot-green" />
-          <span>{t("intake.title")}</span>
+        <div className="intake-setup-card__head">
+          <div className="card-title">
+            <span className="dot dot-green" />
+            <span>{t("intake.title")}</span>
+          </div>
+          {suppSel ? (
+            <button type="button" className="btn btn-ghost btn-sm intake-back-btn" onClick={goBackToOverview}>
+              {t("intake.backToOverview")}
+            </button>
+          ) : null}
         </div>
         <div className="form-row c2 intake-form-top">
           <div>
@@ -753,6 +762,11 @@ export function IntakeView() {
       </div>
 
       <div className="intake-mobile-only intake-context-panel">
+        {suppSel ? (
+          <button type="button" className="btn btn-ghost btn-sm intake-back-btn intake-back-btn--mobile" onClick={goBackToOverview}>
+            {t("intake.backToOverview")}
+          </button>
+        ) : null}
         <IntakeMobileSetup
           intakeDate={intakeDate}
           setIntakeDate={(v) => requestNavigate({ kind: "date", value: v })}

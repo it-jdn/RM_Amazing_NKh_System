@@ -74,11 +74,6 @@ export function IntakeDayOverview({
     [suppliers]
   );
 
-  const progressPct =
-    overview.totalShopCount > 0
-      ? Math.round((overview.savedShopCount / overview.totalShopCount) * 100)
-      : 0;
-
   function shopName(row: SlipDayRow) {
     const supp = suppByCode.get(row.suppCode);
     return supp ? supplierDisplayName(supp, locale) : row.suppName;
@@ -86,144 +81,137 @@ export function IntakeDayOverview({
 
   if (!suppliers.length) {
     return (
-      <div className="intake-day-overview card">
-        <p className="empty">{t("intake.dayOverview.noShops")}</p>
+      <div className="intake-document">
+        <div className="intake-document__sheet">
+          <p className="intake-day-overview__empty">{t("intake.dayOverview.noShops")}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="intake-day-overview">
-      <div className="intake-day-overview__header card">
-        <div className="card-title">
-          <span className="dot dot-green" />
-          <span>{t("intake.dayOverview.title")}</span>
-        </div>
-        <p className="intake-day-overview__date">{formatAppDate(intakeDate, locale)}</p>
+    <div className="intake-document intake-document--overview">
+      <div className="intake-document__sheet">
+        <header className="intake-doc-header intake-doc-header--overview">
+          <div className="intake-doc-header__letterhead">
+            <div className="intake-doc-header__title-row">
+              <div className="intake-doc-header__titles">
+                <p className="intake-doc-header__title-en">{t("intake.dayOverview.titleEn")}</p>
+                <h2 className="intake-doc-header__title-th">{t("intake.dayOverview.title")}</h2>
+              </div>
+            </div>
+            <div className="intake-doc-header__rule" aria-hidden />
 
-        {loading ? (
-          <IntakeLoadPanel message={t("intake.dayOverview.loading")} />
-        ) : error ? (
-          <div className="intake-day-overview__error-box">
-            <p className="intake-day-overview__error">{t("intake.dayOverview.loadError")}</p>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadDay()}>
-              {t("intake.dayOverview.retry")}
-            </button>
+            {loading ? (
+              <IntakeLoadPanel message={t("intake.dayOverview.loading")} />
+            ) : error ? (
+              <div className="intake-day-overview__error-box">
+                <p className="intake-day-overview__error">{t("intake.dayOverview.loadError")}</p>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadDay()}>
+                  {t("intake.dayOverview.retry")}
+                </button>
+              </div>
+            ) : (
+              <div className="intake-doc-header__grid intake-doc-header__grid--overview">
+                <div className="intake-doc-header__field">
+                  <span className="intake-doc-header__label">{t("intake.slipDoc.date")}</span>
+                  <span className="intake-doc-header__value">{formatAppDate(intakeDate, locale)}</span>
+                </div>
+                <div className="intake-doc-header__field">
+                  <span className="intake-doc-header__label">{t("intake.dayOverview.slipCount")}</span>
+                  <span className="intake-doc-header__value">{overview.slipCount}</span>
+                </div>
+                <div className="intake-doc-header__field intake-doc-header__field--total">
+                  <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
+                  <span className="intake-doc-header__value intake-doc-header__value--amount">
+                    ₩{fmt(overview.dayTotal)}
+                  </span>
+                </div>
+                <div className="intake-doc-header__field intake-doc-header__field--wide">
+                  <span className="intake-doc-header__label">{t("intake.dayOverview.savedShops")}</span>
+                  <span className="intake-doc-header__value">
+                    {t("intake.dayOverview.summarySlips", {
+                      count: overview.slipCount,
+                      shops: overview.savedShopCount,
+                      total: overview.totalShopCount,
+                      amount: fmt(overview.dayTotal),
+                    })}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <>
-            <div className="intake-day-overview__kpi-row">
-              <div className="intake-day-overview__kpi">
-                <span className="intake-day-overview__kpi-label">{t("intake.dayOverview.slipCount")}</span>
-                <span className="intake-day-overview__kpi-value">{overview.slipCount}</span>
-              </div>
-              <div className="intake-day-overview__kpi intake-day-overview__kpi--total">
-                <span className="intake-day-overview__kpi-label">{t("intake.totalWon")}</span>
-                <span className="intake-day-overview__kpi-value">₩{fmt(overview.dayTotal)}</span>
-              </div>
-            </div>
-            <div className="intake-day-overview__progress" aria-hidden>
-              <div
-                className="intake-day-overview__progress-fill"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            <p className="intake-day-overview__summary">
-              {t("intake.dayOverview.summarySlips", {
-                count: overview.slipCount,
-                shops: overview.savedShopCount,
-                total: overview.totalShopCount,
-                amount: fmt(overview.dayTotal),
-              })}
-            </p>
-          </>
-        )}
+        </header>
+
+        {!loading && !error ? (
+          <SavedSlipSection
+            rows={overview.slips}
+            shopName={shopName}
+            onSelect={onSelectSlip}
+            t={t}
+            locale={locale}
+            emptyLabel={t("intake.dayOverview.emptySlips")}
+          />
+        ) : null}
+
+        <p className="intake-document__footnote">{t("intake.dayOverview.hint")}</p>
       </div>
-
-      {loading ? (
-        <section className="intake-day-overview__section intake-day-overview__section--saved">
-          <h3 className="intake-day-overview__section-title">{t("intake.dayOverview.slips")}</h3>
-          <ul className="intake-day-overview__skeleton" aria-hidden>
-            {[1, 2, 3, 4].map((i) => (
-              <li key={i} className="intake-day-overview__skeleton-row" />
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {!loading && !error ? (
-        <SavedSlipSection
-          title={t("intake.dayOverview.slips")}
-          emptyLabel={t("intake.dayOverview.emptySlips")}
-          rows={overview.slips}
-          shopName={shopName}
-          onSelect={onSelectSlip}
-          t={t}
-          locale={locale}
-        />
-      ) : null}
     </div>
   );
 }
 
 function SavedSlipSection({
-  title,
-  emptyLabel,
   rows,
   shopName,
   onSelect,
   t,
   locale,
+  emptyLabel,
 }: {
-  title: string;
-  emptyLabel: string;
   rows: SlipDayRow[];
   shopName: (row: SlipDayRow) => string;
   onSelect: (slipId: string, suppCode: string, slipNo?: number) => void;
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   locale: Locale;
+  emptyLabel: string;
 }) {
   return (
-    <section className="intake-day-overview__section intake-day-overview__section--saved">
-      <h3 className="intake-day-overview__section-title">{title}</h3>
+    <section className="intake-day-slip-list" aria-label={t("intake.dayOverview.slips")}>
       {!rows.length ? (
-        <p className="intake-day-overview__empty">{emptyLabel}</p>
+        <p className="intake-day-slip-list__empty">{emptyLabel}</p>
       ) : (
-        <ul className="intake-day-overview__list">
+        <ul className="intake-day-slip-list__items">
           {rows.map((row) => {
             const shopRows = rows.filter((r) => r.suppCode === row.suppCode);
             const slipNo = shopRows.length - shopRows.findIndex((r) => r.id === row.id);
+            const edited = row.updatedAt !== row.createdAt;
             return (
-            <li key={row.id}>
-              <button
-                type="button"
-                className="intake-day-overview__row intake-day-overview__row--saved"
-                onClick={() => onSelect(row.id, row.suppCode, slipNo)}
-              >
-                <span className="intake-day-overview__row-head">
-                  <span className="intake-day-overview__row-name">{shopName(row)}</span>
-                  <span className="intake-day-overview__badge">{t("intake.slipStatus.saved")}</span>
-                </span>
-                <span className="intake-day-overview__row-time">
-                  {formatAppDateTime(row.createdAt, locale)}
-                  {row.updatedAt !== row.createdAt
-                    ? ` · ${t("intake.slipList.editedAt", { at: formatAppDateTime(row.updatedAt, locale) })}`
-                    : ""}
-                </span>
-                <span className="intake-day-overview__row-meta">
-                  <span>
-                    {t("intake.dayOverview.lines", { n: row.lineCount })}
-                    {row.productCount !== row.lineCount
-                      ? ` · ${t("intake.dayOverview.products", { n: row.productCount })}`
-                      : ""}
+              <li key={row.id}>
+                <button
+                  type="button"
+                  className="intake-day-slip-list__row"
+                  onClick={() => onSelect(row.id, row.suppCode, slipNo)}
+                >
+                  <span className="intake-day-slip-list__main">
+                    <span className="intake-day-slip-list__shop">{shopName(row)}</span>
+                    <span className="intake-day-slip-list__slip">
+                      {t("intake.slipList.slipNo", { n: slipNo })}
+                    </span>
                   </span>
-                  {row.createdByName ? (
-                    <span className="intake-day-overview__saved-by">{row.createdByName}</span>
-                  ) : null}
-                  <span className="intake-day-overview__row-total">₩{fmt(row.totalPrice)}</span>
-                </span>
-              </button>
-            </li>
+                  <span className="intake-day-slip-list__meta">
+                    <span className="intake-day-slip-list__time">
+                      {formatAppDateTime(row.createdAt, locale)}
+                    </span>
+                    {row.createdByName ? (
+                      <span className="intake-day-slip-list__by">{row.createdByName}</span>
+                    ) : null}
+                    {edited ? (
+                      <span className="intake-slip-tab__edited">{t("intake.slipList.editedBadge")}</span>
+                    ) : null}
+                  </span>
+                  <span className="intake-day-slip-list__amount">₩{fmt(row.totalPrice)}</span>
+                </button>
+              </li>
             );
           })}
         </ul>

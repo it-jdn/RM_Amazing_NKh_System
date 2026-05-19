@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
 import { IconPlus } from "@/components/icons/AppIcons";
-import { formatAppDateTime, fmt } from "@/lib/utils/format";
+import { formatAppDateTime } from "@/lib/utils/format";
 import type { IntakeSlipSummary } from "@/lib/types";
 
 type Props = {
@@ -54,7 +54,7 @@ export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSl
         className={`intake-slip-tab intake-slip-tab--new${isNewActive ? " intake-slip-tab--active" : ""}`}
         onClick={onNewSlip}
       >
-        <IconPlus size={16} className="intake-slip-tab__icon" />
+        <IconPlus size={16} className="intake-slip-tab__icon" aria-hidden />
         <span className="intake-slip-tab__label">{t("intake.slipList.newTab")}</span>
       </button>
 
@@ -77,16 +77,17 @@ export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSl
               className={`intake-slip-tab${active ? " intake-slip-tab--active" : ""}`}
               onClick={() => onSelectSlip(s.id, n)}
             >
-              <span className="intake-slip-tab__num">{t("intake.slipList.slipNo", { n })}</span>
-              <span className="intake-slip-tab__time">{formatAppDateTime(s.createdAt, locale)}</span>
-              <span className="intake-slip-tab__foot">
-                <span className="intake-slip-tab__amount">₩{fmt(s.totalPrice)}</span>
-                {edited ? (
-                  <span className="intake-slip-tab__edited" title={t("intake.slipList.editedAt", { at: formatAppDateTime(s.updatedAt, locale) })}>
-                    {t("intake.slipList.editedBadge")}
-                  </span>
-                ) : null}
-              </span>
+              <span className="intake-slip-tab__label">{t("intake.slipList.slipNo", { n })}</span>
+              {edited ? (
+                <span
+                  className="intake-slip-tab__edited"
+                  title={t("intake.slipList.editedAt", {
+                    at: formatAppDateTime(s.updatedAt, locale),
+                  })}
+                >
+                  {t("intake.slipList.editedBadge")}
+                </span>
+              ) : null}
             </button>
           );
         })

@@ -2,7 +2,6 @@
 
 import { DeleteIntakeBatchButton } from "@/components/intake/DeleteIntakeBatchButton";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
-import { IconRefresh } from "@/components/icons/AppIcons";
 import { useLocale } from "@/context/LocaleContext";
 import { formatAppDate, formatAppDateTime, fmt } from "@/lib/utils/format";
 import type { AppRole } from "@/lib/types";
@@ -28,8 +27,6 @@ type Props = {
   readOnly: boolean;
   loading?: boolean;
   saving?: boolean;
-  reloading: boolean;
-  onReload: () => void;
   onReset: () => void;
   onDeleted: () => void;
   showSavedActions: boolean;
@@ -53,8 +50,6 @@ export function IntakeSlipStatusBar({
   readOnly,
   loading,
   saving,
-  reloading,
-  onReload,
   onReset,
   onDeleted,
   showSavedActions,
@@ -78,7 +73,6 @@ export function IntakeSlipStatusBar({
                 ? t("intake.slipStatus.draft")
                 : t("intake.slipStatus.new");
 
-  const showReload = !loading && !saving && (status !== "new" || showSavedActions);
   const showEditStamp = !loading && !!createdAt;
   const wasEdited = updatedAt && createdAt && updatedAt !== createdAt;
 
@@ -98,9 +92,33 @@ export function IntakeSlipStatusBar({
             <p className="intake-doc-header__title-en">{t("intake.slipDoc.titleEn")}</p>
             <h2 className="intake-doc-header__title-th">{t("intake.slipDoc.title")}</h2>
           </div>
-          <span className={`intake-doc-header__badge intake-doc-header__badge--${readOnly ? "readonly" : effectiveStatus}`}>
-            {statusLabel}
-          </span>
+          <div className="intake-doc-header__actions">
+            {!loading && !saving ? (
+              <div className="intake-doc-header__tools">
+                {showSavedActions ? (
+                  <>
+                    <button type="button" className="btn btn-ghost btn-sm intake-doc-header__tool" onClick={onReset}>
+                      {t("intake.resetForm")}
+                    </button>
+                    <DeleteIntakeBatchButton
+                      date={intakeDate}
+                      suppCode={suppCode}
+                      suppName={shopName}
+                      slipId={slipId}
+                      role={role}
+                      className="btn btn-danger-outline btn-sm intake-doc-header__tool"
+                      onDeleted={onDeleted}
+                    />
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+            <span
+              className={`intake-doc-header__badge intake-doc-header__badge--${readOnly ? "readonly" : effectiveStatus}`}
+            >
+              {statusLabel}
+            </span>
+          </div>
         </div>
 
         <div className="intake-doc-header__rule" aria-hidden />
@@ -158,38 +176,6 @@ export function IntakeSlipStatusBar({
       </div>
 
       {loading ? <IntakeLoadPanel message={t("intake.slipStatus.loadingDetail")} compact /> : null}
-
-      {!loading ? (
-        <div className="intake-doc-header__toolbar">
-          {showReload ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm intake-doc-header__tool"
-              onClick={onReload}
-              disabled={reloading}
-            >
-              <IconRefresh size={16} className={reloading ? "intake-icon-btn__spin" : undefined} />
-              {t("intake.reloadLatest")}
-            </button>
-          ) : null}
-          {showSavedActions && !saving ? (
-            <>
-              <button type="button" className="btn btn-ghost btn-sm intake-doc-header__tool" onClick={onReset}>
-                {t("intake.resetForm")}
-              </button>
-              <DeleteIntakeBatchButton
-                date={intakeDate}
-                suppCode={suppCode}
-                suppName={shopName}
-                slipId={slipId}
-                role={role}
-                className="btn btn-danger-outline btn-sm intake-doc-header__tool"
-                onDeleted={onDeleted}
-              />
-            </>
-          ) : null}
-        </div>
-      ) : null}
 
       {!loading && hasDuplicateRows ? (
         <p className="intake-doc-header__warn">{t("intake.duplicateRowsWarning")}</p>
