@@ -98,13 +98,19 @@ export function IntakeDayOverview({
       <div className="intake-document__sheet">
         <header className="intake-doc-header intake-doc-header--overview">
           <div className="intake-doc-header__letterhead">
-            <div className="intake-doc-header__title-row">
-              <div className="intake-doc-header__titles">
-                <p className="intake-doc-header__title-en">{t("intake.dayOverview.titleEn")}</p>
-                <h2 className="intake-doc-header__title-th">{t("intake.dayOverview.title")}</h2>
-              </div>
+            <div className="intake-doc-header__title-row intake-doc-header__title-row--overview">
+              <h2 className="intake-doc-header__title-th">
+                {t("intake.dayOverview.titleWithDate", {
+                  date: formatAppDate(intakeDate, locale),
+                })}
+              </h2>
+              {!loading && !error ? (
+                <div className="intake-doc-header__total-block">
+                  <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
+                  <span className="intake-doc-header__value--amount">₩{fmt(overview.dayTotal)}</span>
+                </div>
+              ) : null}
             </div>
-            <div className="intake-doc-header__rule" aria-hidden />
 
             {loading ? (
               <IntakeLoadPanel message={t("intake.dayOverview.loading")} />
@@ -116,32 +122,17 @@ export function IntakeDayOverview({
                 </button>
               </div>
             ) : (
-              <div className="intake-doc-header__grid intake-doc-header__grid--overview">
-                <div className="intake-doc-header__field">
-                  <span className="intake-doc-header__label">{t("intake.slipDoc.date")}</span>
-                  <span className="intake-doc-header__value">{formatAppDate(intakeDate, locale)}</span>
+              <div className="intake-doc-header__overview-stats">
+                <div className="intake-doc-header__stat">
+                  <span className="intake-doc-header__stat-value">{overview.slipCount}</span>
+                  <span className="intake-doc-header__stat-label">{t("intake.dayOverview.slipCount")}</span>
                 </div>
-                <div className="intake-doc-header__field">
-                  <span className="intake-doc-header__label">{t("intake.dayOverview.slipCount")}</span>
-                  <span className="intake-doc-header__value">{overview.slipCount}</span>
-                </div>
-                <div className="intake-doc-header__field intake-doc-header__field--total">
-                  <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
-                  <span className="intake-doc-header__value intake-doc-header__value--amount">
-                    ₩{fmt(overview.dayTotal)}
-                  </span>
-                </div>
-                <div className="intake-doc-header__field intake-doc-header__field--wide">
-                  <span className="intake-doc-header__label">{t("intake.dayOverview.savedShops")}</span>
-                  <span className="intake-doc-header__value">
-                    {t("intake.dayOverview.summarySlips", {
-                      count: overview.slipCount,
-                      shops: overview.savedShopCount,
-                      total: overview.totalShopCount,
-                      amount: fmt(overview.dayTotal),
-                    })}
-                  </span>
-                </div>
+                <p className="intake-doc-header__overview-shops">
+                  {t("intake.dayOverview.summaryShops", {
+                    shops: overview.savedShopCount,
+                    total: overview.totalShopCount,
+                  })}
+                </p>
               </div>
             )}
           </div>

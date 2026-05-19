@@ -79,9 +79,11 @@ export function IntakeSlipStatusBar({
   const docNoLabel =
     slipId && slipNo != null ? t("intake.slipDoc.no", { n: slipNo }) : t("intake.slipDoc.draft");
 
+  const showTotal = slipTotal != null && slipTotal > 0;
+
   return (
     <header
-      className={`intake-doc-header intake-doc-header--${readOnly ? "readonly" : effectiveStatus}`}
+      className={`intake-doc-header intake-doc-header--compact intake-doc-header--${readOnly ? "readonly" : effectiveStatus}`}
       role="status"
       aria-live="polite"
       aria-busy={loading || saving || undefined}
@@ -89,10 +91,18 @@ export function IntakeSlipStatusBar({
       <div className="intake-doc-header__letterhead">
         <div className="intake-doc-header__title-row">
           <div className="intake-doc-header__titles">
-            <p className="intake-doc-header__title-en">{t("intake.slipDoc.titleEn")}</p>
-            <h2 className="intake-doc-header__title-th">{t("intake.slipDoc.title")}</h2>
+            <h2 className="intake-doc-header__title-th">
+              {t("intake.slipDoc.title")}
+              <span className="intake-doc-header__shop-inline"> — {shopName}</span>
+            </h2>
           </div>
           <div className="intake-doc-header__actions">
+            {showTotal ? (
+              <div className="intake-doc-header__total-block">
+                <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
+                <span className="intake-doc-header__value--amount">₩{fmt(slipTotal!)}</span>
+              </div>
+            ) : null}
             {!loading && !saving ? (
               <div className="intake-doc-header__tools">
                 {showSavedActions ? (
@@ -121,42 +131,31 @@ export function IntakeSlipStatusBar({
           </div>
         </div>
 
-        <div className="intake-doc-header__rule" aria-hidden />
-
-        <div className="intake-doc-header__grid">
-          <div className="intake-doc-header__field">
-            <span className="intake-doc-header__label">{t("intake.slipDoc.shop")}</span>
-            <span className="intake-doc-header__value">{shopName}</span>
-          </div>
-          <div className="intake-doc-header__field">
-            <span className="intake-doc-header__label">{t("intake.slipDoc.date")}</span>
-            <span className="intake-doc-header__value">{formatAppDate(intakeDate, locale)}</span>
-          </div>
-          <div className="intake-doc-header__field">
+        <div className="intake-doc-header__meta-row">
+          <span className="intake-doc-header__meta-item">
             <span className="intake-doc-header__label">{t("intake.slipDoc.docNo")}</span>
             <span className="intake-doc-header__value intake-doc-header__value--mono">{docNoLabel}</span>
-          </div>
-          <div className="intake-doc-header__field">
+          </span>
+          <span className="intake-doc-header__meta-item">
+            <span className="intake-doc-header__label">{t("intake.slipDoc.date")}</span>
+            <span className="intake-doc-header__value">{formatAppDate(intakeDate, locale)}</span>
+          </span>
+          <span className="intake-doc-header__meta-item">
             <span className="intake-doc-header__label">{t("intake.slipDoc.recorder")}</span>
             <span className="intake-doc-header__value">{createdByName || "—"}</span>
-          </div>
-          {slipTotal != null && slipTotal > 0 ? (
-            <div className="intake-doc-header__field intake-doc-header__field--total">
-              <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
-              <span className="intake-doc-header__value intake-doc-header__value--amount">₩{fmt(slipTotal)}</span>
-            </div>
-          ) : (
-            <div className="intake-doc-header__field">
+          </span>
+          {!showTotal ? (
+            <span className="intake-doc-header__meta-item">
               <span className="intake-doc-header__label">{t("intake.products")}</span>
               <span className="intake-doc-header__value">
                 {loading || saving ? "…" : t("intake.products", { n: productCount })}
               </span>
-            </div>
-          )}
+            </span>
+          ) : null}
         </div>
 
         {showEditStamp ? (
-          <div className="intake-doc-header__stamps">
+          <div className="intake-doc-header__stamps intake-doc-header__stamps--compact">
             <p className="intake-doc-header__stamp">
               {t("intake.slipAudit.created", {
                 when: formatAppDateTime(createdAt!, locale),

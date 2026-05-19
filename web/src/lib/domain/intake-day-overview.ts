@@ -32,7 +32,12 @@ export type ShopSlipGroup = {
   slips: Array<SlipDayRow & { slipNo: number }>;
 };
 
-/** Group day slips by shop; slip numbers match per-shop tabs (newest = highest n). */
+/** Oldest slip first (ใบที่ 1, 2, … left to right). */
+export function sortSlipsOldestFirst<T extends { createdAt: string }>(slips: T[]): T[] {
+  return [...slips].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+/** Group day slips by shop; slip numbers match per-shop tabs (1 = oldest). */
 export function groupSlipsByShop(slips: SlipDayRow[]): ShopSlipGroup[] {
   const byShop = new Map<string, SlipDayRow[]>();
   for (const s of slips) {
@@ -46,14 +51,14 @@ export function groupSlipsByShop(slips: SlipDayRow[]): ShopSlipGroup[] {
   for (const s of slips) {
     if (seen.has(s.suppCode)) continue;
     seen.add(s.suppCode);
-    const shopSlips = byShop.get(s.suppCode)!;
+    const shopSlips = sortSlipsOldestFirst(byShop.get(s.suppCode)!);
     groups.push({
       suppCode: s.suppCode,
       suppName: s.suppName,
       shopTotal: shopSlips.reduce((sum, r) => sum + r.totalPrice, 0),
       slips: shopSlips.map((row, idx) => ({
         ...row,
-        slipNo: shopSlips.length - idx,
+        slipNo: idx + 1,
       })),
     });
   }

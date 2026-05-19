@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { sortSlipsOldestFirst } from "@/lib/domain/intake-day-overview";
 import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
 import { IconDocument, IconPlus } from "@/components/icons/AppIcons";
@@ -44,6 +45,7 @@ export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSl
   }, [load]);
 
   const isNewActive = !activeSlipId;
+  const orderedSlips = useMemo(() => sortSlipsOldestFirst(slips), [slips]);
 
   return (
     <div className="intake-slip-tabs" role="tablist" aria-label={t("intake.slipList.title")}>
@@ -64,8 +66,8 @@ export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSl
           <span className="intake-slip-tab intake-slip-tab--skeleton" aria-hidden />
         </>
       ) : (
-        slips.map((s, idx) => {
-          const n = slips.length - idx;
+        orderedSlips.map((s, idx) => {
+          const n = idx + 1;
           const active = activeSlipId === s.id;
           const edited = s.updatedAt !== s.createdAt;
           return (

@@ -3744,6 +3744,12 @@ input.intake-touch-input,
   background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
   border-bottom: 2px double #1a3a5c;
 }
+.intake-doc-header--compact .intake-doc-header__letterhead {
+  padding: 12px 16px 10px;
+}
+.intake-doc-header--overview .intake-doc-header__letterhead {
+  padding: 14px 18px 12px;
+}
 .intake-doc-header__title-row {
   display: flex;
   align-items: flex-start;
@@ -3755,6 +3761,15 @@ input.intake-touch-input,
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
+  }
+  .intake-doc-header__total-block {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .intake-doc-header__overview-shops {
+    text-align: left;
+    flex: none;
+    width: 100%;
   }
   .intake-doc-header__actions {
     width: 100%;
@@ -3819,6 +3834,96 @@ input.intake-touch-input,
   letter-spacing: 0.02em;
   color: #0f2d52;
   line-height: 1.15;
+}
+.intake-doc-header__title-row--overview .intake-doc-header__title-th {
+  font-size: 20px;
+  line-height: 1.25;
+  flex: 1;
+  min-width: 0;
+}
+.intake-doc-header__shop-inline {
+  font-weight: 700;
+  color: #334155;
+}
+.intake-doc-header--compact .intake-doc-header__title-th {
+  font-size: 20px;
+}
+.intake-doc-header__total-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.intake-doc-header__total-block .intake-doc-header__label {
+  font-size: 10px;
+}
+.intake-doc-header__total-block .intake-doc-header__value--amount {
+  font-size: 22px;
+  line-height: 1.1;
+}
+.intake-doc-header__title-row--overview {
+  align-items: flex-start;
+  gap: 12px;
+}
+.intake-doc-header__meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 20px;
+  margin-top: 8px;
+}
+.intake-doc-header__meta-item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.intake-doc-header__meta-item .intake-doc-header__label {
+  margin: 0;
+}
+.intake-doc-header__meta-item .intake-doc-header__value {
+  font-size: 14px;
+}
+.intake-doc-header__overview-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 10px;
+}
+.intake-doc-header__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.intake-doc-header__stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f2d52;
+  font-family: var(--font-mono);
+}
+.intake-doc-header__stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+.intake-doc-header__overview-shops {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  text-align: right;
+  flex: 1;
+  min-width: 140px;
+}
+.intake-doc-header__stamps--compact {
+  margin-top: 8px;
+  padding-top: 8px;
 }
 .intake-doc-header__badge {
   flex-shrink: 0;
@@ -3904,10 +4009,11 @@ input.intake-touch-input,
   font-size: 13px;
 }
 .intake-doc-header__value--amount {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 800;
   color: #166534;
   font-family: var(--font-mono);
+  line-height: 1.1;
 }
 .intake-doc-header__stamps {
   margin-top: 12px;
