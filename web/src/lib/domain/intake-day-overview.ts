@@ -25,6 +25,41 @@ export type IntakeDayOverviewData = {
   savedShopCount: number;
 };
 
+export type ShopSlipGroup = {
+  suppCode: string;
+  suppName: string;
+  shopTotal: number;
+  slips: Array<SlipDayRow & { slipNo: number }>;
+};
+
+/** Group day slips by shop; slip numbers match per-shop tabs (newest = highest n). */
+export function groupSlipsByShop(slips: SlipDayRow[]): ShopSlipGroup[] {
+  const byShop = new Map<string, SlipDayRow[]>();
+  for (const s of slips) {
+    const list = byShop.get(s.suppCode) ?? [];
+    list.push(s);
+    byShop.set(s.suppCode, list);
+  }
+
+  const groups: ShopSlipGroup[] = [];
+  const seen = new Set<string>();
+  for (const s of slips) {
+    if (seen.has(s.suppCode)) continue;
+    seen.add(s.suppCode);
+    const shopSlips = byShop.get(s.suppCode)!;
+    groups.push({
+      suppCode: s.suppCode,
+      suppName: s.suppName,
+      shopTotal: shopSlips.reduce((sum, r) => sum + r.totalPrice, 0),
+      slips: shopSlips.map((row, idx) => ({
+        ...row,
+        slipNo: shopSlips.length - idx,
+      })),
+    });
+  }
+  return groups;
+}
+
 export function catalogItemCountForShop(
   suppCode: string,
   items: Item[],

@@ -361,6 +361,7 @@ const messages = {
     "intake.dayOverview.slipCount": "จำนวนใบรับ",
     "intake.dayOverview.slips": "ใบรับของวันนี้",
     "intake.dayOverview.emptySlips": "ยังไม่มีใบรับของในวันนี้",
+    "intake.dayOverview.shopSlipCount": "{n} ใบ",
     "intake.dayOverview.summarySlips":
       "{count} ใบ · ร้านที่มีรับ {shops}/{total} · รวม ₩{amount}",
     "intake.slipList.title": "ใบรับของร้านนี้",
@@ -883,6 +884,7 @@ const messages = {
     "intake.dayOverview.slipCount": "Slips",
     "intake.dayOverview.slips": "Today's slips",
     "intake.dayOverview.emptySlips": "No intake slips on this date yet",
+    "intake.dayOverview.shopSlipCount": "{n} slips",
     "intake.dayOverview.summarySlips":
       "{count} slips · {shops}/{total} shops · Total ₩{amount}",
     "intake.slipList.title": "Slips for this shop",
@@ -1404,6 +1406,7 @@ const messages = {
     "intake.dayOverview.slipCount": "전표 수",
     "intake.dayOverview.slips": "오늘 입고 전표",
     "intake.dayOverview.emptySlips": "이 날짜에 입고 전표가 없습니다",
+    "intake.dayOverview.shopSlipCount": "{n}건",
     "intake.dayOverview.summarySlips":
       "전표 {count}건 · 입고 매장 {shops}/{total} · 합계 ₩{amount}",
     "intake.slipList.title": "이 매장 전표",

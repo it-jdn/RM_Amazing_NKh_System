@@ -597,12 +597,10 @@ export function IntakeView() {
       const nav = pendingNav;
       setPendingNav(null);
       setShowUnsavedNav(false);
-      const savedSlipId = r.slipId || activeSlipId;
       if (nav) {
         applyNavigation(nav);
-      } else if (savedSlipId) {
-        setActiveSlipId(savedSlipId);
-        await loadSlipById(savedSlipId);
+      } else {
+        applyNavigation({ kind: "supp", value: "" });
       }
       setSlipListRefresh((k) => k + 1);
       await reload();
@@ -778,6 +776,7 @@ export function IntakeView() {
 
       {!suppSel ? (
         <IntakeDayOverview
+          key={slipListRefresh}
           intakeDate={intakeDate}
           suppliers={activeSuppliers}
           items={items}

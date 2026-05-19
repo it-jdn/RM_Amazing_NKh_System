@@ -6,6 +6,7 @@ import { apiGet } from "@/lib/api/client";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import {
   buildDayOverviewFromSlips,
+  groupSlipsByShop,
   type SlipDayRow,
 } from "@/lib/domain/intake-day-overview";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
@@ -68,6 +69,8 @@ export function IntakeDayOverview({
     () => buildDayOverviewFromSlips(slips, suppliers, items, mapping, purchaseUnits),
     [slips, suppliers, items, mapping, purchaseUnits]
   );
+
+  const shopGroups = useMemo(() => groupSlipsByShop(overview.slips), [overview.slips]);
 
   const suppByCode = useMemo(
     () => new Map(suppliers.map((s) => [s.code, s])),
@@ -145,7 +148,7 @@ export function IntakeDayOverview({
 
         {!loading && !error ? (
           <SavedSlipSection
-            rows={overview.slips}
+            groups={shopGroups}
             shopName={shopName}
             onSelect={onSelectSlip}
             t={t}
@@ -161,61 +164,85 @@ export function IntakeDayOverview({
 }
 
 function SavedSlipSection({
-  rows,
+  groups,
   shopName,
   onSelect,
   t,
   locale,
   emptyLabel,
 }: {
-  rows: SlipDayRow[];
+  groups: ReturnType<typeof groupSlipsByShop>;
   shopName: (row: SlipDayRow) => string;
   onSelect: (slipId: string, suppCode: string, slipNo?: number) => void;
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   locale: Locale;
   emptyLabel: string;
 }) {
+  if (!groups.length) {
+    return (
+      <section className="intake-day-slip-list" aria-label={t("intake.dayOverview.slips")}>
+        <p className="intake-day-slip-list__empty">{emptyLabel}</p>
+      </section>
+    );
+  }
+
   return (
     <section className="intake-day-slip-list" aria-label={t("intake.dayOverview.slips")}>
-      {!rows.length ? (
-        <p className="intake-day-slip-list__empty">{emptyLabel}</p>
-      ) : (
-        <ul className="intake-day-slip-list__items">
-          {rows.map((row) => {
-            const shopRows = rows.filter((r) => r.suppCode === row.suppCode);
-            const slipNo = shopRows.length - shopRows.findIndex((r) => r.id === row.id);
-            const edited = row.updatedAt !== row.createdAt;
-            return (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className="intake-day-slip-list__row"
-                  onClick={() => onSelect(row.id, row.suppCode, slipNo)}
-                >
-                  <span className="intake-day-slip-list__main">
-                    <span className="intake-day-slip-list__shop">{shopName(row)}</span>
-                    <span className="intake-day-slip-list__slip">
-                      {t("intake.slipList.slipNo", { n: slipNo })}
-                    </span>
-                  </span>
-                  <span className="intake-day-slip-list__meta">
-                    <span className="intake-day-slip-list__time">
-                      {formatAppDateTime(row.createdAt, locale)}
-                    </span>
-                    {row.createdByName ? (
-                      <span className="intake-day-slip-list__by">{row.createdByName}</span>
-                    ) : null}
-                    {edited ? (
-                      <span className="intake-slip-tab__edited">{t("intake.slipList.editedBadge")}</span>
-                    ) : null}
-                  </span>
-                  <span className="intake-day-slip-list__amount">₩{fmt(row.totalPrice)}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div className="intake-day-shop-groups">
+        {groups.map((group) => {
+          const label = shopName(group.slips[0]!);
+          return (
+            <div key={group.suppCode} className="intake-day-shop-group">
+              <div className="intake-day-shop-group__head">
+                <div className="intake-day-shop-group__title-wrap">
+                  <h3 className="intake-day-shop-group__shop">{label}</h3>
+                  <p className="intake-day-shop-group__count">
+                    {t("intake.dayOverview.shopSlipCount", { n: group.slips.length })}
+                  </p>
+                </div>
+                <span className="intake-day-shop-group__total">₩{fmt(group.shopTotal)}</span>
+              </div>
+              <ul className="intake-day-shop-group__slips">
+                {group.slips.map((row) => {
+                  const edited = row.updatedAt !== row.createdAt;
+                  return (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        className="intake-day-slip-list__row"
+                        onClick={() => onSelect(row.id, row.suppCode, row.slipNo)}
+                      >
+                        <span className="intake-day-slip-list__primary">
+                          <span className="intake-day-slip-list__slip">
+                            {t("intake.slipList.slipNo", { n: row.slipNo })}
+                          </span>
+                          <span className="intake-day-slip-list__amount">₩{fmt(row.totalPrice)}</span>
+                        </span>
+                        <span className="intake-day-slip-list__meta">
+                          <span className="intake-day-slip-list__time">
+                            {formatAppDateTime(row.createdAt, locale)}
+                          </span>
+                          {row.createdByName ? (
+                            <>
+                              <span className="intake-day-slip-list__sep" aria-hidden>
+                                ·
+                              </span>
+                              <span className="intake-day-slip-list__by">{row.createdByName}</span>
+                            </>
+                          ) : null}
+                          {edited ? (
+                            <span className="intake-slip-tab__edited">{t("intake.slipList.editedBadge")}</span>
+                          ) : null}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
