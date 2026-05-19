@@ -26,12 +26,15 @@ export function IntakeMobileSetup({
   return (
     <div className="intake-mobile-setup intake-mobile-setup--compact">
       <MobileDateField value={intakeDate} onChange={setIntakeDate} />
-      <MobileSupplierPicker
-        value={suppSel}
-        onChange={setSuppSel}
-        suppliers={suppliers}
-        placeholder={t("intake.selectSupplier")}
-      />
+      <div className="intake-supplier-field">
+        <MobileSupplierPicker
+          value={suppSel}
+          onChange={setSuppSel}
+          suppliers={suppliers}
+          placeholder={t("intake.selectSupplier")}
+        />
+        {!suppSel ? <p className="intake-shop-hint">{t("intake.selectShopHint")}</p> : null}
+      </div>
     </div>
   );
 }

@@ -3912,6 +3912,41 @@ input.intake-touch-input,
   font-weight: 600;
   color: #64748b;
 }
+.intake-doc-header__stat--inline {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+.intake-doc-header__stat--inline .intake-doc-header__stat-value {
+  font-size: 24px;
+}
+.intake-doc-header__stat--inline .intake-doc-header__stat-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #334155;
+}
+.intake-doc-header--overview .intake-doc-header__value--amount {
+  color: #166534;
+}
+.intake-doc-header__value--amount-slip {
+  color: #9a3412;
+}
+.intake-supplier-field {
+  min-width: 0;
+}
+.intake-shop-hint {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+}
 .intake-doc-header__overview-shops {
   margin: 0;
   font-size: 14px;

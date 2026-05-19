@@ -738,7 +738,7 @@ export function IntakeView() {
               aria-label={t("intake.date")}
             />
           </div>
-          <div>
+          <div className="intake-supplier-field">
             <label className="lbl">{t("intake.supplier")}</label>
             <select
               value={suppSel}
@@ -751,6 +751,7 @@ export function IntakeView() {
                 </option>
               ))}
             </select>
+            {!suppSel ? <p className="intake-shop-hint">{t("intake.selectShopHint")}</p> : null}
           </div>
         </div>
       </div>

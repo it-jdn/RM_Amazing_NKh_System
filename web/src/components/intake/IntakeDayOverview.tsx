@@ -123,14 +123,13 @@ export function IntakeDayOverview({
               </div>
             ) : (
               <div className="intake-doc-header__overview-stats">
-                <div className="intake-doc-header__stat">
+                <p className="intake-doc-header__stat intake-doc-header__stat--inline">
                   <span className="intake-doc-header__stat-value">{overview.slipCount}</span>
                   <span className="intake-doc-header__stat-label">{t("intake.dayOverview.slipCount")}</span>
-                </div>
+                </p>
                 <p className="intake-doc-header__overview-shops">
                   {t("intake.dayOverview.summaryShops", {
                     shops: overview.savedShopCount,
-                    total: overview.totalShopCount,
                   })}
                 </p>
               </div>
@@ -149,7 +148,6 @@ export function IntakeDayOverview({
           />
         ) : null}
 
-        <p className="intake-document__footnote">{t("intake.dayOverview.hint")}</p>
       </div>
     </div>
   );

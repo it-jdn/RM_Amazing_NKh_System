@@ -100,7 +100,9 @@ export function IntakeSlipStatusBar({
             {showTotal ? (
               <div className="intake-doc-header__total-block">
                 <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
-                <span className="intake-doc-header__value--amount">₩{fmt(slipTotal!)}</span>
+                <span className="intake-doc-header__value--amount intake-doc-header__value--amount-slip">
+                  ₩{fmt(slipTotal!)}
+                </span>
               </div>
             ) : null}
             {!loading && !saving ? (
