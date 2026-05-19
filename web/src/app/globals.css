@@ -3936,14 +3936,13 @@ input.intake-touch-input,
 .intake-supplier-field {
   min-width: 0;
 }
-.intake-shop-hint {
-  margin: 4px 0 0;
-  padding: 0;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--brand-red);
-  text-align: right;
+.intake-supplier-select--prompt {
+  border-color: #e8421a !important;
+  box-shadow: 0 0 0 1px rgba(232, 66, 26, 0.2);
+}
+.intake-mobile-setup .supplier-picker__trigger:not(.supplier-picker__trigger--filled) {
+  border-color: #e8421a !important;
+  box-shadow: 0 0 0 1px rgba(232, 66, 26, 0.2);
 }
 .intake-doc-header__overview-shops {
   margin: 0;

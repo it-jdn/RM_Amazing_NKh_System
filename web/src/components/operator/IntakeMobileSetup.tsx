@@ -33,7 +33,6 @@ export function IntakeMobileSetup({
           suppliers={suppliers}
           placeholder={t("intake.selectSupplier")}
         />
-        {!suppSel ? <p className="intake-shop-hint">{t("intake.selectShopHint")}</p> : null}
       </div>
     </div>
   );

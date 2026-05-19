@@ -741,6 +741,7 @@ export function IntakeView() {
           <div className="intake-supplier-field">
             <label className="lbl">{t("intake.supplier")}</label>
             <select
+              className={!suppSel ? "intake-supplier-select intake-supplier-select--prompt" : "intake-supplier-select"}
               value={suppSel}
               onChange={(e) => requestNavigate({ kind: "supp", value: e.target.value })}
             >
@@ -751,7 +752,6 @@ export function IntakeView() {
                 </option>
               ))}
             </select>
-            {!suppSel ? <p className="intake-shop-hint">{t("intake.selectShopHint")}</p> : null}
           </div>
         </div>
       </div>
