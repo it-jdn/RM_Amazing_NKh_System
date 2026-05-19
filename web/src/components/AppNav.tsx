@@ -9,6 +9,7 @@ import { apiPost } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { useDrawerNav } from "@/hooks/useDrawerNav";
+import { getCurrentNavTitleKey } from "@/lib/navigation/nav-title";
 import { AppMobileMenu } from "@/components/nav/AppMobileMenu";
 import { NavSettingsMenu } from "@/components/nav/NavSettingsMenu";
 import { NavUserMenu } from "@/components/nav/NavUserMenu";
@@ -33,6 +34,7 @@ export function AppNav({
   const { t } = useLocale();
   const isOperator = role === "operator";
   const drawerNav = useDrawerNav();
+  const pageTitle = t(getCurrentNavTitleKey(pathname, role));
   const visibleTabs = TABS.filter((tab) => tab.roles.includes(role));
   const showSettings = SETTINGS_ROLES.includes(role);
 
@@ -56,10 +58,16 @@ export function AppNav({
           <AppMobileMenu role={role} displayName={displayName} onLogout={logout} />
           <NavBrand
             subtitle={t("brand.subtitle")}
+            pageTitle={pageTitle}
             compact={isOperator}
             drawerNav={drawerNav}
           />
         </div>
+        {drawerNav ? (
+          <div className="nav-center">
+            <p className="nav-center__title">{pageTitle}</p>
+          </div>
+        ) : null}
         <div className="nav-tabs">
           {visibleTabs.map((tab) => (
             <Link
@@ -86,20 +94,23 @@ export function AppNav({
 
 function NavBrand({
   subtitle,
+  pageTitle,
   compact,
   drawerNav,
 }: {
   subtitle: string;
+  pageTitle: string;
   compact?: boolean;
   drawerNav: boolean;
 }) {
-  const ariaLabel = drawerNav ? subtitle : `Amazing Nongkhai — ${subtitle}`;
+  const ariaLabel = drawerNav ? pageTitle : `Amazing Nongkhai — ${subtitle}`;
 
   return (
     <Link
       href="/"
-      className={`nav-brand${compact ? " nav-brand--compact" : ""}`}
+      className={`nav-brand${compact ? " nav-brand--compact" : ""}${drawerNav ? " nav-brand--drawer" : ""}`}
       aria-label={ariaLabel}
+      title={drawerNav ? pageTitle : undefined}
     >
       <Image
         src="/amazing-nkh-logo.png"
@@ -109,10 +120,8 @@ function NavBrand({
         className="nav-brand__logo"
         priority
       />
-      <div className="nav-brand__text">
-        {drawerNav ? (
-          <div className="brand-text brand-text--mobile-title">{subtitle}</div>
-        ) : (
+      {!drawerNav ? (
+        <div className="nav-brand__text">
           <div className="brand-text brand-text--desktop-title">
             <span className="brand-name">Amazing Nongkhai</span>
             <span className="brand-sep" aria-hidden>
@@ -121,8 +130,8 @@ function NavBrand({
             </span>
             <span className="brand-tagline">{subtitle}</span>
           </div>
-        )}
-      </div>
+        </div>
+      ) : null}
     </Link>
   );
 }

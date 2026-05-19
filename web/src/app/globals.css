@@ -6,6 +6,7 @@
   /* Pretendard (KO/EN) + Sarabun (TH) */
   --font-ui: "Sarabun", "Pretendard Variable", Pretendard, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-pin-dot: "Arial", "Helvetica Neue", system-ui, sans-serif;
   --brand-blue: #2979ff;
   --brand-red: #e8421a;
   --brand-dark: #1a3a6b;
@@ -1667,35 +1668,76 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   margin-left: auto;
   margin-right: auto;
 }
-.login-box .pin-input {
-  background: #fff;
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #000;
-  -webkit-text-fill-color: #000;
-  caret-color: #000;
-  font-size: 42px;
-  letter-spacing: 0.55em;
-  padding: 18px 14px 18px calc(14px + 0.28em);
+.login-box .pin-input-shell {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 68px;
-  line-height: 1.1;
-  -webkit-text-security: disc;
-  text-security: disc;
+  background: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
 }
-.login-box .pin-input::placeholder {
-  color: #c5c5c5;
-  -webkit-text-fill-color: #c5c5c5;
-  opacity: 1;
-}
-.login-box .pin-input:-webkit-autofill,
-.login-box .pin-input:-webkit-autofill:hover,
-.login-box .pin-input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #fff inset;
-  -webkit-text-fill-color: #000;
-  box-shadow: 0 0 0 1000px #fff inset;
-}
-.login-box .pin-input:focus {
+.login-box .pin-input-shell:focus-within {
   border-color: var(--brand-red);
   box-shadow: 0 0 0 3px rgba(232, 66, 26, 0.22);
+}
+.login-box .pin-input-shell--error {
+  border-color: var(--brand-red);
+  box-shadow: 0 0 0 3px rgba(232, 66, 26, 0.35);
+}
+.login-box .pin-input-shell--disabled {
+  opacity: 0.65;
+}
+.login-box .pin-input-dots {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 14px 18px calc(14px + 0.28em);
+  box-sizing: border-box;
+  pointer-events: none;
+  font-family: var(--font-pin-dot);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.55em;
+  color: #000;
+  white-space: pre;
+}
+.login-box .pin-input-shell .pin-input--masked {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  margin: 0;
+  border: none;
+  background: transparent;
+  box-sizing: border-box;
+  min-height: 68px;
+  padding: 18px 14px 18px calc(14px + 0.28em);
+  font-family: var(--font-pin-dot);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.55em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: #000;
+  outline: none;
+  box-shadow: none;
+}
+.login-box .pin-input-shell .pin-input--masked:focus {
+  outline: none;
+  box-shadow: none;
+}
+.login-box .pin-input-shell .pin-input--masked:-webkit-autofill,
+.login-box .pin-input-shell .pin-input--masked:-webkit-autofill:hover,
+.login-box .pin-input-shell .pin-input--masked:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  box-shadow: 0 0 0 1000px transparent inset;
 }
 .login-box .login-error {
   color: #ffe0d6;
@@ -1741,10 +1783,6 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   font-weight: 600;
   line-height: 1.45;
   color: #7f1d1d;
-}
-.login-box .pin-input.pin-input--error {
-  border-color: var(--brand-red);
-  box-shadow: 0 0 0 3px rgba(232, 66, 26, 0.35);
 }
 .login-busy-overlay {
   position: fixed;
@@ -1941,12 +1979,49 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     white-space: nowrap;
     min-width: 0;
   }
-  .nav--drawer .nav-left { flex: 1; min-width: 0; }
+  .nav--drawer .nav-left {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+  .nav--drawer .nav-brand--drawer .nav-brand__logo {
+    height: 30px;
+    max-width: 72px;
+  }
+  .nav-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    pointer-events: none;
+  }
+  .nav-center__title {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .nav--operator .nav-center__title {
+    font-size: 16px;
+  }
   .nav--drawer .nav-brand .brand-text--mobile-title {
-    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+  }
+  .nav--drawer .nav-brand .brand-text--mobile-page {
+    font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.01em;
-    line-height: 1.25;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1955,13 +2030,8 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     height: 30px;
     max-width: 88px;
   }
-  .nav--operator .nav-brand--compact .brand-text--mobile-title {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .nav--operator .nav-brand--compact .brand-text--mobile-page {
+    font-size: 16px;
   }
   .nav--operator .nav-brand__logo {
     height: 31px;

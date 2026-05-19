@@ -8,6 +8,7 @@ import { useLocale } from "@/context/LocaleContext";
 import { getHomePath } from "@/lib/auth/paths";
 import type { MessageKey } from "@/lib/i18n/messages";
 import type { AppRole } from "@/lib/types";
+import { LoginPinInput } from "@/components/login/LoginPinInput";
 import { apiPost } from "@/lib/api/client";
 
 const ROLES: AppRole[] = ["operator", "manager", "admin"];
@@ -113,25 +114,19 @@ function LoginForm() {
           <label className="lbl" htmlFor="login-pin">
             {t("login.pin")}
           </label>
-          <input
+          <LoginPinInput
             ref={pinRef}
             id="login-pin"
-            type="password"
-            inputMode="numeric"
-            className={`pin-input${pinError ? " pin-input--error" : ""}`}
-            maxLength={8}
             value={pin}
-            onChange={(e) => {
-              setPin(e.target.value.replace(/\D/g, ""));
+            onChange={(digits) => {
+              setPin(digits);
               setPinError(false);
               setError("");
             }}
-            placeholder=""
-            aria-label={t("login.pin")}
-            aria-invalid={pinError || undefined}
-            aria-describedby={error ? "login-error" : undefined}
-            autoComplete="off"
+            pinError={pinError}
             disabled={loading}
+            aria-label={t("login.pin")}
+            aria-describedby={error ? "login-error" : undefined}
           />
           {error ? (
             <div
