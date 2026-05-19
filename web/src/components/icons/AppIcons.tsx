@@ -48,6 +48,16 @@ export function IconNote(props: IconProps) {
   );
 }
 
+/** Minimal document / receipt slip (folded corner, no text lines) */
+export function IconDocument(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+    </Svg>
+  );
+}
+
 export function IconX(props: IconProps) {
   return (
     <Svg {...props}>

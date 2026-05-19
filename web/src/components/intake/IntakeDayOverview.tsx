@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
+import { IconDocument } from "@/components/icons/AppIcons";
 import {
   buildDayOverviewFromSlips,
   groupSlipsByShop,
@@ -213,8 +214,11 @@ function SavedSlipSection({
                         onClick={() => onSelect(row.id, row.suppCode, row.slipNo)}
                       >
                         <span className="intake-day-slip-list__primary">
-                          <span className="intake-day-slip-list__slip">
-                            {t("intake.slipList.slipNo", { n: row.slipNo })}
+                          <span className="intake-day-slip-list__slip-label">
+                            <IconDocument size={18} className="intake-day-slip-list__doc-icon" />
+                            <span className="intake-day-slip-list__slip">
+                              {t("intake.slipList.slipNo", { n: row.slipNo })}
+                            </span>
                           </span>
                           <span className="intake-day-slip-list__amount">₩{fmt(row.totalPrice)}</span>
                         </span>

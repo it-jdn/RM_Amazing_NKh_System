@@ -3642,9 +3642,14 @@ input.intake-touch-input,
   border-style: solid;
   background: #fff;
 }
-.intake-slip-tab__icon {
+.intake-slip-tab__icon,
+.intake-slip-tab__doc-icon {
   flex-shrink: 0;
   opacity: 0.85;
+}
+.intake-slip-tab--active .intake-slip-tab__doc-icon {
+  color: #1a6bb5;
+  opacity: 1;
 }
 .intake-slip-tab__label {
   font-size: 13px;
@@ -4073,6 +4078,18 @@ input.intake-touch-input,
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 6px;
+}
+.intake-day-slip-list__slip-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.intake-day-slip-list__doc-icon {
+  flex-shrink: 0;
+  color: #1a6bb5;
+  opacity: 0.9;
 }
 .intake-day-slip-list__slip {
   font-size: 16px;

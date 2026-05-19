@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
-import { IconPlus } from "@/components/icons/AppIcons";
+import { IconDocument, IconPlus } from "@/components/icons/AppIcons";
 import { formatAppDateTime } from "@/lib/utils/format";
 import type { IntakeSlipSummary } from "@/lib/types";
 
@@ -77,6 +77,7 @@ export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSl
               className={`intake-slip-tab${active ? " intake-slip-tab--active" : ""}`}
               onClick={() => onSelectSlip(s.id, n)}
             >
+              <IconDocument size={15} className="intake-slip-tab__doc-icon" aria-hidden />
               <span className="intake-slip-tab__label">{t("intake.slipList.slipNo", { n })}</span>
               {edited ? (
                 <span
