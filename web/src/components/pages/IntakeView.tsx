@@ -26,6 +26,7 @@ import {
 } from "@/lib/domain/intake-row-draft";
 import { isServerSlipNewer, maxSavedAtFromRows } from "@/lib/domain/intake-slip";
 import { extractSlipNoteFromRows } from "@/lib/domain/intake-slip-note";
+import { IntakeBackToOverviewBar } from "@/components/intake/IntakeBackToOverviewBar";
 import { IntakeDayOverview } from "@/components/intake/IntakeDayOverview";
 import { IntakeShopSlips } from "@/components/intake/IntakeShopSlips";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
@@ -725,11 +726,6 @@ export function IntakeView() {
             <span className="dot dot-green" />
             <span>{t("intake.title")}</span>
           </div>
-          {suppSel ? (
-            <button type="button" className="btn btn-ghost btn-sm intake-back-btn" onClick={goBackToOverview}>
-              {t("intake.backToOverview")}
-            </button>
-          ) : null}
         </div>
         <div className="form-row c2 intake-form-top">
           <div>
@@ -760,11 +756,6 @@ export function IntakeView() {
       </div>
 
       <div className="intake-mobile-only intake-context-panel">
-        {suppSel ? (
-          <button type="button" className="btn btn-ghost btn-sm intake-back-btn intake-back-btn--mobile" onClick={goBackToOverview}>
-            {t("intake.backToOverview")}
-          </button>
-        ) : null}
         <IntakeMobileSetup
           intakeDate={intakeDate}
           setIntakeDate={(v) => requestNavigate({ kind: "date", value: v })}
@@ -785,7 +776,13 @@ export function IntakeView() {
           onSelectSlip={openSlip}
         />
       ) : (
-        <div className="intake-document">
+        <>
+          <IntakeBackToOverviewBar
+            label={t("intake.backToOverview")}
+            shopName={shopName}
+            onBack={goBackToOverview}
+          />
+          <div className="intake-document">
           <IntakeShopSlips
             key={slipListRefresh}
             intakeDate={intakeDate}
@@ -887,6 +884,7 @@ export function IntakeView() {
             </button>
           </div>
         </div>
+        </>
       )}
 
       <IntakeSaveConfirmModal
