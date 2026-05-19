@@ -117,6 +117,7 @@ export interface TransactionInput {
 
 export interface TransactionRow {
   no?: number;
+  slipId?: string;
   date: string;
   suppCode: string;
   suppName: string;
@@ -129,6 +130,24 @@ export interface TransactionRow {
   note: string;
   savedAt?: string;
   savedByName?: string;
+}
+
+/** สรุปใบรับของหนึ่งใบ (หลายใบต่อร้านต่อวันได้) */
+export interface IntakeSlipSummary {
+  id: string;
+  date: string;
+  suppCode: string;
+  suppName: string;
+  slipNote: string;
+  createdAt: string;
+  createdByUserId: string | null;
+  createdByName: string;
+  updatedAt: string;
+  updatedByUserId: string | null;
+  updatedByName: string;
+  lineCount: number;
+  productCount: number;
+  totalPrice: number;
 }
 
 export interface SaveAudit {

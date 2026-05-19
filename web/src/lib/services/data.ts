@@ -352,14 +352,16 @@ export async function getTransactions(filters?: {
   dateFrom?: string;
   dateTo?: string;
   suppCode?: string;
+  slipId?: string;
 }) {
   const supabase = createAdminClient();
   let query = supabase
     .from("transactions")
     .select(
-      "txn_date, supp_code, supp_name, item_code, item_name_th, qty, main_unit, unit_price, total_price, note, saved_at, saved_by_name"
+      "slip_id, txn_date, supp_code, supp_name, item_code, item_name_th, qty, main_unit, unit_price, total_price, note, saved_at, saved_by_name"
     );
 
+  if (filters?.slipId) query = query.eq("slip_id", filters.slipId);
   if (filters?.suppCode) query = query.eq("supp_code", filters.suppCode);
   if (filters?.dateFrom) query = query.gte("txn_date", filters.dateFrom);
   if (filters?.dateTo) query = query.lte("txn_date", filters.dateTo);
@@ -373,6 +375,7 @@ export async function getTransactions(filters?: {
   return {
     success: true,
     rows: (data || []).map((r) => ({
+      slipId: r.slip_id ? String(r.slip_id) : undefined,
       date: toDateStr(r.txn_date),
       suppCode: String(r.supp_code),
       suppName: String(r.supp_name),
@@ -414,39 +417,25 @@ export async function getIntakeSlipMeta(date: string, suppCode: string) {
   return slipMetaFromRows(rows);
 }
 
-/** บันทึกทั้งใบ — ถ้ามีข้อมูลวัน+ร้านแล้วจะ replace ทั้งชุด (กัน insert ซ้ำ) */
-export async function saveIntakeSlip(transactions: TransactionInput[], audit?: SaveAudit) {
-  if (!transactions?.length) {
-    return { ok: false, message: "❌ ไม่มีรายการส่งมา", replaced: false };
-  }
+export { listIntakeSlips, getIntakeSlipById, getTransactionRowsForSlip, deleteIntakeSlipById, getIntakeSlipMetaById } from "@/lib/services/intake-slips";
 
-  const date = transactions[0].date;
-  const suppCode = transactions[0].suppCode;
-  for (const t of transactions) {
-    if (t.date !== date || t.suppCode !== suppCode) {
-      return { ok: false, message: "❌ รายการต้องเป็นวันและร้านเดียวกัน", replaced: false };
-    }
+/** บันทึกใบรับของ — slipId ว่าง = ใบใหม่; มี slipId = แก้ไขใบเดิม */
+export async function saveIntakeSlip(
+  transactions: TransactionInput[],
+  audit?: SaveAudit,
+  options?: { slipId?: string | null; slipNote?: string }
+) {
+  const { saveIntakeSlipRecord } = await import("@/lib/services/intake-slips");
+  const result = await saveIntakeSlipRecord({
+    slipId: options?.slipId,
+    transactions,
+    slipNote: options?.slipNote,
+    audit,
+  });
+  if (result.ok) {
+    await updateMappingPrices(transactions, audit);
   }
-
-  const exists = await hasTransactionsForDateSupp(date, suppCode);
-  if (exists) {
-    const result = await replaceTransactionsByDateSupp(date, suppCode, transactions, audit);
-    const message =
-      "message" in result && result.message
-        ? result.message
-        : result.success
-          ? "✅ อัปเดตใบรับของสำเร็จ"
-          : "❌ บันทึกไม่สำเร็จ";
-    return {
-      ok: result.success,
-      message,
-      replaced: true,
-      deleted: "deleted" in result ? result.deleted : 0,
-    };
-  }
-
-  const save = await saveMultipleTransactions(transactions, audit);
-  return { ...save, replaced: false };
+  return result;
 }
 
 export async function saveMultipleTransactions(

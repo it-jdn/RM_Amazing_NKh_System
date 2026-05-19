@@ -8,10 +8,11 @@ import { useLocale } from "@/context/LocaleContext";
 type Props = {
   value: string;
   onChange: (value: string) => void;
+  readOnly?: boolean;
 };
 
 /** ปุ่มหมายเหตุทั้งใบ + Modal (ประหยัดพื้นที่) */
-export function IntakeSlipNoteBar({ value, onChange }: Props) {
+export function IntakeSlipNoteBar({ value, onChange, readOnly = false }: Props) {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -46,7 +47,8 @@ export function IntakeSlipNoteBar({ value, onChange }: Props) {
         <button
           type="button"
           className={`intake-slip-note-bar__btn${hasNote ? " intake-slip-note-bar__btn--on" : ""}`}
-          onClick={() => setOpen(true)}
+          onClick={() => !readOnly && setOpen(true)}
+          disabled={readOnly}
           aria-label={t("intake.slipNoteBtn")}
           title={hasNote ? value.trim() : t("intake.slipNoteBtn")}
         >
@@ -84,6 +86,8 @@ export function IntakeSlipNoteBar({ value, onChange }: Props) {
                 className="intake-slip-note-modal__input"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
+                readOnly={readOnly}
+                disabled={readOnly}
                 placeholder={t("intake.slipNotePlaceholder")}
                 rows={4}
                 maxLength={500}

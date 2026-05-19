@@ -10,6 +10,7 @@ type Props = {
   valueMainUnitCode: string;
   onChange: (mainUnitCode: string) => void;
   className?: string;
+  disabled?: boolean;
 };
 
 /** เลือกหน่วยซื้อเข้า — มากกว่า 1 ตัวเลือกใช้ dropdown */
@@ -18,6 +19,7 @@ export function IntakePurchaseUnitSelect({
   valueMainUnitCode,
   onChange,
   className,
+  disabled = false,
 }: Props) {
   const { t } = useLocale();
 
@@ -49,6 +51,7 @@ export function IntakePurchaseUnitSelect({
       className={className ? `intake-purchase-unit-select ${className}` : "intake-purchase-unit-select"}
       value={valueMainUnitCode || selected?.mainUnitCode || ""}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
       aria-label={t("intake.purchaseUnit")}
     >
       {sorted.map((o) => (

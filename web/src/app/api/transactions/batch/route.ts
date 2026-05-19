@@ -5,7 +5,11 @@ import {
   deleteIntakeBatchDeniedMessage,
 } from "@/lib/auth/intake-permissions";
 import { jsonError, jsonOk } from "@/lib/api/response";
-import { deleteTransactionsByDateSupp } from "@/lib/services/data";
+import {
+  canDeleteIntakeSlip,
+  deleteIntakeSlipDeniedMessage,
+} from "@/lib/auth/intake-slip-permissions";
+import { deleteIntakeSlipById, deleteTransactionsByDateSupp, getIntakeSlipById } from "@/lib/services/data";
 
 export async function DELETE(req: NextRequest) {
   const auth = await requireSession();
@@ -13,11 +17,35 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
+    const slipId = searchParams.get("slipId")?.trim();
     const date = searchParams.get("date")?.trim();
     const suppCode = searchParams.get("suppCode")?.trim();
 
+    if (slipId) {
+      const slipRes = await getIntakeSlipById(slipId);
+      if (!slipRes.slip) return jsonError("ไม่พบใบรับของ", 404);
+      if (
+        !canDeleteIntakeSlip(auth.session, {
+          createdByUserId: slipRes.slip.createdByUserId,
+          txnDate: slipRes.slip.date,
+        })
+      ) {
+        return jsonError(deleteIntakeSlipDeniedMessage(auth.session.role), 403);
+      }
+      const result = await deleteIntakeSlipById(slipId);
+      if (!result.success) return jsonError("ลบไม่สำเร็จ");
+      return jsonOk({
+        success: true,
+        deleted: result.deleted,
+        message:
+          result.deleted > 0
+            ? `ลบใบรับของสำเร็จ (${result.deleted} รายการ)`
+            : "ไม่พบข้อมูลที่จะลบ",
+      });
+    }
+
     if (!date || !suppCode) {
-      return jsonError("ต้องระบุ date และ suppCode");
+      return jsonError("ต้องระบุ slipId หรือ date และ suppCode");
     }
 
     if (!canDeleteIntakeBatch(auth.session.role, date)) {

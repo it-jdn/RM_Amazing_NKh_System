@@ -91,7 +91,8 @@ export function buildTransactionRow(
   t: TransactionInput,
   no: number,
   savedAt: string,
-  audit?: { userId: string; displayName: string }
+  audit?: { userId: string; displayName: string },
+  slipId?: string | null
 ) {
   const qty = parseFloat(String(t.qty)) || 0;
   const convert = parseFloat(String(t.convertRate)) || 1;
@@ -119,6 +120,7 @@ export function buildTransactionRow(
     saved_at: savedAt,
     saved_by_user_id: audit?.userId || null,
     saved_by_name: audit?.displayName || "",
+    slip_id: slipId || null,
   };
 }
 

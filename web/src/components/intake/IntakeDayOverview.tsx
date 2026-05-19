@@ -5,13 +5,14 @@ import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import {
-  aggregateDayByShop,
-  type ShopDayRow,
+  buildDayOverviewFromSlips,
+  type SlipDayRow,
 } from "@/lib/domain/intake-day-overview";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import type { MessageKey } from "@/lib/i18n/messages";
-import { fmt, formatAppDate } from "@/lib/utils/format";
-import type { Item, ItemPurchaseUnit, Mapping, Supplier, TransactionRow } from "@/lib/types";
+import type { Locale } from "@/lib/i18n/types";
+import { fmt, formatAppDate, formatAppDateTime } from "@/lib/utils/format";
+import type { IntakeSlipSummary, Item, ItemPurchaseUnit, Mapping, Supplier } from "@/lib/types";
 
 type Props = {
   intakeDate: string;
@@ -19,7 +20,7 @@ type Props = {
   items: Item[];
   mapping: Mapping[];
   purchaseUnits: ItemPurchaseUnit[];
-  onSelectShop: (suppCode: string) => void;
+  onSelectSlip: (slipId: string, suppCode: string) => void;
 };
 
 export function IntakeDayOverview({
@@ -28,30 +29,30 @@ export function IntakeDayOverview({
   items,
   mapping,
   purchaseUnits,
-  onSelectShop,
+  onSelectSlip,
 }: Props) {
   const { locale, t } = useLocale();
-  const [rows, setRows] = useState<TransactionRow[]>([]);
+  const [slips, setSlips] = useState<IntakeSlipSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const loadDay = useCallback(async () => {
     if (!intakeDate) {
-      setRows([]);
+      setSlips([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(false);
     try {
-      const d = await apiGet<{ success: boolean; rows: TransactionRow[] }>(
-        `/api/transactions?dateFrom=${encodeURIComponent(intakeDate)}&dateTo=${encodeURIComponent(intakeDate)}`
+      const d = await apiGet<{ success: boolean; slips: IntakeSlipSummary[] }>(
+        `/api/transactions/slips?dateFrom=${encodeURIComponent(intakeDate)}&dateTo=${encodeURIComponent(intakeDate)}`
       );
       if (!d.success) {
         setError(true);
         return;
       }
-      setRows(d.rows);
+      setSlips(d.slips);
     } catch {
       setError(true);
     } finally {
@@ -64,8 +65,8 @@ export function IntakeDayOverview({
   }, [loadDay]);
 
   const overview = useMemo(
-    () => aggregateDayByShop(rows, suppliers, items, mapping, purchaseUnits),
-    [rows, suppliers, items, mapping, purchaseUnits]
+    () => buildDayOverviewFromSlips(slips, suppliers, items, mapping, purchaseUnits),
+    [slips, suppliers, items, mapping, purchaseUnits]
   );
 
   const suppByCode = useMemo(
@@ -78,7 +79,7 @@ export function IntakeDayOverview({
       ? Math.round((overview.savedShopCount / overview.totalShopCount) * 100)
       : 0;
 
-  function displayName(row: ShopDayRow) {
+  function shopName(row: SlipDayRow) {
     const supp = suppByCode.get(row.suppCode);
     return supp ? supplierDisplayName(supp, locale) : row.suppName;
   }
@@ -113,10 +114,8 @@ export function IntakeDayOverview({
           <>
             <div className="intake-day-overview__kpi-row">
               <div className="intake-day-overview__kpi">
-                <span className="intake-day-overview__kpi-label">{t("intake.dayOverview.savedShops")}</span>
-                <span className="intake-day-overview__kpi-value">
-                  {overview.savedShopCount}/{overview.totalShopCount}
-                </span>
+                <span className="intake-day-overview__kpi-label">{t("intake.dayOverview.slipCount")}</span>
+                <span className="intake-day-overview__kpi-value">{overview.slipCount}</span>
               </div>
               <div className="intake-day-overview__kpi intake-day-overview__kpi--total">
                 <span className="intake-day-overview__kpi-label">{t("intake.totalWon")}</span>
@@ -130,8 +129,9 @@ export function IntakeDayOverview({
               />
             </div>
             <p className="intake-day-overview__summary">
-              {t("intake.dayOverview.summary", {
-                saved: overview.savedShopCount,
+              {t("intake.dayOverview.summarySlips", {
+                count: overview.slipCount,
+                shops: overview.savedShopCount,
                 total: overview.totalShopCount,
                 amount: fmt(overview.dayTotal),
               })}
@@ -142,7 +142,7 @@ export function IntakeDayOverview({
 
       {loading ? (
         <section className="intake-day-overview__section intake-day-overview__section--saved">
-          <h3 className="intake-day-overview__section-title">{t("intake.dayOverview.saved")}</h3>
+          <h3 className="intake-day-overview__section-title">{t("intake.dayOverview.slips")}</h3>
           <ul className="intake-day-overview__skeleton" aria-hidden>
             {[1, 2, 3, 4].map((i) => (
               <li key={i} className="intake-day-overview__skeleton-row" />
@@ -152,33 +152,36 @@ export function IntakeDayOverview({
       ) : null}
 
       {!loading && !error ? (
-        <SavedShopSection
-          title={t("intake.dayOverview.saved")}
-          emptyLabel={t("intake.dayOverview.emptySaved")}
-          rows={overview.saved}
-          displayName={displayName}
-          onSelect={onSelectShop}
+        <SavedSlipSection
+          title={t("intake.dayOverview.slips")}
+          emptyLabel={t("intake.dayOverview.emptySlips")}
+          rows={overview.slips}
+          shopName={shopName}
+          onSelect={onSelectSlip}
           t={t}
+          locale={locale}
         />
       ) : null}
     </div>
   );
 }
 
-function SavedShopSection({
+function SavedSlipSection({
   title,
   emptyLabel,
   rows,
-  displayName,
+  shopName,
   onSelect,
   t,
+  locale,
 }: {
   title: string;
   emptyLabel: string;
-  rows: ShopDayRow[];
-  displayName: (row: ShopDayRow) => string;
-  onSelect: (code: string) => void;
+  rows: SlipDayRow[];
+  shopName: (row: SlipDayRow) => string;
+  onSelect: (slipId: string, suppCode: string) => void;
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
+  locale: Locale;
 }) {
   return (
     <section className="intake-day-overview__section intake-day-overview__section--saved">
@@ -188,15 +191,21 @@ function SavedShopSection({
       ) : (
         <ul className="intake-day-overview__list">
           {rows.map((row) => (
-            <li key={row.suppCode}>
+            <li key={row.id}>
               <button
                 type="button"
                 className="intake-day-overview__row intake-day-overview__row--saved"
-                onClick={() => onSelect(row.suppCode)}
+                onClick={() => onSelect(row.id, row.suppCode)}
               >
                 <span className="intake-day-overview__row-head">
-                  <span className="intake-day-overview__row-name">{displayName(row)}</span>
+                  <span className="intake-day-overview__row-name">{shopName(row)}</span>
                   <span className="intake-day-overview__badge">{t("intake.slipStatus.saved")}</span>
+                </span>
+                <span className="intake-day-overview__row-time">
+                  {formatAppDateTime(row.createdAt, locale)}
+                  {row.updatedAt !== row.createdAt
+                    ? ` · ${t("intake.slipList.editedAt", { at: formatAppDateTime(row.updatedAt, locale) })}`
+                    : ""}
                 </span>
                 <span className="intake-day-overview__row-meta">
                   <span>
@@ -205,8 +214,8 @@ function SavedShopSection({
                       ? ` · ${t("intake.dayOverview.products", { n: row.productCount })}`
                       : ""}
                   </span>
-                  {row.savedByName ? (
-                    <span className="intake-day-overview__saved-by">{row.savedByName}</span>
+                  {row.createdByName ? (
+                    <span className="intake-day-overview__saved-by">{row.createdByName}</span>
                   ) : null}
                   <span className="intake-day-overview__row-total">₩{fmt(row.totalPrice)}</span>
                 </span>

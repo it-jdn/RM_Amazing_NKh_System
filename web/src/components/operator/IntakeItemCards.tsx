@@ -26,6 +26,7 @@ type Props = {
   calcUp: (rowKey: string, cr: number) => string;
   onPurchaseUnitChange: (itemCode: string, mainUnitCode: string) => void;
   onOpenModal: () => void;
+  readOnly?: boolean;
 };
 
 function isFilled(v: { qty: string; total: string }) {
@@ -41,6 +42,7 @@ export function IntakeItemCards({
   calcUp,
   onPurchaseUnitChange,
   onOpenModal,
+  readOnly = false,
 }: Props) {
   const { locale, t } = useLocale();
 
@@ -72,6 +74,7 @@ export function IntakeItemCards({
             type="button"
             className="intake-add-product-btn"
             onClick={onOpenModal}
+            disabled={readOnly}
             aria-label={t("intake.addProduct")}
             title={t("intake.addProduct")}
           >
@@ -104,6 +107,7 @@ export function IntakeItemCards({
                     options={it.purchaseOptions}
                     valueMainUnitCode={it.mainUnitCode}
                     onChange={(code) => onPurchaseUnitChange(it.code, code)}
+                    disabled={readOnly}
                   />
                 </div>
               ) : null}
@@ -122,6 +126,8 @@ export function IntakeItemCards({
                       className="intake-field-block__input intake-touch-input"
                       value={displayNumericField(v.qty)}
                       onChange={(e) => setRow(it.rowKey, "qty", e.target.value)}
+                      disabled={readOnly}
+                      readOnly={readOnly}
                     />
                     <span className="intake-field-block__suffix">{it.unit}</span>
                   </div>
@@ -142,6 +148,8 @@ export function IntakeItemCards({
                       className="intake-field-block__input intake-touch-input intake-field-block__input--total"
                       value={displayNumericField(v.total)}
                       onChange={(e) => setRow(it.rowKey, "total", e.target.value)}
+                      disabled={readOnly}
+                      readOnly={readOnly}
                     />
                   </div>
                   {it.refPrice > 0 ? (

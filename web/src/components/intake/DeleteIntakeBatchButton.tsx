@@ -14,6 +14,7 @@ type Props = {
   date: string;
   suppCode: string;
   suppName: string;
+  slipId?: string;
   role: AppRole;
   className?: string;
   onDeleted: () => void;
@@ -23,6 +24,7 @@ export function DeleteIntakeBatchButton({
   date,
   suppCode,
   suppName,
+  slipId,
   role,
   className = "btn btn-danger-outline btn-sm",
   onDeleted,
@@ -44,18 +46,24 @@ export function DeleteIntakeBatchButton({
       return;
     }
 
-    const msg = t("intake.deleteBatchConfirm", {
-      shop: suppName,
-      date: formatAppDateLong(date, locale),
-    });
+    const msg = slipId
+      ? t("intake.deleteSlipConfirm", {
+          shop: suppName,
+          date: formatAppDateLong(date, locale),
+        })
+      : t("intake.deleteBatchConfirm", {
+          shop: suppName,
+          date: formatAppDateLong(date, locale),
+        });
 
     if (!confirm(msg)) return;
 
     setDeleting(true);
     try {
-      const r = await apiDelete<{ success: boolean; message: string }>(
-        `/api/transactions/batch?date=${encodeURIComponent(date)}&suppCode=${encodeURIComponent(suppCode)}`
-      );
+      const url = slipId
+        ? `/api/transactions/batch?slipId=${encodeURIComponent(slipId)}`
+        : `/api/transactions/batch?date=${encodeURIComponent(date)}&suppCode=${encodeURIComponent(suppCode)}`;
+      const r = await apiDelete<{ success: boolean; message: string }>(url);
       onDeleted();
       alert(r.message || t("intake.toastDeleteOk"));
     } catch (e) {
@@ -73,7 +81,7 @@ export function DeleteIntakeBatchButton({
       title={!allowed ? deniedMessage() : undefined}
       onClick={handleDelete}
     >
-      {deleting ? t("intake.deleting") : t("intake.deleteBatch")}
+      {deleting ? t("intake.deleting") : slipId ? t("intake.deleteSlip") : t("intake.deleteBatch")}
     </button>
   );
 }

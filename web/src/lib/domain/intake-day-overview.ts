@@ -1,6 +1,5 @@
-import { slipMetaFromRows } from "@/lib/domain/intake-slip";
 import { sortSuppliersForPicker } from "@/lib/domain/supplier-sort";
-import type { Item, ItemPurchaseUnit, Mapping, Supplier, TransactionRow } from "@/lib/types";
+import type { IntakeSlipSummary, Item, ItemPurchaseUnit, Mapping, Supplier } from "@/lib/types";
 
 export type ShopDayRow = {
   suppCode: string;
@@ -12,12 +11,18 @@ export type ShopDayRow = {
   catalogItemCount: number;
 };
 
+export type SlipDayRow = IntakeSlipSummary & {
+  catalogItemCount: number;
+};
+
 export type IntakeDayOverviewData = {
-  saved: ShopDayRow[];
-  pending: ShopDayRow[];
+  slips: SlipDayRow[];
   dayTotal: number;
-  savedShopCount: number;
+  slipCount: number;
   totalShopCount: number;
+  /** @deprecated use slips — shops with at least one slip */
+  saved: ShopDayRow[];
+  savedShopCount: number;
 };
 
 export function catalogItemCountForShop(
@@ -32,8 +37,8 @@ export function catalogItemCountForShop(
   return items.filter((i) => codes.has(i.code)).length;
 }
 
-export function aggregateDayByShop(
-  rows: TransactionRow[],
+export function buildDayOverviewFromSlips(
+  slips: IntakeSlipSummary[],
   activeSuppliers: Supplier[],
   items: Item[],
   mapping: Mapping[],
@@ -41,46 +46,53 @@ export function aggregateDayByShop(
 ): IntakeDayOverviewData {
   const sorted = sortSuppliersForPicker(activeSuppliers);
   const activeCodes = new Set(sorted.map((s) => s.code));
-  const byShop = new Map<string, TransactionRow[]>();
 
-  for (const row of rows) {
-    if (!activeCodes.has(row.suppCode)) continue;
-    const list = byShop.get(row.suppCode) ?? [];
-    list.push(row);
-    byShop.set(row.suppCode, list);
-  }
+  const enriched: SlipDayRow[] = slips
+    .filter((s) => activeCodes.has(s.suppCode))
+    .map((s) => ({
+      ...s,
+      catalogItemCount: catalogItemCountForShop(s.suppCode, items, mapping, purchaseUnits),
+    }));
 
-  let dayTotal = 0;
+  const dayTotal = enriched.reduce((sum, s) => sum + s.totalPrice, 0);
+  const shopsWithSlips = new Set(enriched.map((s) => s.suppCode));
+
   const saved: ShopDayRow[] = [];
-
   for (const supp of sorted) {
-    const shopRows = byShop.get(supp.code);
-    if (!shopRows?.length) continue;
-
-    const meta = slipMetaFromRows(shopRows);
-    const totalPrice = shopRows.reduce(
-      (sum, r) => sum + (parseFloat(String(r.totalPrice)) || 0),
-      0
-    );
-    dayTotal += totalPrice;
-
-    const nameFromRow = shopRows.find((r) => r.suppName?.trim())?.suppName;
+    if (!shopsWithSlips.has(supp.code)) continue;
+    const shopSlips = enriched.filter((s) => s.suppCode === supp.code);
+    const lineCount = shopSlips.reduce((n, s) => n + s.lineCount, 0);
+    const productCount = shopSlips.reduce((n, s) => n + s.productCount, 0);
+    const totalPrice = shopSlips.reduce((n, s) => n + s.totalPrice, 0);
+    const latest = shopSlips[0];
     saved.push({
       suppCode: supp.code,
-      suppName: nameFromRow?.trim() || supp.nameTH || supp.code,
-      lineCount: meta.rowCount,
-      productCount: meta.productCount,
+      suppName: latest?.suppName || supp.nameTH,
+      lineCount,
+      productCount,
       totalPrice,
-      savedByName: meta.savedByName || undefined,
+      savedByName: latest?.createdByName,
       catalogItemCount: catalogItemCountForShop(supp.code, items, mapping, purchaseUnits),
     });
   }
 
   return {
-    saved,
-    pending: [],
+    slips: enriched,
     dayTotal,
-    savedShopCount: saved.length,
+    slipCount: enriched.length,
     totalShopCount: sorted.length,
+    saved,
+    savedShopCount: saved.length,
   };
+}
+
+/** @deprecated kept for tests — aggregate by shop merges slips */
+export function aggregateDayByShop(
+  rows: import("@/lib/types").TransactionRow[],
+  activeSuppliers: Supplier[],
+  items: Item[],
+  mapping: Mapping[],
+  purchaseUnits: ItemPurchaseUnit[]
+): IntakeDayOverviewData {
+  return buildDayOverviewFromSlips([], activeSuppliers, items, mapping, purchaseUnits);
 }

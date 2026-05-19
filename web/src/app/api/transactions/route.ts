@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { requireSession } from "@/lib/auth/api";
 import { jsonError, jsonOk } from "@/lib/api/response";
-import { getTransactions, saveIntakeSlip } from "@/lib/services/data";
+import {
+  canEditIntakeSlip,
+  editIntakeSlipDeniedMessage,
+} from "@/lib/auth/intake-slip-permissions";
+import { getIntakeSlipById, getTransactions, saveIntakeSlip } from "@/lib/services/data";
 import type { TransactionInput } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
@@ -13,6 +17,7 @@ export async function GET(req: NextRequest) {
       dateFrom: searchParams.get("dateFrom") || undefined,
       dateTo: searchParams.get("dateTo") || undefined,
       suppCode: searchParams.get("suppCode") || undefined,
+      slipId: searchParams.get("slipId") || undefined,
     };
     return jsonOk(await getTransactions(filters));
   } catch (e) {
@@ -26,15 +31,36 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const transactions = body.transactions as TransactionInput[];
-    const result = await saveIntakeSlip(transactions, {
-      userId: auth.session.userId,
-      displayName: auth.session.displayName,
-    });
+    const slipId = typeof body.slipId === "string" ? body.slipId.trim() : "";
+    const slipNote = typeof body.slipNote === "string" ? body.slipNote : undefined;
+
+    if (slipId) {
+      const slipRes = await getIntakeSlipById(slipId);
+      if (!slipRes.slip) return jsonError("ไม่พบใบรับของ", 404);
+      if (
+        !canEditIntakeSlip(auth.session, {
+          createdByUserId: slipRes.slip.createdByUserId,
+          txnDate: slipRes.slip.date,
+        })
+      ) {
+        return jsonError(editIntakeSlipDeniedMessage(), 403);
+      }
+    }
+
+    const result = await saveIntakeSlip(
+      transactions,
+      {
+        userId: auth.session.userId,
+        displayName: auth.session.displayName,
+      },
+      { slipId: slipId || null, slipNote }
+    );
     if (!result.ok) return jsonError(result.message);
     return jsonOk({
       success: true,
       message: result.message,
       replaced: result.replaced === true,
+      slipId: "slipId" in result ? result.slipId : slipId || undefined,
     });
   } catch (e) {
     return jsonError(e instanceof Error ? e.message : "Error", 500);

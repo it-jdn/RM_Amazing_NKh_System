@@ -27,6 +27,7 @@ import {
 import { isServerSlipNewer, maxSavedAtFromRows } from "@/lib/domain/intake-slip";
 import { extractSlipNoteFromRows } from "@/lib/domain/intake-slip-note";
 import { IntakeDayOverview } from "@/components/intake/IntakeDayOverview";
+import { IntakeShopSlips } from "@/components/intake/IntakeShopSlips";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import { IntakeSlipStatusBar, type IntakeSlipStatus } from "@/components/intake/IntakeSlipStatusBar";
 import { IntakeStaleSaveModal } from "@/components/intake/IntakeStaleSaveModal";
@@ -42,7 +43,7 @@ import {
   loadedNumericField,
   sanitizeDecimalInput,
 } from "@/lib/utils/numeric-input";
-import type { Item, ItemPurchaseUnit, TransactionInput, TransactionRow } from "@/lib/types";
+import type { IntakeSlipSummary, Item, ItemPurchaseUnit, TransactionInput, TransactionRow } from "@/lib/types";
 
 type CurItem = Item & {
   refPrice: number;
@@ -51,7 +52,10 @@ type CurItem = Item & {
   purchaseOptions: ItemPurchaseUnit[];
 };
 
-type PendingNav = { kind: "date"; value: string } | { kind: "supp"; value: string };
+type PendingNav =
+  | { kind: "date"; value: string }
+  | { kind: "supp"; value: string }
+  | { kind: "slip"; slipId: string; suppCode: string };
 
 type SlipMetaResponse = {
   success: boolean;
@@ -74,6 +78,10 @@ export function IntakeView() {
   const toast = useToast();
   const [intakeDate, setIntakeDate] = useState(todayISO());
   const [suppSel, setSuppSel] = useState("");
+  const [activeSlipId, setActiveSlipId] = useState("");
+  const [canEditSlip, setCanEditSlip] = useState(true);
+  const [activeSlipMeta, setActiveSlipMeta] = useState<IntakeSlipSummary | null>(null);
+  const [slipListRefresh, setSlipListRefresh] = useState(0);
   const [search, setSearch] = useState("");
   const [rowVals, setRowVals] = useState<IntakeRowVals>({});
   const [selectedPurchaseUnit, setSelectedPurchaseUnit] = useState<Record<string, string>>({});
@@ -207,30 +215,22 @@ export function IntakeView() {
     });
   }, [suppSel, items, mapping, purchaseUnits, itemPurchaseStandards, selectedPurchaseUnit]);
 
-  const loadExisting = useCallback(async () => {
-    if (!suppSel || !intakeDate) return;
-    setLoadingSlip(true);
-    try {
-      const d = await apiGet<{ success: boolean; rows: TransactionRow[] }>(
-        `/api/transactions?dateFrom=${intakeDate}&dateTo=${intakeDate}&suppCode=${suppSel}`
-      );
-      if (!d.success) return;
-      const rows = d.rows.map((r) => ({
-        date: r.date,
-        suppCode: r.suppCode,
-        suppName: r.suppName,
-        itemCode: r.itemCode,
-        itemNameTH: r.itemNameTH,
-        qty: r.qty,
-        mainUnit: r.mainUnit,
-        unitPrice: r.unitPrice,
-        totalPrice: r.totalPrice,
-        note: r.note || "",
-        savedAt: r.savedAt,
-        savedByName: r.savedByName,
-      }));
-      setExistingTxns(rows as TransactionRow[]);
-      const aggregated = aggregateTransactionsByItem(rows as TransactionRow[]);
+  const resetNewSlipForm = useCallback(() => {
+    setRowVals({});
+    setSelectedPurchaseUnit({});
+    setSlipNote("");
+    setExistingTxns([]);
+    setBaselineVals({});
+    setBaselineSlipNote("");
+    setSlipSnapshotAt("");
+    setCanEditSlip(true);
+    setActiveSlipMeta(null);
+  }, []);
+
+  const applyRowsToForm = useCallback(
+    (rows: TransactionRow[], slipNoteFromSlip?: string) => {
+      setExistingTxns(rows);
+      const aggregated = aggregateTransactionsByItem(rows);
       const vals: IntakeRowVals = {};
       const unitPick: Record<string, string> = {};
       aggregated.forEach((t) => {
@@ -265,29 +265,54 @@ export function IntakeView() {
         }
       });
       setSelectedPurchaseUnit(unitPick);
-      const loadedNote = extractSlipNoteFromRows(rows as TransactionRow[]);
+      const loadedNote =
+        slipNoteFromSlip?.trim() || extractSlipNoteFromRows(rows);
       setRowVals(vals);
       setBaselineVals(cloneIntakeRowVals(vals));
       setSlipNote(loadedNote);
       setBaselineSlipNote(loadedNote);
-      setSlipSnapshotAt(maxSavedAtFromRows(rows as TransactionRow[]));
-    } catch {
-      /* ignore */
-    } finally {
-      setLoadingSlip(false);
-    }
-  }, [suppSel, intakeDate, mapping, purchaseUnits, itemPurchaseStandards]);
+      setSlipSnapshotAt(maxSavedAtFromRows(rows));
+    },
+    [suppSel, mapping, purchaseUnits, itemPurchaseStandards]
+  );
+
+  const loadSlipById = useCallback(
+    async (slipId: string) => {
+      if (!slipId || !suppSel) return;
+      setLoadingSlip(true);
+      try {
+        const d = await apiGet<{
+          success: boolean;
+          slip: IntakeSlipSummary;
+          rows: TransactionRow[];
+          canEdit: boolean;
+        }>(`/api/transactions/slips/${encodeURIComponent(slipId)}`);
+        if (!d.success || !d.slip) return;
+        setCanEditSlip(d.canEdit);
+        setActiveSlipMeta(d.slip);
+        applyRowsToForm(d.rows, d.slip.slipNote);
+        setSlipSnapshotAt(d.slip.updatedAt);
+      } catch {
+        /* ignore */
+      } finally {
+        setLoadingSlip(false);
+      }
+    },
+    [suppSel, applyRowsToForm]
+  );
 
   useEffect(() => {
-    setRowVals({});
-    setSelectedPurchaseUnit({});
-    setSlipNote("");
-    setExistingTxns([]);
-    setBaselineVals({});
-    setBaselineSlipNote("");
-    setSlipSnapshotAt("");
-    if (suppSel) loadExisting();
-  }, [suppSel, intakeDate, loadExisting]);
+    if (!suppSel) {
+      setActiveSlipId("");
+      resetNewSlipForm();
+      return;
+    }
+    if (activeSlipId) {
+      void loadSlipById(activeSlipId);
+    } else {
+      resetNewSlipForm();
+    }
+  }, [suppSel, intakeDate, activeSlipId, loadSlipById, resetNewSlipForm]);
 
   const isDirty = useMemo(() => {
     if (!suppSel) return false;
@@ -295,16 +320,46 @@ export function IntakeView() {
     return isIntakeRowValsDirty(rowVals, baselineVals);
   }, [suppSel, slipNote, baselineSlipNote, rowVals, baselineVals]);
 
+  function applyNavigation(nav: PendingNav) {
+    if (nav.kind === "date") {
+      setIntakeDate(nav.value);
+      setSuppSel("");
+      setActiveSlipId("");
+    } else if (nav.kind === "supp") {
+      setSuppSel(nav.value);
+      setActiveSlipId("");
+    } else {
+      setSuppSel(nav.suppCode);
+      setActiveSlipId(nav.slipId);
+    }
+  }
+
   function requestNavigate(nav: PendingNav) {
     if (nav.kind === "date" && nav.value === intakeDate) return;
     if (nav.kind === "supp" && nav.value === suppSel) return;
+    if (nav.kind === "slip" && nav.suppCode === suppSel && nav.slipId === activeSlipId) return;
     if (!suppSel || !isDirty) {
-      if (nav.kind === "date") setIntakeDate(nav.value);
-      else setSuppSel(nav.value);
+      applyNavigation(nav);
       return;
     }
     setPendingNav(nav);
     setShowUnsavedNav(true);
+  }
+
+  function openSlip(slipId: string, suppCode: string) {
+    requestNavigate({ kind: "slip", slipId, suppCode });
+  }
+
+  function startNewSlip() {
+    if (activeSlipId === "") return;
+    if (isDirty && !confirm(t("intake.unsavedNewSlipConfirm"))) return;
+    setActiveSlipId("");
+  }
+
+  function selectSlip(slipId: string) {
+    if (slipId === activeSlipId) return;
+    if (isDirty && !confirm(t("intake.unsavedNewSlipConfirm"))) return;
+    setActiveSlipId(slipId);
   }
 
   function discardPendingNavigation() {
@@ -312,8 +367,7 @@ export function IntakeView() {
     setPendingNav(null);
     setShowUnsavedNav(false);
     if (!nav) return;
-    if (nav.kind === "date") setIntakeDate(nav.value);
-    else setSuppSel(nav.value);
+    applyNavigation(nav);
   }
 
   const filteredItems = curItems.filter((it) => {
@@ -388,18 +442,19 @@ export function IntakeView() {
     return aggregateTransactionsByItem(existingTxns).length;
   }, [existingTxns]);
 
-  const lastAudit = useMemo(() => {
-    if (!existingTxns.length) return null;
-    let savedAt = "";
-    let savedByName = "";
-    for (const row of existingTxns) {
-      if (row.savedAt && row.savedAt >= savedAt) {
-        savedAt = row.savedAt;
-        savedByName = row.savedByName || savedByName;
-      }
+  const slipAudit = useMemo(() => {
+    if (activeSlipMeta) {
+      return {
+        createdAt: activeSlipMeta.createdAt,
+        createdByName: activeSlipMeta.createdByName,
+        updatedAt: activeSlipMeta.updatedAt,
+        updatedByName: activeSlipMeta.updatedByName,
+      };
     }
-    return savedAt ? { savedAt, savedByName } : null;
-  }, [existingTxns]);
+    return null;
+  }, [activeSlipMeta]);
+
+  const readOnly = Boolean(activeSlipId && !canEditSlip);
 
   const slipStatus = useMemo((): IntakeSlipStatus => {
     if (existingTxns.length > 0) return isDirty ? "modified" : "saved";
@@ -411,6 +466,11 @@ export function IntakeView() {
   const slipProductCount = existingTxns.length > 0 ? existingProductCount : sumCount;
 
   async function fetchSlipMeta() {
+    if (activeSlipId) {
+      return apiGet<SlipMetaResponse>(
+        `/api/transactions/slip-meta?slipId=${encodeURIComponent(activeSlipId)}`
+      );
+    }
     return apiGet<SlipMetaResponse>(
       `/api/transactions/slip-meta?date=${encodeURIComponent(intakeDate)}&suppCode=${encodeURIComponent(suppSel)}`
     );
@@ -436,7 +496,8 @@ export function IntakeView() {
     if (isDirty && !confirm(t("intake.reloadDiscardConfirm"))) return;
     setReloadingSlip(true);
     try {
-      await loadExisting();
+      if (activeSlipId) await loadSlipById(activeSlipId);
+      else resetNewSlipForm();
       toast(t("intake.toastReloaded"));
     } finally {
       setReloadingSlip(false);
@@ -484,6 +545,10 @@ export function IntakeView() {
   }
 
   function requestSave() {
+    if (readOnly) {
+      toast(t("intake.readOnlyHint"));
+      return;
+    }
     if (!intakeDate) {
       toast(t("intake.toastNeedDate"));
       return;
@@ -507,9 +572,13 @@ export function IntakeView() {
     }
     setSaving(true);
     try {
-      const r = await apiPost<{ success: boolean; message: string; replaced?: boolean }>(
+      const r = await apiPost<{ success: boolean; message: string; replaced?: boolean; slipId?: string }>(
         "/api/transactions",
-        { transactions: txns }
+        {
+          transactions: txns,
+          slipId: activeSlipId || undefined,
+          slipNote: slipNote.trim(),
+        }
       );
       toast(`✅ ${r.replaced ? t("intake.toastUpdated") : r.message || t("intake.toastSaved")}`);
       setShowSaveConfirm(false);
@@ -517,20 +586,14 @@ export function IntakeView() {
       const nav = pendingNav;
       setPendingNav(null);
       setShowUnsavedNav(false);
-      setRowVals({});
-      setSlipNote("");
-      setExistingTxns([]);
-      setBaselineVals({});
-      setBaselineSlipNote("");
-      setSlipSnapshotAt("");
-      if (nav?.kind === "date") {
-        setIntakeDate(nav.value);
-        setSuppSel("");
-      } else if (nav?.kind === "supp") {
-        setSuppSel(nav.value);
-      } else {
-        setSuppSel("");
+      const savedSlipId = r.slipId || activeSlipId;
+      if (nav) {
+        applyNavigation(nav);
+      } else if (savedSlipId) {
+        setActiveSlipId(savedSlipId);
+        await loadSlipById(savedSlipId);
       }
+      setSlipListRefresh((k) => k + 1);
       await reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Error");
@@ -610,29 +673,32 @@ export function IntakeView() {
         status={slipStatus}
         shopName={shopName}
         intakeDate={intakeDate}
-        savedAt={lastAudit?.savedAt}
-        savedByName={lastAudit?.savedByName}
+        slipId={activeSlipId}
+        createdAt={slipAudit?.createdAt}
+        createdByName={slipAudit?.createdByName}
+        updatedAt={slipAudit?.updatedAt}
+        updatedByName={slipAudit?.updatedByName}
         productCount={slipProductCount}
         hasDuplicateRows={hasDuplicateRows}
         role={role}
         suppCode={suppSel}
+        canEdit={canEditSlip}
+        readOnly={readOnly}
         loading={loadingSlip}
         saving={saving}
         reloading={reloadingSlip}
         onReload={() => void reloadLatest()}
         onReset={() => {
           if (!confirm(t("intake.resetConfirm"))) return;
-          void loadExisting();
+          if (activeSlipId) void loadSlipById(activeSlipId);
+          else resetNewSlipForm();
         }}
         onDeleted={() => {
-          setRowVals({});
-          setSlipNote("");
-          setExistingTxns([]);
-          setBaselineVals({});
-          setBaselineSlipNote("");
-          setSlipSnapshotAt("");
+          setActiveSlipId("");
+          setSlipListRefresh((k) => k + 1);
+          resetNewSlipForm();
         }}
-        showSavedActions={existingTxns.length > 0}
+        showSavedActions={Boolean(activeSlipId && canEditSlip)}
       />
     );
   }
@@ -690,10 +756,25 @@ export function IntakeView() {
           items={items}
           mapping={mapping}
           purchaseUnits={purchaseUnits}
-          onSelectShop={(code) => requestNavigate({ kind: "supp", value: code })}
+          onSelectSlip={openSlip}
         />
       ) : (
         <>
+
+          <IntakeShopSlips
+            key={slipListRefresh}
+            intakeDate={intakeDate}
+            suppCode={suppSel}
+            activeSlipId={activeSlipId}
+            onSelectSlip={selectSlip}
+            onNewSlip={startNewSlip}
+          />
+
+          {readOnly ? (
+            <p className="intake-readonly-banner" role="status">
+              {t("intake.readOnlyBanner")}
+            </p>
+          ) : null}
 
           <p className="intake-hint intake-hint--desktop">{t("intake.hint")}</p>
 
@@ -719,6 +800,7 @@ export function IntakeView() {
               calcUp={calcUp}
               onPurchaseUnitChange={setPurchaseUnitForItem}
               onOpenModal={() => setShowModal(true)}
+              readOnly={readOnly}
             />
           </div>
 
@@ -731,11 +813,12 @@ export function IntakeView() {
               setRow={setRow}
               onPurchaseUnitChange={setPurchaseUnitForItem}
               onOpenModal={() => setShowModal(true)}
+              readOnly={readOnly}
             />
           </div>
 
           <div className="intake-slip-note-section">
-            <IntakeSlipNoteBar value={slipNote} onChange={setSlipNote} />
+            <IntakeSlipNoteBar value={slipNote} onChange={setSlipNote} readOnly={readOnly} />
           </div>
 
           </div>
@@ -745,7 +828,7 @@ export function IntakeView() {
             sumTotal={sumTotal}
             formFilled={formFilledCount}
             formTotal={filteredItems.length}
-            saving={saving || loadingSlip}
+            saving={saving || loadingSlip || readOnly}
             shopName={shopName}
             onSave={requestSave}
           />
@@ -770,7 +853,7 @@ export function IntakeView() {
             <button
               type="button"
               className="btn btn-green"
-              disabled={saving || loadingSlip}
+              disabled={saving || loadingSlip || readOnly}
               onClick={requestSave}
               style={{ marginLeft: "auto" }}
             >
@@ -787,7 +870,7 @@ export function IntakeView() {
         shopName={shopName}
         itemCount={sumCount}
         total={sumTotal}
-        replacingExisting={existingTxns.length > 0}
+        replacingExisting={Boolean(activeSlipId)}
         onClose={() => {
           if (!saving) setShowSaveConfirm(false);
         }}
@@ -896,6 +979,7 @@ function IntakeTable({
   setRow,
   onPurchaseUnitChange,
   onOpenModal,
+  readOnly = false,
 }: {
   filteredItems: CurItem[];
   search: string;
@@ -904,6 +988,7 @@ function IntakeTable({
   setRow: (rowKey: string, field: "qty" | "total", val: string) => void;
   onPurchaseUnitChange: (itemCode: string, mainUnitCode: string) => void;
   onOpenModal: () => void;
+  readOnly?: boolean;
 }) {
   const { locale, t } = useLocale();
   return (
@@ -916,7 +1001,7 @@ function IntakeTable({
           onChange={(e) => setSearch(e.target.value)}
         />
         <span className="meta">{t("intake.itemsCount", { n: filteredItems.length })}</span>
-        <button type="button" className="btn btn-ghost" onClick={onOpenModal}>
+        <button type="button" className="btn btn-ghost" onClick={onOpenModal} disabled={readOnly}>
           {t("intake.addProduct")}
         </button>
       </div>
@@ -958,6 +1043,8 @@ function IntakeTable({
                       className="inp-qty"
                       value={displayNumericField(v.qty)}
                       onChange={(e) => setRow(it.rowKey, "qty", e.target.value)}
+                      disabled={readOnly}
+                      readOnly={readOnly}
                     />
                   </td>
                   <td className="itbl__unit">
@@ -967,6 +1054,7 @@ function IntakeTable({
                         valueMainUnitCode={it.mainUnitCode}
                         onChange={(code) => onPurchaseUnitChange(it.code, code)}
                         className="itbl__purchase-unit"
+                        disabled={readOnly}
                       />
                     ) : (
                       <span className="badge badge-blue">{it.unit}</span>
@@ -980,6 +1068,8 @@ function IntakeTable({
                       className="inp-total"
                       value={displayNumericField(v.total)}
                       onChange={(e) => setRow(it.rowKey, "total", e.target.value)}
+                      disabled={readOnly}
+                      readOnly={readOnly}
                     />
                     {it.refPrice > 0 ? (
                       <span className="intake-ref-price intake-ref-price--inline">

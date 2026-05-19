@@ -13,12 +13,17 @@ type Props = {
   status: IntakeSlipStatus;
   shopName: string;
   intakeDate: string;
-  savedAt?: string;
-  savedByName?: string;
+  slipId?: string;
+  createdAt?: string;
+  createdByName?: string;
+  updatedAt?: string;
+  updatedByName?: string;
   productCount: number;
   hasDuplicateRows: boolean;
   role: AppRole;
   suppCode: string;
+  canEdit: boolean;
+  readOnly: boolean;
   loading?: boolean;
   saving?: boolean;
   reloading: boolean;
@@ -30,14 +35,19 @@ type Props = {
 
 export function IntakeSlipStatusBar({
   status,
-  savedAt,
-  savedByName,
+  createdAt,
+  createdByName,
+  updatedAt,
+  updatedByName,
   productCount,
   hasDuplicateRows,
   role,
   intakeDate,
   suppCode,
+  slipId,
   shopName,
+  canEdit,
+  readOnly,
   loading,
   saving,
   reloading,
@@ -55,19 +65,23 @@ export function IntakeSlipStatusBar({
       ? t("intake.slipStatus.saving")
       : effectiveStatus === "loading"
         ? t("intake.slipStatus.loading")
-        : effectiveStatus === "saved"
-          ? t("intake.slipStatus.saved")
-          : effectiveStatus === "modified"
-            ? t("intake.slipStatus.modified")
-            : effectiveStatus === "draft"
-              ? t("intake.slipStatus.draft")
-              : t("intake.slipStatus.new");
+        : readOnly
+          ? t("intake.slipStatus.readOnly")
+          : effectiveStatus === "saved"
+            ? t("intake.slipStatus.saved")
+            : effectiveStatus === "modified"
+              ? t("intake.slipStatus.modified")
+              : effectiveStatus === "draft"
+                ? t("intake.slipStatus.draft")
+                : t("intake.slipStatus.new");
 
   const showReload = !loading && !saving && (status !== "new" || showSavedActions);
+  const showEditStamp = !loading && !!createdAt;
+  const wasEdited = updatedAt && createdAt && updatedAt !== createdAt;
 
   return (
     <div
-      className={`intake-slip-bar intake-slip-bar--prominent intake-slip-bar--${effectiveStatus}`}
+      className={`intake-slip-bar intake-slip-bar--prominent intake-slip-bar--${effectiveStatus}${readOnly ? " intake-slip-bar--readonly" : ""}`}
       role="status"
       aria-live="polite"
       aria-busy={loading || saving || undefined}
@@ -77,7 +91,7 @@ export function IntakeSlipStatusBar({
           <p className="intake-slip-bar__shop">{shopName}</p>
           <div className="intake-slip-bar__status">
             <span
-              className={`intake-slip-status__dot intake-slip-status__dot--${effectiveStatus}`}
+              className={`intake-slip-status__dot intake-slip-status__dot--${readOnly ? "readonly" : effectiveStatus}`}
               aria-hidden
             />
             <span className="intake-slip-status__text">{statusLabel}</span>
@@ -108,6 +122,7 @@ export function IntakeSlipStatusBar({
                 date={intakeDate}
                 suppCode={suppCode}
                 suppName={shopName}
+                slipId={slipId}
                 role={role}
                 className="intake-slip-link intake-slip-link--danger"
                 onDeleted={onDeleted}
@@ -121,13 +136,23 @@ export function IntakeSlipStatusBar({
         <IntakeLoadPanel message={t("intake.slipStatus.loadingDetail")} compact />
       ) : null}
 
-      {!loading && savedAt ? (
-        <p className="intake-slip-bar__meta">
-          {t("intake.savedMeta", {
-            when: formatAppDateTime(savedAt, locale),
-            by: savedByName || "—",
-          })}
-        </p>
+      {showEditStamp ? (
+        <div className="intake-slip-bar__audit">
+          <p className="intake-slip-bar__meta">
+            {t("intake.slipAudit.created", {
+              when: formatAppDateTime(createdAt!, locale),
+              by: createdByName || "—",
+            })}
+          </p>
+          {wasEdited ? (
+            <p className="intake-slip-bar__meta intake-slip-bar__meta--updated">
+              {t("intake.slipAudit.updated", {
+                when: formatAppDateTime(updatedAt!, locale),
+                by: updatedByName || "—",
+              })}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {!loading && hasDuplicateRows ? (
