@@ -55,7 +55,7 @@ type CurItem = Item & {
 type PendingNav =
   | { kind: "date"; value: string }
   | { kind: "supp"; value: string }
-  | { kind: "slip"; slipId: string; suppCode: string };
+  | { kind: "slip"; slipId: string; suppCode: string; slipNo?: number };
 
 type SlipMetaResponse = {
   success: boolean;
@@ -79,6 +79,7 @@ export function IntakeView() {
   const [intakeDate, setIntakeDate] = useState(todayISO());
   const [suppSel, setSuppSel] = useState("");
   const [activeSlipId, setActiveSlipId] = useState("");
+  const [activeSlipNo, setActiveSlipNo] = useState<number | null>(null);
   const [canEditSlip, setCanEditSlip] = useState(true);
   const [activeSlipMeta, setActiveSlipMeta] = useState<IntakeSlipSummary | null>(null);
   const [slipListRefresh, setSlipListRefresh] = useState(0);
@@ -304,6 +305,7 @@ export function IntakeView() {
   useEffect(() => {
     if (!suppSel) {
       setActiveSlipId("");
+      setActiveSlipNo(null);
       resetNewSlipForm();
       return;
     }
@@ -325,12 +327,15 @@ export function IntakeView() {
       setIntakeDate(nav.value);
       setSuppSel("");
       setActiveSlipId("");
+      setActiveSlipNo(null);
     } else if (nav.kind === "supp") {
       setSuppSel(nav.value);
       setActiveSlipId("");
+      setActiveSlipNo(null);
     } else {
       setSuppSel(nav.suppCode);
       setActiveSlipId(nav.slipId);
+      setActiveSlipNo(nav.slipNo ?? null);
     }
   }
 
@@ -346,20 +351,22 @@ export function IntakeView() {
     setShowUnsavedNav(true);
   }
 
-  function openSlip(slipId: string, suppCode: string) {
-    requestNavigate({ kind: "slip", slipId, suppCode });
+  function openSlip(slipId: string, suppCode: string, slipNo?: number) {
+    requestNavigate({ kind: "slip", slipId, suppCode, slipNo });
   }
 
   function startNewSlip() {
     if (activeSlipId === "") return;
     if (isDirty && !confirm(t("intake.unsavedNewSlipConfirm"))) return;
     setActiveSlipId("");
+    setActiveSlipNo(null);
   }
 
-  function selectSlip(slipId: string) {
+  function selectSlip(slipId: string, slipNo: number) {
     if (slipId === activeSlipId) return;
     if (isDirty && !confirm(t("intake.unsavedNewSlipConfirm"))) return;
     setActiveSlipId(slipId);
+    setActiveSlipNo(slipNo);
   }
 
   function discardPendingNavigation() {
@@ -693,8 +700,15 @@ export function IntakeView() {
           if (activeSlipId) void loadSlipById(activeSlipId);
           else resetNewSlipForm();
         }}
+        slipNo={activeSlipNo ?? undefined}
+        slipTotal={
+          !activeSlipId || isDirty || slipStatus === "draft" || slipStatus === "new"
+            ? sumTotal
+            : activeSlipMeta?.totalPrice
+        }
         onDeleted={() => {
           setActiveSlipId("");
+          setActiveSlipNo(null);
           setSlipListRefresh((k) => k + 1);
           resetNewSlipForm();
         }}
@@ -746,7 +760,6 @@ export function IntakeView() {
           setSuppSel={(v) => requestNavigate({ kind: "supp", value: v })}
           suppliers={activeSuppliers}
         />
-        {suppSel ? renderSlipStatusBar() : null}
       </div>
 
       {!suppSel ? (
@@ -759,8 +772,7 @@ export function IntakeView() {
           onSelectSlip={openSlip}
         />
       ) : (
-        <>
-
+        <div className="intake-document">
           <IntakeShopSlips
             key={slipListRefresh}
             intakeDate={intakeDate}
@@ -770,20 +782,19 @@ export function IntakeView() {
             onNewSlip={startNewSlip}
           />
 
-          {readOnly ? (
-            <p className="intake-readonly-banner" role="status">
-              {t("intake.readOnlyBanner")}
-            </p>
-          ) : null}
+          <div className="intake-document__sheet">
+            {renderSlipStatusBar()}
 
-          <p className="intake-hint intake-hint--desktop">{t("intake.hint")}</p>
+            {readOnly ? (
+              <p className="intake-document__readonly" role="status">
+                {t("intake.readOnlyBanner")}
+              </p>
+            ) : null}
 
-          <div className="intake-desktop-only intake-slip-bar-wrap">{renderSlipStatusBar()}</div>
-
-          <div
-            className={`intake-form-body${loadingSlip ? " intake-form-body--loading" : ""}`}
-            aria-busy={loadingSlip || saving || undefined}
-          >
+            <div
+              className={`intake-form-body intake-document__body${loadingSlip ? " intake-form-body--loading" : ""}`}
+              aria-busy={loadingSlip || saving || undefined}
+            >
             {loadingSlip ? (
               <div className="intake-form-load-overlay">
                 <IntakeLoadPanel message={t("intake.slipStatus.loadingDetail")} />
@@ -821,6 +832,8 @@ export function IntakeView() {
             <IntakeSlipNoteBar value={slipNote} onChange={setSlipNote} readOnly={readOnly} />
           </div>
 
+            <p className="intake-document__footnote">{t("intake.hint")}</p>
+            </div>
           </div>
 
           <IntakeStickyBar
@@ -860,7 +873,7 @@ export function IntakeView() {
               {saving ? t("intake.saving") : loadingSlip ? t("intake.slipStatus.loading") : t("intake.save")}
             </button>
           </div>
-        </>
+        </div>
       )}
 
       <IntakeSaveConfirmModal

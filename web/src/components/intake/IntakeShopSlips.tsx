@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
-import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
+import { IconPlus } from "@/components/icons/AppIcons";
 import { formatAppDateTime, fmt } from "@/lib/utils/format";
 import type { IntakeSlipSummary } from "@/lib/types";
 
@@ -11,7 +11,7 @@ type Props = {
   intakeDate: string;
   suppCode: string;
   activeSlipId: string;
-  onSelectSlip: (slipId: string) => void;
+  onSelectSlip: (slipId: string, slipNo: number) => void;
   onNewSlip: () => void;
 };
 
@@ -43,52 +43,53 @@ export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSl
     void load();
   }, [load]);
 
-  if (loading) {
-    return (
-      <div className="intake-shop-slips card">
-        <IntakeLoadPanel message={t("intake.slipList.loading")} />
-      </div>
-    );
-  }
+  const isNewActive = !activeSlipId;
 
   return (
-    <div className="intake-shop-slips card">
-      <div className="intake-shop-slips__head">
-        <h3 className="intake-shop-slips__title">{t("intake.slipList.title")}</h3>
-        <button type="button" className="btn btn-primary btn-sm" onClick={onNewSlip}>
-          {t("intake.slipList.new")}
-        </button>
-      </div>
-      {!slips.length ? (
-        <p className="admin-hint">{t("intake.slipList.empty")}</p>
+    <div className="intake-slip-tabs" role="tablist" aria-label={t("intake.slipList.title")}>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={isNewActive}
+        className={`intake-slip-tab intake-slip-tab--new${isNewActive ? " intake-slip-tab--active" : ""}`}
+        onClick={onNewSlip}
+      >
+        <IconPlus size={16} className="intake-slip-tab__icon" />
+        <span className="intake-slip-tab__label">{t("intake.slipList.newTab")}</span>
+      </button>
+
+      {loading ? (
+        <>
+          <span className="intake-slip-tab intake-slip-tab--skeleton" aria-hidden />
+          <span className="intake-slip-tab intake-slip-tab--skeleton" aria-hidden />
+        </>
       ) : (
-        <ul className="intake-shop-slips__list">
-          {slips.map((s, idx) => (
-            <li key={s.id}>
-              <button
-                type="button"
-                className={`intake-shop-slips__item${activeSlipId === s.id ? " intake-shop-slips__item--active" : ""}`}
-                onClick={() => onSelectSlip(s.id)}
-              >
-                <span className="intake-shop-slips__item-top">
-                  <span className="intake-shop-slips__num">
-                    {t("intake.slipList.slipNo", { n: slips.length - idx })}
-                  </span>
-                  <span className="intake-shop-slips__by">{s.createdByName || "—"}</span>
-                </span>
-                <span className="intake-shop-slips__meta">
-                  <span>{formatAppDateTime(s.createdAt, locale)}</span>
-                  <span>₩{fmt(s.totalPrice)}</span>
-                </span>
-                {s.updatedAt !== s.createdAt ? (
-                  <span className="intake-shop-slips__edited">
-                    {t("intake.slipList.editedAt", { at: formatAppDateTime(s.updatedAt, locale) })}
+        slips.map((s, idx) => {
+          const n = slips.length - idx;
+          const active = activeSlipId === s.id;
+          const edited = s.updatedAt !== s.createdAt;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              className={`intake-slip-tab${active ? " intake-slip-tab--active" : ""}`}
+              onClick={() => onSelectSlip(s.id, n)}
+            >
+              <span className="intake-slip-tab__num">{t("intake.slipList.slipNo", { n })}</span>
+              <span className="intake-slip-tab__time">{formatAppDateTime(s.createdAt, locale)}</span>
+              <span className="intake-slip-tab__foot">
+                <span className="intake-slip-tab__amount">₩{fmt(s.totalPrice)}</span>
+                {edited ? (
+                  <span className="intake-slip-tab__edited" title={t("intake.slipList.editedAt", { at: formatAppDateTime(s.updatedAt, locale) })}>
+                    {t("intake.slipList.editedBadge")}
                   </span>
                 ) : null}
-              </button>
-            </li>
-          ))}
-        </ul>
+              </span>
+            </button>
+          );
+        })
       )}
     </div>
   );

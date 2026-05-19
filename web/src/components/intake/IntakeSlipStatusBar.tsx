@@ -4,7 +4,7 @@ import { DeleteIntakeBatchButton } from "@/components/intake/DeleteIntakeBatchBu
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import { IconRefresh } from "@/components/icons/AppIcons";
 import { useLocale } from "@/context/LocaleContext";
-import { formatAppDateTime } from "@/lib/utils/format";
+import { formatAppDate, formatAppDateTime, fmt } from "@/lib/utils/format";
 import type { AppRole } from "@/lib/types";
 
 export type IntakeSlipStatus = "saved" | "modified" | "draft" | "new";
@@ -14,6 +14,8 @@ type Props = {
   shopName: string;
   intakeDate: string;
   slipId?: string;
+  slipNo?: number;
+  slipTotal?: number;
   createdAt?: string;
   createdByName?: string;
   updatedAt?: string;
@@ -45,8 +47,9 @@ export function IntakeSlipStatusBar({
   intakeDate,
   suppCode,
   slipId,
+  slipNo,
+  slipTotal,
   shopName,
-  canEdit,
   readOnly,
   loading,
   saving,
@@ -79,43 +82,99 @@ export function IntakeSlipStatusBar({
   const showEditStamp = !loading && !!createdAt;
   const wasEdited = updatedAt && createdAt && updatedAt !== createdAt;
 
+  const docNoLabel =
+    slipId && slipNo != null ? t("intake.slipDoc.no", { n: slipNo }) : t("intake.slipDoc.draft");
+
   return (
-    <div
-      className={`intake-slip-bar intake-slip-bar--prominent intake-slip-bar--${effectiveStatus}${readOnly ? " intake-slip-bar--readonly" : ""}`}
+    <header
+      className={`intake-doc-header intake-doc-header--${readOnly ? "readonly" : effectiveStatus}`}
       role="status"
       aria-live="polite"
       aria-busy={loading || saving || undefined}
     >
-      <div className="intake-slip-bar__row">
-        <div className="intake-slip-bar__main-col">
-          <p className="intake-slip-bar__shop">{shopName}</p>
-          <div className="intake-slip-bar__status">
-            <span
-              className={`intake-slip-status__dot intake-slip-status__dot--${readOnly ? "readonly" : effectiveStatus}`}
-              aria-hidden
-            />
-            <span className="intake-slip-status__text">{statusLabel}</span>
-            {!loading && !saving && status !== "new" ? (
-              <span className="intake-slip-bar__count">{t("intake.products", { n: productCount })}</span>
+      <div className="intake-doc-header__letterhead">
+        <div className="intake-doc-header__title-row">
+          <div className="intake-doc-header__titles">
+            <p className="intake-doc-header__title-en">{t("intake.slipDoc.titleEn")}</p>
+            <h2 className="intake-doc-header__title-th">{t("intake.slipDoc.title")}</h2>
+          </div>
+          <span className={`intake-doc-header__badge intake-doc-header__badge--${readOnly ? "readonly" : effectiveStatus}`}>
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="intake-doc-header__rule" aria-hidden />
+
+        <div className="intake-doc-header__grid">
+          <div className="intake-doc-header__field">
+            <span className="intake-doc-header__label">{t("intake.slipDoc.shop")}</span>
+            <span className="intake-doc-header__value">{shopName}</span>
+          </div>
+          <div className="intake-doc-header__field">
+            <span className="intake-doc-header__label">{t("intake.slipDoc.date")}</span>
+            <span className="intake-doc-header__value">{formatAppDate(intakeDate, locale)}</span>
+          </div>
+          <div className="intake-doc-header__field">
+            <span className="intake-doc-header__label">{t("intake.slipDoc.docNo")}</span>
+            <span className="intake-doc-header__value intake-doc-header__value--mono">{docNoLabel}</span>
+          </div>
+          <div className="intake-doc-header__field">
+            <span className="intake-doc-header__label">{t("intake.slipDoc.recorder")}</span>
+            <span className="intake-doc-header__value">{createdByName || "—"}</span>
+          </div>
+          {slipTotal != null && slipTotal > 0 ? (
+            <div className="intake-doc-header__field intake-doc-header__field--total">
+              <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
+              <span className="intake-doc-header__value intake-doc-header__value--amount">₩{fmt(slipTotal)}</span>
+            </div>
+          ) : (
+            <div className="intake-doc-header__field">
+              <span className="intake-doc-header__label">{t("intake.products")}</span>
+              <span className="intake-doc-header__value">
+                {loading || saving ? "…" : t("intake.products", { n: productCount })}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {showEditStamp ? (
+          <div className="intake-doc-header__stamps">
+            <p className="intake-doc-header__stamp">
+              {t("intake.slipAudit.created", {
+                when: formatAppDateTime(createdAt!, locale),
+                by: createdByName || "—",
+              })}
+            </p>
+            {wasEdited ? (
+              <p className="intake-doc-header__stamp intake-doc-header__stamp--updated">
+                {t("intake.slipAudit.updated", {
+                  when: formatAppDateTime(updatedAt!, locale),
+                  by: updatedByName || "—",
+                })}
+              </p>
             ) : null}
           </div>
-        </div>
-        <div className="intake-slip-bar__tools">
+        ) : null}
+      </div>
+
+      {loading ? <IntakeLoadPanel message={t("intake.slipStatus.loadingDetail")} compact /> : null}
+
+      {!loading ? (
+        <div className="intake-doc-header__toolbar">
           {showReload ? (
             <button
               type="button"
-              className="intake-icon-btn"
+              className="btn btn-ghost btn-sm intake-doc-header__tool"
               onClick={onReload}
               disabled={reloading}
-              aria-label={t("intake.reloadLatest")}
-              title={t("intake.reloadLatest")}
             >
-              <IconRefresh size={18} className={reloading ? "intake-icon-btn__spin" : undefined} />
+              <IconRefresh size={16} className={reloading ? "intake-icon-btn__spin" : undefined} />
+              {t("intake.reloadLatest")}
             </button>
           ) : null}
-          {showSavedActions && !loading && !saving ? (
+          {showSavedActions && !saving ? (
             <>
-              <button type="button" className="intake-slip-link" onClick={onReset}>
+              <button type="button" className="btn btn-ghost btn-sm intake-doc-header__tool" onClick={onReset}>
                 {t("intake.resetForm")}
               </button>
               <DeleteIntakeBatchButton
@@ -124,40 +183,17 @@ export function IntakeSlipStatusBar({
                 suppName={shopName}
                 slipId={slipId}
                 role={role}
-                className="intake-slip-link intake-slip-link--danger"
+                className="btn btn-danger-outline btn-sm intake-doc-header__tool"
                 onDeleted={onDeleted}
               />
             </>
           ) : null}
         </div>
-      </div>
-
-      {loading ? (
-        <IntakeLoadPanel message={t("intake.slipStatus.loadingDetail")} compact />
-      ) : null}
-
-      {showEditStamp ? (
-        <div className="intake-slip-bar__audit">
-          <p className="intake-slip-bar__meta">
-            {t("intake.slipAudit.created", {
-              when: formatAppDateTime(createdAt!, locale),
-              by: createdByName || "—",
-            })}
-          </p>
-          {wasEdited ? (
-            <p className="intake-slip-bar__meta intake-slip-bar__meta--updated">
-              {t("intake.slipAudit.updated", {
-                when: formatAppDateTime(updatedAt!, locale),
-                by: updatedByName || "—",
-              })}
-            </p>
-          ) : null}
-        </div>
       ) : null}
 
       {!loading && hasDuplicateRows ? (
-        <p className="intake-slip-bar__warn">{t("intake.duplicateRowsWarning")}</p>
+        <p className="intake-doc-header__warn">{t("intake.duplicateRowsWarning")}</p>
       ) : null}
-    </div>
+    </header>
   );
 }

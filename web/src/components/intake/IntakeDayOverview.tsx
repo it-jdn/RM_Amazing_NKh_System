@@ -20,7 +20,7 @@ type Props = {
   items: Item[];
   mapping: Mapping[];
   purchaseUnits: ItemPurchaseUnit[];
-  onSelectSlip: (slipId: string, suppCode: string) => void;
+  onSelectSlip: (slipId: string, suppCode: string, slipNo?: number) => void;
 };
 
 export function IntakeDayOverview({
@@ -179,7 +179,7 @@ function SavedSlipSection({
   emptyLabel: string;
   rows: SlipDayRow[];
   shopName: (row: SlipDayRow) => string;
-  onSelect: (slipId: string, suppCode: string) => void;
+  onSelect: (slipId: string, suppCode: string, slipNo?: number) => void;
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   locale: Locale;
 }) {
@@ -190,12 +190,15 @@ function SavedSlipSection({
         <p className="intake-day-overview__empty">{emptyLabel}</p>
       ) : (
         <ul className="intake-day-overview__list">
-          {rows.map((row) => (
+          {rows.map((row) => {
+            const shopRows = rows.filter((r) => r.suppCode === row.suppCode);
+            const slipNo = shopRows.length - shopRows.findIndex((r) => r.id === row.id);
+            return (
             <li key={row.id}>
               <button
                 type="button"
                 className="intake-day-overview__row intake-day-overview__row--saved"
-                onClick={() => onSelect(row.id, row.suppCode)}
+                onClick={() => onSelect(row.id, row.suppCode, slipNo)}
               >
                 <span className="intake-day-overview__row-head">
                   <span className="intake-day-overview__row-name">{shopName(row)}</span>
@@ -221,7 +224,8 @@ function SavedSlipSection({
                 </span>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </section>
