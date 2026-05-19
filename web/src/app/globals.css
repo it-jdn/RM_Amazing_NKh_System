@@ -3937,15 +3937,13 @@ input.intake-touch-input,
   min-width: 0;
 }
 .intake-shop-hint {
-  margin: 8px 0 0;
-  padding: 8px 12px;
-  font-size: 13px;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.45;
-  color: #1d4ed8;
-  background: #eff6ff;
-  border: 1px solid #93c5fd;
-  border-radius: 8px;
+  line-height: 1.35;
+  color: var(--brand-red);
+  text-align: right;
 }
 .intake-doc-header__overview-shops {
   margin: 0;
