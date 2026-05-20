@@ -4292,11 +4292,8 @@ input.intake-touch-input,
   white-space: nowrap;
 }
 .intake-back-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 14px;
+  display: block;
+  margin: 12px 0 16px;
   padding: 0;
 }
 .intake-back-bar__btn {
@@ -4338,29 +4335,20 @@ input.intake-touch-input,
 .intake-back-bar__label {
   white-space: nowrap;
 }
-.intake-back-bar__shop {
-  flex: 1;
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+@media (max-width: 1024px) {
+  .intake-page.wrap--with-sticky-save .intake-context-panel {
+    padding-bottom: 10px;
+  }
+  .intake-back-bar {
+    margin: 14px 0 16px;
+  }
 }
 @media (max-width: 768px) {
   .intake-back-bar {
-    margin: 0 0 10px;
-    flex-direction: column;
-    align-items: stretch;
+    margin: 12px 0 14px;
   }
   .intake-back-bar__btn {
     width: 100%;
-  }
-  .intake-back-bar__shop {
-    text-align: center;
-    padding: 0 4px;
   }
 }
 .intake-document--overview .intake-document__sheet {

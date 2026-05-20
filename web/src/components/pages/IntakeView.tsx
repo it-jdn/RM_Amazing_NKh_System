@@ -5,7 +5,6 @@ import { useAppData } from "@/context/AppDataContext";
 import { apiGet, apiPost } from "@/lib/api/client";
 import { IntakeSaveConfirmModal } from "@/components/intake/IntakeSaveConfirmModal";
 import { IntakePurchaseUnitSelect } from "@/components/intake/IntakePurchaseUnitSelect";
-import { IntakeSlipNoteBar } from "@/components/intake/IntakeSlipNoteModal";
 import { IntakeItemCards } from "@/components/operator/IntakeItemCards";
 import { IntakeMobileSetup } from "@/components/operator/IntakeMobileSetup";
 import { IconX } from "@/components/icons/AppIcons";
@@ -87,14 +86,14 @@ export function IntakeView() {
   const [search, setSearch] = useState("");
   const [rowVals, setRowVals] = useState<IntakeRowVals>({});
   const [selectedPurchaseUnit, setSelectedPurchaseUnit] = useState<Record<string, string>>({});
-  const [slipNote, setSlipNote] = useState("");
+  /** Loaded slip-level note (UI hidden for now; preserved on save). */
+  const [loadedSlipNote, setLoadedSlipNote] = useState("");
   const [existingTxns, setExistingTxns] = useState<TransactionRow[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showUnsavedNav, setShowUnsavedNav] = useState(false);
   const [pendingNav, setPendingNav] = useState<PendingNav | null>(null);
   const [baselineVals, setBaselineVals] = useState<IntakeRowVals>({});
-  const [baselineSlipNote, setBaselineSlipNote] = useState("");
   const [slipSnapshotAt, setSlipSnapshotAt] = useState("");
   const [showStaleSave, setShowStaleSave] = useState(false);
   const [staleMeta, setStaleMeta] = useState({ maxSavedAt: "", savedByName: "" });
@@ -220,10 +219,9 @@ export function IntakeView() {
   const resetNewSlipForm = useCallback(() => {
     setRowVals({});
     setSelectedPurchaseUnit({});
-    setSlipNote("");
+    setLoadedSlipNote("");
     setExistingTxns([]);
     setBaselineVals({});
-    setBaselineSlipNote("");
     setSlipSnapshotAt("");
     setCanEditSlip(true);
     setActiveSlipMeta(null);
@@ -271,8 +269,7 @@ export function IntakeView() {
         slipNoteFromSlip?.trim() || extractSlipNoteFromRows(rows);
       setRowVals(vals);
       setBaselineVals(cloneIntakeRowVals(vals));
-      setSlipNote(loadedNote);
-      setBaselineSlipNote(loadedNote);
+      setLoadedSlipNote(loadedNote);
       setSlipSnapshotAt(maxSavedAtFromRows(rows));
     },
     [suppSel, mapping, purchaseUnits, itemPurchaseStandards]
@@ -319,9 +316,8 @@ export function IntakeView() {
 
   const isDirty = useMemo(() => {
     if (!suppSel) return false;
-    if (slipNote.trim() !== baselineSlipNote.trim()) return true;
     return isIntakeRowValsDirty(rowVals, baselineVals);
-  }, [suppSel, slipNote, baselineSlipNote, rowVals, baselineVals]);
+  }, [suppSel, rowVals, baselineVals]);
 
   function applyNavigation(nav: PendingNav) {
     if (nav.kind === "date") {
@@ -474,9 +470,9 @@ export function IntakeView() {
 
   const slipStatus = useMemo((): IntakeSlipStatus => {
     if (existingTxns.length > 0) return isDirty ? "modified" : "saved";
-    if (hasIntakeRowInput(rowVals) || slipNote.trim()) return "draft";
+    if (hasIntakeRowInput(rowVals)) return "draft";
     return "new";
-  }, [existingTxns.length, isDirty, rowVals, slipNote]);
+  }, [existingTxns.length, isDirty, rowVals]);
 
   const hasDuplicateRows = existingTxns.length > existingProductCount;
   const slipProductCount = existingTxns.length > 0 ? existingProductCount : sumCount;
@@ -554,7 +550,7 @@ export function IntakeView() {
         unitPrice: qty > 0 && total > 0 ? total / qty : refPrice,
         totalPrice: total,
         standardUnitPriceAtSave: refPrice,
-        note: slipNote.trim(),
+        note: loadedSlipNote.trim(),
       });
     }
     return txns;
@@ -593,7 +589,7 @@ export function IntakeView() {
         {
           transactions: txns,
           slipId: activeSlipId || undefined,
-          slipNote: slipNote.trim(),
+          slipNote: loadedSlipNote.trim(),
         }
       );
       toast(`✅ ${r.replaced ? t("intake.toastUpdated") : r.message || t("intake.toastSaved")}`);
@@ -789,7 +785,6 @@ export function IntakeView() {
         <>
           <IntakeBackToOverviewBar
             label={t("intake.backToOverview")}
-            shopName={shopName}
             onBack={goBackToOverview}
           />
           <div className="intake-document">
@@ -846,10 +841,6 @@ export function IntakeView() {
               onOpenModal={() => setShowModal(true)}
               readOnly={readOnly}
             />
-          </div>
-
-          <div className="intake-slip-note-section">
-            <IntakeSlipNoteBar value={slipNote} onChange={setSlipNote} readOnly={readOnly} />
           </div>
 
             <p className="intake-document__footnote">{t("intake.hint")}</p>
