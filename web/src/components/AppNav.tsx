@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { AppRole } from "@/lib/types";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -13,6 +14,8 @@ import { getCurrentNavTitleKey } from "@/lib/navigation/nav-title";
 import { AppMobileMenu } from "@/components/nav/AppMobileMenu";
 import { NavSettingsMenu } from "@/components/nav/NavSettingsMenu";
 import { NavUserMenu } from "@/components/nav/NavUserMenu";
+import { useAdminUnsavedOptional } from "@/components/admin/AdminUnsavedChangesProvider";
+import { useIntakeNavGuardOptional } from "@/context/IntakeNavGuardContext";
 
 const TABS: { href: string; labelKey: MessageKey; roles: AppRole[] }[] = [
   { href: "/receiving", labelKey: "nav.intake", roles: ["operator", "admin", "manager"] },
@@ -45,6 +48,30 @@ export function AppNav({
     return pathname === href;
   }
 
+  const adminUnsaved = useAdminUnsavedOptional();
+  const intakeGuard = useIntakeNavGuardOptional();
+
+  const refreshPage = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  const onLogoClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (adminUnsaved?.dirty) {
+        adminUnsaved.guardAction(refreshPage);
+        return;
+      }
+      if (intakeGuard?.intakeDirty) {
+        if (!window.confirm(t("intake.logoRefreshUnsavedConfirm"))) return;
+        refreshPage();
+        return;
+      }
+      refreshPage();
+    },
+    [adminUnsaved, intakeGuard, refreshPage, t]
+  );
+
   async function logout() {
     await apiPost("/api/auth/logout", {});
     router.push("/login");
@@ -61,6 +88,7 @@ export function AppNav({
             pageTitle={pageTitle}
             compact={isOperator}
             drawerNav={drawerNav}
+            onLogoClick={onLogoClick}
           />
         </div>
         {drawerNav ? (
@@ -97,20 +125,23 @@ function NavBrand({
   pageTitle,
   compact,
   drawerNav,
+  onLogoClick,
 }: {
   subtitle: string;
   pageTitle: string;
   compact?: boolean;
   drawerNav: boolean;
+  onLogoClick: (e: React.MouseEvent) => void;
 }) {
   const ariaLabel = drawerNav ? pageTitle : `Amazing Nongkhai — ${subtitle}`;
 
   return (
-    <Link
-      href="/"
+    <button
+      type="button"
       className={`nav-brand${compact ? " nav-brand--compact" : ""}${drawerNav ? " nav-brand--drawer" : ""}`}
       aria-label={ariaLabel}
       title={drawerNav ? pageTitle : undefined}
+      onClick={onLogoClick}
     >
       <Image
         src="/amazing-nkh-logo.png"
@@ -132,6 +163,6 @@ function NavBrand({
           </div>
         </div>
       ) : null}
-    </Link>
+    </button>
   );
 }

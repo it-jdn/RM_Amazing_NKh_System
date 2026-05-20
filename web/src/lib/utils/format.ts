@@ -105,14 +105,28 @@ export function monthStartISO() {
   return `${y}-${m}-01`;
 }
 
+/** True if string is ISO-like with explicit Z or numeric UTC offset (timestamptz from DB). */
+function hasExplicitUtcOffset(isoCore: string): boolean {
+  if (/[zZ]$/.test(isoCore)) return true;
+  const m = isoCore.match(/([+-]\d{2}(?::\d{2})?(?::\d{2})?)$/);
+  return Boolean(m);
+}
+
+/** Parse DB/API timestamps: explicit Z/offset use ISO rules; else treat as Bangkok wall (legacy saves). */
+function parseTimestampForDisplay(input: string): Date | null {
+  const s0 = input.trim();
+  if (!s0) return null;
+  const core = s0.includes("T") ? s0 : s0.replace(" ", "T");
+  const candidate = hasExplicitUtcOffset(core) ? core : `${core}+07:00`;
+  const d = new Date(candidate);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 /** แสดงวันเวลาบันทึกจาก saved_at */
 export function formatAppDateTime(savedAt: string, locale: Locale): string {
   if (!savedAt) return "";
-  const normalized = savedAt.includes("T")
-    ? savedAt
-    : savedAt.trim().replace(" ", "T") + "+07:00";
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) return savedAt;
+  const d = parseTimestampForDisplay(savedAt);
+  if (!d) return savedAt;
   const datePart = d.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
   const timePart = d.toLocaleTimeString(locale === "kr" ? "ko-KR" : locale === "en" ? "en-GB" : "th-TH", {
     timeZone: "Asia/Bangkok",

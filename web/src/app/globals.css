@@ -87,6 +87,17 @@ body:has(.login-page) {
   color: inherit;
   flex-shrink: 0;
 }
+button.nav-brand {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 0;
+}
 .nav-brand:hover .brand-text { opacity: 0.92; }
 .nav-brand__logo {
   width: auto;

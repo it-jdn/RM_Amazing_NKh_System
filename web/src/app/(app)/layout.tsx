@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { AppNav } from "@/components/AppNav";
+import { AppShell } from "@/components/AppShell";
 import { ToastProvider } from "@/components/Toast";
 import { AppDataProvider } from "@/context/AppDataContext";
 import { LocaleProvider } from "@/context/LocaleContext";
@@ -13,10 +13,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <LocaleProvider>
       <ToastProvider>
         <AppDataProvider role={session.role}>
-        <AppNav displayName={session.displayName} role={session.role} />
-        <main className={session.role === "operator" ? "main--operator" : undefined}>
-          {children}
-        </main>
+          <AppShell displayName={session.displayName} role={session.role}>
+            {children}
+          </AppShell>
         </AppDataProvider>
       </ToastProvider>
     </LocaleProvider>

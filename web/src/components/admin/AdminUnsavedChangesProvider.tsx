@@ -180,14 +180,10 @@ export function AdminUnsavedChangesProvider({ children }: { children: ReactNode 
     [dirty, setDirty, registerHandlers, requestNavigation, guardAction]
   );
 
-  if (!active) {
-    return <>{children}</>;
-  }
-
   return (
     <AdminUnsavedContext.Provider value={value}>
       {children}
-      {open ? (
+      {active && open ? (
         <div
           className="modal-overlay open"
           role="presentation"

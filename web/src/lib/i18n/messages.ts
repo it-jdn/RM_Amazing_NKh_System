@@ -432,6 +432,8 @@ const messages = {
     "intake.reloadLatest": "โหลดล่าสุด",
     "intake.reloading": "กำลังโหลด...",
     "intake.reloadDiscardConfirm": "มีการแก้ไขในฟอร์ม — โหลดล่าสุดจะทิ้งการแก้ไข ต้องการต่อหรือไม่?",
+    "intake.logoRefreshUnsavedConfirm":
+      "มีข้อมูลที่ยังไม่บันทึก — การรีเฟรชหน้านี้จะทิ้งการแก้ไข ต้องการรีเฟรชหรือไม่?",
     "intake.toastReloaded": "โหลดข้อมูลล่าสุดแล้ว",
     "intake.duplicateRowsWarning": "พบข้อมูลซ้ำในฐานข้อมูล — แนะนำบันทึกทั้งใบเพื่อรวมเป็นชุดเดียว",
     "intake.staleSave.title": "มีการบันทึกใหม่กว่า",
@@ -962,6 +964,8 @@ const messages = {
     "intake.reloadLatest": "Reload latest",
     "intake.reloading": "Loading...",
     "intake.reloadDiscardConfirm": "You have unsaved edits. Reloading will discard them. Continue?",
+    "intake.logoRefreshUnsavedConfirm":
+      "You have unsaved changes. Refreshing the page will discard them. Continue?",
     "intake.toastReloaded": "Reloaded latest data",
     "intake.duplicateRowsWarning": "Duplicate rows in database — save entire slip to consolidate",
     "intake.staleSave.title": "Newer save on server",
@@ -1491,6 +1495,8 @@ const messages = {
     "intake.reloadLatest": "최신 불러오기",
     "intake.reloading": "불러오는 중...",
     "intake.reloadDiscardConfirm": "수정 내용이 있습니다. 최신 불러오기 시 수정이 사라집니다. 계속할까요?",
+    "intake.logoRefreshUnsavedConfirm":
+      "저장하지 않은 변경이 있습니다. 페이지를 새로고침하면 변경이 사라집니다. 계속할까요?",
     "intake.toastReloaded": "최신 데이터를 불러왔습니다",
     "intake.duplicateRowsWarning": "DB에 중복 행이 있습니다 — 전체 저장으로 통합하세요",
     "intake.staleSave.title": "더 최근 저장 있음",

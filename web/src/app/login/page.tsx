@@ -1,8 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useRef, useState } from "react";
+
+function safeAppPath(from: string | null, fallback: string): string {
+  if (!from || !from.startsWith("/") || from.startsWith("//")) return fallback;
+  if (from.includes("://") || from.includes("\\")) return fallback;
+  if (from.startsWith("/login")) return fallback;
+  return from;
+}
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { useLocale } from "@/context/LocaleContext";
 import { getHomePath } from "@/lib/auth/paths";
@@ -25,10 +32,10 @@ function isInvalidPinMessage(message: string): boolean {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useLocale();
   const pinRef = useRef<HTMLInputElement>(null);
+  const postingRef = useRef(false);
   const [pin, setPin] = useState("");
   const [role, setRole] = useState<AppRole>("operator");
   const [error, setError] = useState("");
@@ -44,16 +51,18 @@ function LoginForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (postingRef.current) return;
     setError("");
     setPinError(false);
+    postingRef.current = true;
     setLoading(true);
     try {
       await apiPost("/api/auth/login", { pin, role });
       const home = getHomePath(role);
-      const from = searchParams.get("from") || home;
-      const dest = from.startsWith("/login") || !from ? home : from;
-      router.push(dest);
-      router.refresh();
+      const dest = safeAppPath(searchParams.get("from"), home);
+      // Full navigation so the session cookie from fetch is always sent on the next request.
+      // client router.push + refresh can race and briefly load the app without the new cookie.
+      window.location.assign(dest);
     } catch (err) {
       const message = err instanceof Error ? err.message : t("login.error");
       if (isInvalidPinMessage(message)) {
@@ -63,8 +72,9 @@ function LoginForm() {
         setError(message || t("login.error"));
       }
       pinRef.current?.focus();
-    } finally {
       setLoading(false);
+    } finally {
+      postingRef.current = false;
     }
   }
 

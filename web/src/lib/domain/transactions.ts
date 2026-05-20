@@ -156,6 +156,31 @@ export function toDateStr(val: unknown): string {
   return s.substring(0, 10);
 }
 
+/**
+ * Current wall time in Asia/Bangkok as an unambiguous timestamptz string for Postgres.
+ * (Naive `sv-SE` strings without offset were often interpreted as UTC by the remote DB,
+ * shifting displayed times by several hours.)
+ */
 export function bangkokNow(): string {
-  return new Date().toLocaleString("sv-SE", { timeZone: "Asia/Bangkok" }).replace("T", " ");
+  const d = new Date();
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(d);
+  const g = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "00";
+  const y = g("year");
+  const mo = g("month");
+  const da = g("day");
+  const h = g("hour");
+  const mi = g("minute");
+  const s = g("second");
+  const ms = String(d.getMilliseconds()).padStart(3, "0");
+  return `${y}-${mo}-${da}T${h}:${mi}:${s}.${ms}+07:00`;
 }

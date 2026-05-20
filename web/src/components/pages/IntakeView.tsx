@@ -37,6 +37,7 @@ import { AppDateField } from "@/components/ui/AppDateField";
 import { unitDisplayName } from "@/lib/i18n/unit-display-name";
 import type { UnitPairHint } from "@/lib/types";
 import { useModalLayer } from "@/hooks/useModalLayer";
+import { useIntakeNavGuardOptional } from "@/context/IntakeNavGuardContext";
 import { fmt, todayISO } from "@/lib/utils/format";
 import {
   displayNumericField,
@@ -318,6 +319,13 @@ export function IntakeView() {
     if (!suppSel) return false;
     return isIntakeRowValsDirty(rowVals, baselineVals);
   }, [suppSel, rowVals, baselineVals]);
+
+  const setIntakeNavDirty = useIntakeNavGuardOptional()?.setIntakeDirty;
+  useEffect(() => {
+    if (!setIntakeNavDirty) return;
+    setIntakeNavDirty(isDirty);
+    return () => setIntakeNavDirty(false);
+  }, [isDirty, setIntakeNavDirty]);
 
   function applyNavigation(nav: PendingNav) {
     if (nav.kind === "date") {
