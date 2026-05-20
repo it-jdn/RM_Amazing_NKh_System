@@ -37,6 +37,7 @@ import { IntakeShopSlips } from "@/components/intake/IntakeShopSlips";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import { IntakeSlipStatusBar, type IntakeSlipStatus } from "@/components/intake/IntakeSlipStatusBar";
 import { IntakeStaleSaveModal } from "@/components/intake/IntakeStaleSaveModal";
+import { IntakeResetFormModal } from "@/components/intake/IntakeResetFormModal";
 import { IntakeUnsavedNavigateModal } from "@/components/intake/IntakeUnsavedNavigateModal";
 import { UnitSelectFields } from "@/components/pages/admin/UnitSelectFields";
 import { AppDateField } from "@/components/ui/AppDateField";
@@ -99,6 +100,7 @@ export function IntakeView() {
   const [existingTxns, setExistingTxns] = useState<TransactionRow[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showUnsavedNav, setShowUnsavedNav] = useState(false);
   const [pendingNav, setPendingNav] = useState<PendingNav | null>(null);
   const [baselineVals, setBaselineVals] = useState<IntakeRowVals>({});
@@ -728,11 +730,7 @@ export function IntakeView() {
         readOnly={readOnly}
         loading={loadingSlip}
         saving={saving}
-        onReset={() => {
-          if (!confirm(t("intake.resetConfirm"))) return;
-          if (activeSlipId) void loadSlipById(activeSlipId);
-          else resetNewSlipForm();
-        }}
+        onReset={() => setShowResetConfirm(true)}
         slipNo={activeSlipNo ?? undefined}
         slipTotal={
           !activeSlipId || isDirty || slipStatus === "draft" || slipStatus === "new"
@@ -921,6 +919,19 @@ export function IntakeView() {
         </div>
         </>
       )}
+
+      <IntakeResetFormModal
+        open={showResetConfirm}
+        busy={loadingSlip}
+        onClose={() => {
+          if (!loadingSlip) setShowResetConfirm(false);
+        }}
+        onConfirm={() => {
+          setShowResetConfirm(false);
+          if (activeSlipId) void loadSlipById(activeSlipId);
+          else resetNewSlipForm();
+        }}
+      />
 
       <IntakeSaveConfirmModal
         open={showSaveConfirm}

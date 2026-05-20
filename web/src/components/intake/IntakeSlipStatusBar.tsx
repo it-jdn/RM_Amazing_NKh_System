@@ -76,8 +76,10 @@ export function IntakeSlipStatusBar({
   const showEditStamp = !loading && !!createdAt;
   const wasEdited = updatedAt && createdAt && updatedAt !== createdAt;
 
-  const docNoLabel =
-    slipId && slipNo != null ? t("intake.slipDoc.no", { n: slipNo }) : t("intake.slipDoc.draft");
+  const headingTitle =
+    slipId && slipNo != null
+      ? t("intake.slipDoc.heading", { n: slipNo, shop: shopName })
+      : t("intake.slipDoc.headingDraft", { shop: shopName });
 
   const showTotal = slipTotal != null && slipTotal > 0;
 
@@ -91,12 +93,16 @@ export function IntakeSlipStatusBar({
       <div className="intake-doc-header__letterhead">
         <div className="intake-doc-header__title-row">
           <div className="intake-doc-header__titles">
-            <h2 className="intake-doc-header__title-th">
-              {t("intake.slipDoc.title")}
-              <span className="intake-doc-header__shop-inline"> — {shopName}</span>
-            </h2>
+            <div className="intake-doc-header__title-with-status">
+              <h2 className="intake-doc-header__title-th intake-doc-header__title-th--slip-heading">{headingTitle}</h2>
+              <span
+                className={`intake-doc-header__badge intake-doc-header__badge--${readOnly ? "readonly" : effectiveStatus}`}
+              >
+                {statusLabel}
+              </span>
+            </div>
           </div>
-          <div className="intake-doc-header__actions">
+          <div className="intake-doc-header__actions intake-doc-header__actions--slip-trailing">
             {showTotal ? (
               <div className="intake-doc-header__total-block">
                 <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
@@ -105,39 +111,30 @@ export function IntakeSlipStatusBar({
                 </span>
               </div>
             ) : null}
-            {!loading && !saving ? (
-              <div className="intake-doc-header__tools">
-                {showSavedActions ? (
-                  <>
-                    <button type="button" className="btn btn-ghost btn-sm intake-doc-header__tool" onClick={onReset}>
-                      {t("intake.resetForm")}
-                    </button>
-                    <DeleteIntakeBatchButton
-                      date={intakeDate}
-                      suppCode={suppCode}
-                      suppName={shopName}
-                      slipId={slipId}
-                      role={role}
-                      className="btn btn-danger-outline btn-sm intake-doc-header__tool"
-                      onDeleted={onDeleted}
-                    />
-                  </>
-                ) : null}
+            {!loading && !saving && showSavedActions ? (
+              <div className="intake-doc-header__tools intake-doc-header__tools--after-total">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm intake-doc-header__tool intake-doc-header__tool--slip intake-doc-header__tool--reset"
+                  onClick={onReset}
+                >
+                  {t("intake.resetForm")}
+                </button>
+                <DeleteIntakeBatchButton
+                  date={intakeDate}
+                  suppCode={suppCode}
+                  suppName={shopName}
+                  slipId={slipId}
+                  role={role}
+                  className="btn btn-danger-outline btn-sm intake-doc-header__tool intake-doc-header__tool--slip"
+                  onDeleted={onDeleted}
+                />
               </div>
             ) : null}
-            <span
-              className={`intake-doc-header__badge intake-doc-header__badge--${readOnly ? "readonly" : effectiveStatus}`}
-            >
-              {statusLabel}
-            </span>
           </div>
         </div>
 
-        <div className="intake-doc-header__meta-row">
-          <span className="intake-doc-header__meta-item">
-            <span className="intake-doc-header__label">{t("intake.slipDoc.docNo")}</span>
-            <span className="intake-doc-header__value intake-doc-header__value--mono">{docNoLabel}</span>
-          </span>
+        <div className="intake-doc-header__meta-row intake-doc-header__meta-row--slip-subtle">
           <span className="intake-doc-header__meta-item">
             <span className="intake-doc-header__label">{t("intake.slipDoc.date")}</span>
             <span className="intake-doc-header__value">{formatAppDate(intakeDate, locale)}</span>

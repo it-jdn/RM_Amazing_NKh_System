@@ -188,61 +188,97 @@ function SavedSlipSection({
           return (
             <div key={group.suppCode} className="intake-day-shop-group">
               <div className="intake-day-shop-group__head">
-                <div className="intake-day-shop-group__title-wrap">
+                <div className="intake-day-shop-group__head-main">
                   <h3 className="intake-day-shop-group__shop">{label}</h3>
-                  <p className="intake-day-shop-group__count">
+                  <span className="intake-day-shop-group__count">
                     {t("intake.dayOverview.shopSlipCount", { n: group.slips.length })}
-                  </p>
+                  </span>
+                </div>
+                <div className="intake-day-shop-group__head-actions">
+                  <span className="intake-day-shop-group__total">₩{fmt(group.shopTotal)}</span>
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm intake-day-shop-group__add"
+                    className="btn btn-sm intake-day-shop-group__add"
                     onClick={() => onSelectShop(group.suppCode)}
                   >
                     {t("intake.addIntake")}
                   </button>
                 </div>
-                <span className="intake-day-shop-group__total">₩{fmt(group.shopTotal)}</span>
               </div>
-              <ul className="intake-day-shop-group__slips">
-                {group.slips.map((row) => {
-                  const edited = row.updatedAt !== row.createdAt;
-                  return (
-                    <li key={row.id}>
-                      <button
-                        type="button"
-                        className="intake-day-slip-list__row"
-                        onClick={() => onSelect(row.id, row.suppCode, row.slipNo)}
-                      >
-                        <span className="intake-day-slip-list__primary">
-                          <span className="intake-day-slip-list__slip-label">
-                            <IconDocument size={18} className="intake-day-slip-list__doc-icon" />
-                            <span className="intake-day-slip-list__slip">
-                              {t("intake.slipList.slipNo", { n: row.slipNo })}
+              <div className="intake-day-slip-table">
+                <div className="intake-day-slip-list__thead" role="row">
+                  <div className="intake-day-slip-list__th intake-day-slip-list__th--slip">
+                    {t("intake.dayOverview.thSlip")}
+                  </div>
+                  <div className="intake-day-slip-list__th intake-day-slip-list__th--lines">
+                    {t("intake.dayOverview.thLines")}
+                  </div>
+                  <div className="intake-day-slip-list__th intake-day-slip-list__th--meta">
+                    {t("intake.dayOverview.thMeta")}
+                  </div>
+                  <div className="intake-day-slip-list__th intake-day-slip-list__th--amt">
+                    {t("intake.dayOverview.thAmount")}
+                  </div>
+                  <div className="intake-day-slip-list__th intake-day-slip-list__th--status">
+                    {t("intake.dayOverview.thStatus")}
+                  </div>
+                </div>
+                <ul className="intake-day-shop-group__slips">
+                  {group.slips.map((row) => {
+                    const edited = row.updatedAt !== row.createdAt;
+                    return (
+                      <li key={row.id}>
+                        <button
+                          type="button"
+                          className="intake-day-slip-list__row"
+                          onClick={() => onSelect(row.id, row.suppCode, row.slipNo)}
+                        >
+                          <span className="intake-day-slip-list__row-grid">
+                            <span className="intake-day-slip-list__cell intake-day-slip-list__cell--slip">
+                              <IconDocument size={18} className="intake-day-slip-list__doc-icon" aria-hidden />
+                              <span className="intake-day-slip-list__slip">
+                                {t("intake.slipList.slipNo", { n: row.slipNo })}
+                              </span>
+                            </span>
+                            <span
+                              className="intake-day-slip-list__cell intake-day-slip-list__cell--lines"
+                              title={t("intake.dayOverview.thLines")}
+                            >
+                              {row.lineCount}
+                            </span>
+                            <span className="intake-day-slip-list__cell intake-day-slip-list__cell--meta">
+                              <span className="intake-day-slip-list__meta">
+                                <span className="intake-day-slip-list__time">
+                                  {formatAppDateTime(row.createdAt, locale)}
+                                </span>
+                                {row.createdByName ? (
+                                  <>
+                                    <span className="intake-day-slip-list__sep" aria-hidden>
+                                      ·
+                                    </span>
+                                    <span className="intake-day-slip-list__by">{row.createdByName}</span>
+                                  </>
+                                ) : null}
+                                {edited ? (
+                                  <span className="intake-day-slip-list__edited-inline">
+                                    {t("intake.slipList.editedBadge")}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </span>
+                            <span className="intake-day-slip-list__cell intake-day-slip-list__cell--amt">
+                              <span className="intake-day-slip-list__amount">₩{fmt(row.totalPrice)}</span>
+                            </span>
+                            <span className="intake-day-slip-list__cell intake-day-slip-list__cell--status">
+                              <span className="rx-badge rx-yes">{t("intake.dayOverview.saved")}</span>
                             </span>
                           </span>
-                          <span className="intake-day-slip-list__amount">₩{fmt(row.totalPrice)}</span>
-                        </span>
-                        <span className="intake-day-slip-list__meta">
-                          <span className="intake-day-slip-list__time">
-                            {formatAppDateTime(row.createdAt, locale)}
-                          </span>
-                          {row.createdByName ? (
-                            <>
-                              <span className="intake-day-slip-list__sep" aria-hidden>
-                                ·
-                              </span>
-                              <span className="intake-day-slip-list__by">{row.createdByName}</span>
-                            </>
-                          ) : null}
-                          {edited ? (
-                            <span className="intake-slip-tab__edited">{t("intake.slipList.editedBadge")}</span>
-                          ) : null}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             </div>
           );
         })}
