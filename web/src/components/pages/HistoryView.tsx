@@ -20,7 +20,6 @@ import {
   getAppDayOfWeekShort,
   HIST_DATE_PRESETS,
   histDatePresetRange,
-  todayISO,
 } from "@/lib/utils/format";
 import { aggregateTransactionsByItem, latestTransactionAudit } from "@/lib/domain/transactions";
 import type { Locale } from "@/lib/i18n/types";
@@ -43,10 +42,10 @@ export function HistoryView() {
   const [histTxns, setHistTxns] = useState<TransactionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [histSortAsc, setHistSortAsc] = useState(false);
-  const [hFrom, setHFrom] = useState(() => todayISO());
-  const [hTo, setHTo] = useState(() => todayISO());
+  const [hFrom, setHFrom] = useState(() => histDatePresetRange("thisMonth").from);
+  const [hTo, setHTo] = useState(() => histDatePresetRange("thisMonth").to);
   const [hSupp, setHSupp] = useState("");
-  const [datePreset, setDatePreset] = useState("today");
+  const [datePreset, setDatePreset] = useState("thisMonth");
   const [detail, setDetail] = useState<{ date: string; suppCode: string } | null>(null);
 
   const loadHist = useCallback(async () => {

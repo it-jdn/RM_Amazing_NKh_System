@@ -614,18 +614,25 @@ input[type="radio"] {
   border-radius: 8px;
   border: 1.5px solid var(--border);
   background: var(--surface);
-  cursor: pointer;
   font-family: var(--font-ui);
   color: var(--text);
-  touch-action: manipulation;
   text-align: left;
+  pointer-events: none;
+  user-select: none;
 }
 .app-date-field__label {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
+}
+.app-date-field--filled .app-date-field__btn {
+  font-weight: 600;
+  color: var(--brand-dark);
 }
 .app-date-field__icon {
   flex-shrink: 0;
@@ -634,10 +641,23 @@ input[type="radio"] {
 }
 .app-date-field__native {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   opacity: 0;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: 16px;
+}
+.app-date-field--disabled .app-date-field__native {
   pointer-events: none;
+  cursor: not-allowed;
 }
 .sort-toggle {
   display: flex;
@@ -2045,6 +2065,89 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   .brand-sub { font-size: 10px; }
 }
 
+/* Tablet intake: date + shop bar (≤1024px, iPad) */
+@media (max-width: 1024px) {
+  .intake-mobile-only { display: block; }
+  .intake-desktop-only { display: none; }
+
+  .intake-page.wrap {
+    padding-top: 6px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .intake-context-panel {
+    margin: 0 -12px 0;
+    padding: 8px 12px 0;
+    background: #eef4ff;
+    border: 1px solid #c5d9f7;
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+  }
+  .intake-page:not(:has(.intake-cards-section)) .intake-context-panel {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #c5d9f7;
+    border-radius: 12px;
+  }
+  .intake-page:not(:has(.intake-cards-section)) .intake-day-overview {
+    margin-top: 0;
+  }
+  .intake-mobile-setup--compact {
+    display: grid;
+    grid-template-columns: minmax(158px, 50%) minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+  .intake-mobile-setup--compact .app-date-field__btn,
+  .intake-mobile-setup--compact .supplier-picker__trigger {
+    min-height: 42px;
+    font-size: 16px;
+    line-height: 1.25;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-family: var(--font-ui);
+  }
+  .intake-mobile-setup--compact .app-date-field__btn {
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .intake-mobile-setup--compact .app-date-field--filled .app-date-field__btn {
+    font-weight: 600;
+    color: var(--brand-dark);
+  }
+  .intake-mobile-setup--compact .app-date-field__label {
+    overflow: visible;
+    text-overflow: clip;
+    flex-shrink: 0;
+  }
+  .intake-mobile-setup--compact .supplier-picker__trigger {
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .intake-mobile-setup--compact .supplier-picker__trigger--filled {
+    font-weight: 600;
+    color: var(--brand-dark);
+  }
+  .intake-mobile-setup--compact .supplier-picker__value {
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+  }
+  .intake-mobile-setup--compact .supplier-picker__chev,
+  .intake-mobile-setup--compact .app-date-field__icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.65;
+  }
+  .intake-mobile-setup__input--date {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 /* Mobile intake layout (≤768px) */
 @media (max-width: 768px) {
   .intake-mobile-only { display: block; }
@@ -2094,21 +2197,28 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   }
   .intake-mobile-setup--compact {
     display: grid;
-    grid-template-columns: minmax(140px, 46%) minmax(0, 1fr);
+    grid-template-columns: minmax(158px, 50%) minmax(0, 1fr);
     gap: 8px;
     align-items: stretch;
   }
   .intake-mobile-setup--compact .app-date-field__btn,
   .intake-mobile-setup--compact .supplier-picker__trigger {
     min-height: 42px;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.25;
     padding: 8px 10px;
     border-radius: 8px;
     border: 1.5px solid var(--border);
     background: var(--surface);
     font-family: var(--font-ui);
-    color: var(--text);
+  }
+  .intake-mobile-setup--compact .app-date-field__btn {
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .intake-mobile-setup--compact .app-date-field--filled .app-date-field__btn {
+    font-weight: 600;
+    color: var(--brand-dark);
   }
   .intake-mobile-setup--compact .app-date-field__label {
     overflow: visible;
@@ -2123,8 +2233,15 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     font-weight: 600;
     color: var(--brand-dark);
   }
-  .intake-mobile-setup--compact .supplier-picker__chev {
-    width: 16px;
+  .intake-mobile-setup--compact .supplier-picker__value {
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+  }
+  .intake-mobile-setup--compact .supplier-picker__chev,
+  .intake-mobile-setup--compact .app-date-field__icon {
+    width: 18px;
+    height: 18px;
     opacity: 0.65;
   }
   .intake-cards-section {
@@ -2164,10 +2281,11 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   }
   .intake-date-field__native {
     position: absolute;
-    width: 1px;
-    height: 1px;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     opacity: 0;
-    pointer-events: none;
+    cursor: pointer;
   }
   .intake-mobile-setup__input--date {
     width: 100%;
@@ -3365,6 +3483,28 @@ input.intake-touch-input,
 }
 .intake-page .intake-form-top {
   gap: 12px;
+}
+.intake-setup-card .app-date-field__btn,
+.intake-setup-card .intake-supplier-field select {
+  font-size: 16px;
+  line-height: 1.25;
+  min-height: 42px;
+}
+.intake-setup-card .app-date-field__btn {
+  font-weight: 500;
+  color: var(--muted);
+}
+.intake-setup-card .app-date-field--filled .app-date-field__btn {
+  font-weight: 600;
+  color: var(--brand-dark);
+}
+.intake-setup-card .intake-supplier-field select {
+  font-weight: 500;
+  color: var(--muted);
+}
+.intake-setup-card .intake-supplier-field select:has(option:checked:not([value=""])) {
+  font-weight: 600;
+  color: var(--brand-dark);
 }
 .intake-day-overview {
   display: flex;
