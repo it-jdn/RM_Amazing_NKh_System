@@ -7,7 +7,7 @@ import { IntakeSaveConfirmModal } from "@/components/intake/IntakeSaveConfirmMod
 import { IntakePurchaseUnitSelect } from "@/components/intake/IntakePurchaseUnitSelect";
 import { IntakeItemCards } from "@/components/operator/IntakeItemCards";
 import { IntakeMobileSetup } from "@/components/operator/IntakeMobileSetup";
-import { IconX } from "@/components/icons/AppIcons";
+import { IconChevronDown, IconChevronUp, IconX } from "@/components/icons/AppIcons";
 import { IntakeStickyBar } from "@/components/operator/IntakeStickyBar";
 import { useLocale } from "@/context/LocaleContext";
 import { itemDisplayName, itemSecondaryName } from "@/lib/i18n/item-name";
@@ -24,6 +24,12 @@ import {
   type IntakeRowVals,
 } from "@/lib/domain/intake-row-draft";
 import { isServerSlipNewer, maxSavedAtFromRows } from "@/lib/domain/intake-slip";
+import {
+  DEFAULT_INTAKE_ITEM_SORT,
+  sortIntakeItems,
+  type IntakeItemSortColumn,
+  type IntakeItemSortState,
+} from "@/lib/domain/intake-item-sort";
 import { extractSlipNoteFromRows } from "@/lib/domain/intake-slip-note";
 import { IntakeBackToOverviewBar } from "@/components/intake/IntakeBackToOverviewBar";
 import { IntakeDayOverview } from "@/components/intake/IntakeDayOverview";
@@ -85,6 +91,7 @@ export function IntakeView() {
   const [activeSlipMeta, setActiveSlipMeta] = useState<IntakeSlipSummary | null>(null);
   const [slipListRefresh, setSlipListRefresh] = useState(0);
   const [search, setSearch] = useState("");
+  const [intakeSort, setIntakeSort] = useState<IntakeItemSortState>(DEFAULT_INTAKE_ITEM_SORT);
   const [rowVals, setRowVals] = useState<IntakeRowVals>({});
   const [selectedPurchaseUnit, setSelectedPurchaseUnit] = useState<Record<string, string>>({});
   /** Loaded slip-level note (UI hidden for now; preserved on save). */
@@ -400,6 +407,23 @@ export function IntakeView() {
       it.code.toLowerCase().includes(q)
     );
   });
+
+  const displaySortedItems = useMemo(
+    () => sortIntakeItems(filteredItems, intakeSort, locale, rowVals),
+    [filteredItems, intakeSort, locale, rowVals]
+  );
+
+  const toggleIntakeSort = useCallback((column: IntakeItemSortColumn) => {
+    setIntakeSort((prev) =>
+      prev.column === column
+        ? { column, direction: prev.direction === "asc" ? "desc" : "asc" }
+        : { column, direction: "asc" }
+    );
+  }, []);
+
+  useEffect(() => {
+    setIntakeSort(DEFAULT_INTAKE_ITEM_SORT);
+  }, [suppSel, activeSlipId]);
 
   function setRow(rowKey: string, field: "qty" | "total", val: string) {
     const next = sanitizeDecimalInput(val);
@@ -826,7 +850,7 @@ export function IntakeView() {
 
           <div className="intake-mobile-only intake-cards-section">
             <IntakeItemCards
-              items={filteredItems}
+              items={displaySortedItems}
               search={search}
               setSearch={setSearch}
               rowVals={rowVals}
@@ -840,7 +864,9 @@ export function IntakeView() {
 
           <div className="intake-desktop-only">
             <IntakeTable
-              filteredItems={filteredItems}
+              items={displaySortedItems}
+              sort={intakeSort}
+              onSortColumn={toggleIntakeSort}
               search={search}
               setSearch={setSearch}
               rowVals={rowVals}
@@ -1005,7 +1031,9 @@ export function IntakeView() {
 }
 
 function IntakeTable({
-  filteredItems,
+  items,
+  sort,
+  onSortColumn,
   search,
   setSearch,
   rowVals,
@@ -1014,7 +1042,9 @@ function IntakeTable({
   onOpenModal,
   readOnly = false,
 }: {
-  filteredItems: CurItem[];
+  items: CurItem[];
+  sort: IntakeItemSortState;
+  onSortColumn: (column: IntakeItemSortColumn) => void;
   search: string;
   setSearch: (s: string) => void;
   rowVals: IntakeRowVals;
@@ -1024,6 +1054,46 @@ function IntakeTable({
   readOnly?: boolean;
 }) {
   const { locale, t } = useLocale();
+
+  function SortTh({
+    column,
+    label,
+    className,
+  }: {
+    column: IntakeItemSortColumn;
+    label: string;
+    className: string;
+  }) {
+    const active = sort.column === column;
+    const orderLabel = sort.direction === "asc" ? t("intake.sort.asc") : t("intake.sort.desc");
+    const ariaLabel = active
+      ? t("intake.table.sortState", { column: label, order: orderLabel })
+      : t("intake.table.sortHint", { column: label });
+    return (
+      <th
+        className={`itbl__th-sort ${className}`.trim()}
+        scope="col"
+        aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <button
+          type="button"
+          className={`itbl__sort-btn${active ? " itbl__sort-btn--active" : ""}`}
+          aria-label={ariaLabel}
+          onClick={() => onSortColumn(column)}
+        >
+          <span className="itbl__sort-btn__label">{label}</span>
+          {active ? (
+            sort.direction === "asc" ? (
+              <IconChevronUp size={14} className="itbl__sort-btn__icon" aria-hidden />
+            ) : (
+              <IconChevronDown size={14} className="itbl__sort-btn__icon" aria-hidden />
+            )
+          ) : null}
+        </button>
+      </th>
+    );
+  }
+
   return (
     <div className="card">
       <div className="tbl-toolbar">
@@ -1033,7 +1103,7 @@ function IntakeTable({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <span className="meta">{t("intake.itemsCount", { n: filteredItems.length })}</span>
+        <span className="meta">{t("intake.itemsCount", { n: items.length })}</span>
         <button type="button" className="btn btn-ghost" onClick={onOpenModal} disabled={readOnly}>
           {t("intake.addProduct")}
         </button>
@@ -1042,31 +1112,36 @@ function IntakeTable({
         <table className="itbl itbl--intake">
           <thead>
             <tr>
-              <th className="itbl__th-num">{t("intake.table.row")}</th>
-              <th className="itbl__th-product">{t("intake.table.product")}</th>
-              <th className="itbl__th-qty">{t("intake.qty")}</th>
-              <th className="itbl__th-unit">{t("intake.table.unit")}</th>
-              <th className="itbl__th-total">{t("intake.totalPrice")}</th>
-              <th className="itbl__th-sub">{t("intake.table.subUnit")}</th>
+              <th className="itbl__th-num" scope="col">
+                {t("intake.table.row")}
+              </th>
+              <SortTh column="code" label={t("intake.table.code")} className="itbl__th-code" />
+              <SortTh column="name" label={t("intake.table.product")} className="itbl__th-product" />
+              <SortTh column="qty" label={t("intake.qty")} className="itbl__th-qty itbl__th-sort--end" />
+              <SortTh column="unit" label={t("intake.table.unit")} className="itbl__th-unit" />
+              <SortTh
+                column="total"
+                label={t("intake.totalPrice")}
+                className="itbl__th-total itbl__th-sort--end"
+              />
+              <SortTh column="sub" label={t("intake.table.subUnit")} className="itbl__th-sub" />
             </tr>
           </thead>
           <tbody>
-            {filteredItems.map((it, idx) => {
+            {items.map((it, idx) => {
               const v = rowVals[it.rowKey] || { qty: "", total: "" };
               const filled = (parseFloat(v.qty) || 0) > 0 && (parseFloat(v.total) || 0) > 0;
               const primary = itemDisplayName(it, locale);
               const secondary = itemSecondaryName(it, locale);
               return (
-                <tr
-                  key={it.rowKey}
-                  className={filled ? "filled" : ""}
-                  style={{ display: search && !filteredItems.includes(it) ? "none" : undefined }}
-                >
+                <tr key={it.rowKey} className={filled ? "filled" : ""}>
                   <td className="itbl__num">{idx + 1}</td>
+                  <td className="itbl__code-cell">
+                    <span className="itbl__code-mono">{it.code}</span>
+                  </td>
                   <td className="itbl__product">
                     <div className="name-th">{primary}</div>
                     {secondary ? <div className="name-sub">{secondary}</div> : null}
-                    <span className="itbl__code">{it.code}</span>
                   </td>
                   <td className="itbl__qty">
                     <input

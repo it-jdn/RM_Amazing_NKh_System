@@ -516,23 +516,47 @@ async function updateMappingPrices(
 
 export async function deleteTransactionsByDateSupp(date: string, suppCode: string) {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("id, txn_date, supp_code")
+
+  const [txnRes, slipRes] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("txn_date", date)
+      .eq("supp_code", suppCode),
+    supabase
+      .from("intake_slips")
+      .select("*", { count: "exact", head: true })
+      .eq("txn_date", date)
+      .eq("supp_code", suppCode),
+  ]);
+
+  if (txnRes.error) throw txnRes.error;
+  if (slipRes.error) throw slipRes.error;
+
+  const txnBefore = txnRes.count ?? 0;
+  const slipBefore = slipRes.count ?? 0;
+
+  if (txnBefore === 0 && slipBefore === 0) {
+    return { success: true, deleted: 0, slipsRemoved: 0 };
+  }
+
+  // Remove intake_slips for this day+shop first (transactions.slip_id ON DELETE CASCADE).
+  const { error: slipErr } = await supabase
+    .from("intake_slips")
+    .delete()
+    .eq("txn_date", date)
     .eq("supp_code", suppCode);
+  if (slipErr) throw slipErr;
 
-  if (error) throw error;
-
-  const ids = (data || [])
-    .filter((r) => toDateStr(r.txn_date) === date)
-    .map((r) => r.id);
-
-  if (ids.length === 0) return { success: true, deleted: 0 };
-
-  const { error: delError } = await supabase.from("transactions").delete().in("id", ids);
+  // Stragglers: legacy rows with null slip_id or partial state.
+  const { error: delError } = await supabase
+    .from("transactions")
+    .delete()
+    .eq("txn_date", date)
+    .eq("supp_code", suppCode);
   if (delError) throw delError;
 
-  return { success: true, deleted: ids.length };
+  return { success: true, deleted: txnBefore, slipsRemoved: slipBefore };
 }
 
 export async function replaceTransactionsByDateSupp(

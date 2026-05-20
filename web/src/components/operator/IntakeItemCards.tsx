@@ -97,6 +97,7 @@ export function IntakeItemCards({
                 <div className="intake-item-card__title">
                   <div className="intake-item-card__name">{primary}</div>
                   {secondary ? <div className="intake-item-card__sub">{secondary}</div> : null}
+                  <span className="intake-item-card__code">{it.code}</span>
                 </div>
               </header>
 

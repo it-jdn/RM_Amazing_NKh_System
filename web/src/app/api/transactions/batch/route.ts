@@ -57,12 +57,18 @@ export async function DELETE(req: NextRequest) {
       return jsonError("ลบไม่สำเร็จ");
     }
 
+    const slipsRemoved = result.slipsRemoved ?? 0;
+    const hadLines = result.deleted > 0;
+    const hadSlipsOnly = !hadLines && slipsRemoved > 0;
+
     return jsonOk({
       success: true,
       deleted: result.deleted,
-      message:
-        result.deleted > 0
-          ? `ลบการรับสินค้าทั้งวันสำเร็จ (${result.deleted} รายการ)`
+      slipsRemoved: slipsRemoved ?? 0,
+      message: hadLines
+        ? `ลบการรับสินค้าทั้งวันสำเร็จ (${result.deleted} รายการ)`
+        : hadSlipsOnly
+          ? `ลบใบรับสินค้าที่ค้างในสรุปวันนี้สำเร็จ (${slipsRemoved} ใบ)`
           : "ไม่พบข้อมูลที่จะลบ",
     });
   } catch (e) {

@@ -328,9 +328,7 @@ function DateTitle({ date }: { date: string }) {
 
 function DateTitleDiv({ date }: { date: string }) {
   const { locale } = useLocale();
-  return (
-    <div style={{ fontSize: 18, fontWeight: 700 }}>{formatAppDateLong(date, locale)}</div>
-  );
+  return <div className="hist-detail-date">{formatAppDateLong(date, locale)}</div>;
 }
 
 function HistoryDetail({
@@ -367,19 +365,22 @@ function HistoryDetail({
   return (
     <>
       <div className="detail-hdr">
-        <div>
+        <div className="hist-detail-head">
           <DateTitle date={date} />
-          <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>{suppName}</div>
+          <h2 className="hist-detail-shop">{suppName}</h2>
           {slipAudit ? (
-            <div className="hist-slip-audit">
-              <span>
-                {t("hist.savedBy")}: {slipAudit.savedByName?.trim() || t("hist.savedByUnknown")}
-              </span>
-              <span>
-                {t("hist.savedAt")}:{" "}
-                {slipAudit.savedAt ? formatAppDateTime(slipAudit.savedAt, locale) : "—"}
-              </span>
-            </div>
+            <dl className="hist-detail-audit">
+              <div className="hist-detail-audit__row">
+                <dt>{t("hist.savedBy")}</dt>
+                <dd>{slipAudit.savedByName?.trim() || t("hist.savedByUnknown")}</dd>
+              </div>
+              <div className="hist-detail-audit__row">
+                <dt>{t("hist.savedAt")}</dt>
+                <dd>
+                  {slipAudit.savedAt ? formatAppDateTime(slipAudit.savedAt, locale) : "—"}
+                </dd>
+              </div>
+            </dl>
           ) : null}
         </div>
         <div className="detail-hdr__actions">
@@ -388,7 +389,7 @@ function HistoryDetail({
             suppCode={suppCode}
             suppName={suppName}
             role={role}
-            className="btn btn-danger-outline"
+            className="btn btn-hist-delete-day btn-sm"
             onDeleted={onDeleted}
           />
           <div className="dh-cost">₩{fmt(total)}</div>
