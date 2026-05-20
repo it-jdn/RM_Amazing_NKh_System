@@ -132,7 +132,7 @@ export interface TransactionRow {
   savedByName?: string;
 }
 
-/** สรุปใบรับของหนึ่งใบ (หลายใบต่อร้านต่อวันได้) */
+/** สรุปใบรับสินค้าหนึ่งใบ (หลายใบต่อร้านต่อวันได้) */
 export interface IntakeSlipSummary {
   id: string;
   date: string;

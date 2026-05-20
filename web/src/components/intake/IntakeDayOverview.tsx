@@ -23,6 +23,7 @@ type Props = {
   mapping: Mapping[];
   purchaseUnits: ItemPurchaseUnit[];
   onSelectSlip: (slipId: string, suppCode: string, slipNo?: number) => void;
+  onSelectShop: (suppCode: string) => void;
 };
 
 export function IntakeDayOverview({
@@ -32,6 +33,7 @@ export function IntakeDayOverview({
   mapping,
   purchaseUnits,
   onSelectSlip,
+  onSelectShop,
 }: Props) {
   const { locale, t } = useLocale();
   const [slips, setSlips] = useState<IntakeSlipSummary[]>([]);
@@ -142,12 +144,12 @@ export function IntakeDayOverview({
             groups={shopGroups}
             shopName={shopName}
             onSelect={onSelectSlip}
+            onSelectShop={onSelectShop}
             t={t}
             locale={locale}
             emptyLabel={t("intake.dayOverview.emptySlips")}
           />
         ) : null}
-
       </div>
     </div>
   );
@@ -157,6 +159,7 @@ function SavedSlipSection({
   groups,
   shopName,
   onSelect,
+  onSelectShop,
   t,
   locale,
   emptyLabel,
@@ -164,6 +167,7 @@ function SavedSlipSection({
   groups: ReturnType<typeof groupSlipsByShop>;
   shopName: (row: SlipDayRow) => string;
   onSelect: (slipId: string, suppCode: string, slipNo?: number) => void;
+  onSelectShop: (suppCode: string) => void;
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   locale: Locale;
   emptyLabel: string;
@@ -189,6 +193,18 @@ function SavedSlipSection({
                   <p className="intake-day-shop-group__count">
                     {t("intake.dayOverview.shopSlipCount", { n: group.slips.length })}
                   </p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm intake-day-shop-group__add"
+                    onClick={() => onSelectShop(group.suppCode)}
+                  >
+                    <span className="intake-day-shop-group__add-label intake-day-shop-group__add-label--full">
+                      {t("intake.addIntake")}
+                    </span>
+                    <span className="intake-day-shop-group__add-label intake-day-shop-group__add-label--short">
+                      {t("intake.addIntakeShort")}
+                    </span>
+                  </button>
                 </div>
                 <span className="intake-day-shop-group__total">₩{fmt(group.shopTotal)}</span>
               </div>

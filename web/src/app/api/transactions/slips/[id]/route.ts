@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, ctx: RouteCtx) {
   try {
     const { id } = await ctx.params;
     const slipRes = await getIntakeSlipById(id);
-    if (!slipRes.slip) return jsonError("ไม่พบใบรับของ", 404);
+    if (!slipRes.slip) return jsonError("ไม่พบใบรับสินค้า", 404);
     const rows = await getTransactionRowsForSlip(id);
     const canEdit = canEditIntakeSlip(auth.session, {
       createdByUserId: slipRes.slip.createdByUserId,
@@ -39,7 +39,7 @@ export async function DELETE(_req: NextRequest, ctx: RouteCtx) {
   try {
     const { id } = await ctx.params;
     const slipRes = await getIntakeSlipById(id);
-    if (!slipRes.slip) return jsonError("ไม่พบใบรับของ", 404);
+    if (!slipRes.slip) return jsonError("ไม่พบใบรับสินค้า", 404);
     if (
       !canDeleteIntakeSlip(auth.session, {
         createdByUserId: slipRes.slip.createdByUserId,
@@ -54,7 +54,7 @@ export async function DELETE(_req: NextRequest, ctx: RouteCtx) {
       deleted: result.deleted,
       message:
         result.deleted > 0
-          ? `ลบใบรับของสำเร็จ (${result.deleted} รายการ)`
+          ? `ลบใบรับสินค้าสำเร็จ (${result.deleted} รายการ)`
           : "ไม่พบข้อมูลที่จะลบ",
     });
   } catch (e) {
@@ -68,7 +68,7 @@ export async function PATCH(_req: NextRequest, ctx: RouteCtx) {
   try {
     const { id } = await ctx.params;
     const slipRes = await getIntakeSlipById(id);
-    if (!slipRes.slip) return jsonError("ไม่พบใบรับของ", 404);
+    if (!slipRes.slip) return jsonError("ไม่พบใบรับสินค้า", 404);
     if (
       !canEditIntakeSlip(auth.session, {
         createdByUserId: slipRes.slip.createdByUserId,

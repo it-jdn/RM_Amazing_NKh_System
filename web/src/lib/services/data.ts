@@ -419,7 +419,7 @@ export async function getIntakeSlipMeta(date: string, suppCode: string) {
 
 export { listIntakeSlips, getIntakeSlipById, getTransactionRowsForSlip, deleteIntakeSlipById, getIntakeSlipMetaById } from "@/lib/services/intake-slips";
 
-/** บันทึกใบรับของ — slipId ว่าง = ใบใหม่; มี slipId = แก้ไขใบเดิม */
+/** บันทึกใบรับสินค้า — slipId ว่าง = ใบใหม่; มี slipId = แก้ไขใบเดิม */
 export async function saveIntakeSlip(
   transactions: TransactionInput[],
   audit?: SaveAudit,
@@ -730,7 +730,7 @@ export async function deleteSupplier(currentCode: string) {
   if ((txnCount ?? 0) > 0) {
     return {
       ok: false,
-      message: `❌ ไม่สามารถลบได้ — มีประวัติรับของ ${txnCount} รายการ ให้ปิดใช้งานแทน`,
+      message: `❌ ไม่สามารถลบได้ — มีประวัติรับสินค้า ${txnCount} รายการ ให้ปิดใช้งานแทน`,
     };
   }
 
@@ -769,7 +769,7 @@ export async function reorderSuppliers(codes: string[]) {
   const failed = results.find((r) => r.error);
   if (failed?.error) throw failed.error;
 
-  return { ok: true, message: "✅ บันทึกลำดับร้านค้าใน dropdown รับของแล้ว" };
+  return { ok: true, message: "✅ บันทึกลำดับร้านค้าใน dropdown รับสินค้าแล้ว" };
 }
 
 async function renameItemCode(
@@ -1030,7 +1030,7 @@ export async function deleteItem(itemCode: string) {
   if ((txnCount ?? 0) > 0) {
     return {
       ok: false,
-      message: `❌ ไม่สามารถลบได้ — มีประวัติรับของ ${txnCount} รายการ`,
+      message: `❌ ไม่สามารถลบได้ — มีประวัติรับสินค้า ${txnCount} รายการ`,
     };
   }
 

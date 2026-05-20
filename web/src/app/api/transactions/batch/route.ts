@@ -23,7 +23,7 @@ export async function DELETE(req: NextRequest) {
 
     if (slipId) {
       const slipRes = await getIntakeSlipById(slipId);
-      if (!slipRes.slip) return jsonError("ไม่พบใบรับของ", 404);
+      if (!slipRes.slip) return jsonError("ไม่พบใบรับสินค้า", 404);
       if (
         !canDeleteIntakeSlip(auth.session, {
           createdByUserId: slipRes.slip.createdByUserId,
@@ -39,7 +39,7 @@ export async function DELETE(req: NextRequest) {
         deleted: result.deleted,
         message:
           result.deleted > 0
-            ? `ลบใบรับของสำเร็จ (${result.deleted} รายการ)`
+            ? `ลบใบรับสินค้าสำเร็จ (${result.deleted} รายการ)`
             : "ไม่พบข้อมูลที่จะลบ",
       });
     }
@@ -62,7 +62,7 @@ export async function DELETE(req: NextRequest) {
       deleted: result.deleted,
       message:
         result.deleted > 0
-          ? `ลบการรับของทั้งวันสำเร็จ (${result.deleted} รายการ)`
+          ? `ลบการรับสินค้าทั้งวันสำเร็จ (${result.deleted} รายการ)`
           : "ไม่พบข้อมูลที่จะลบ",
     });
   } catch (e) {

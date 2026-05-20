@@ -15,7 +15,7 @@ export function canEditIntakeSlip(session: SessionPayload, slip: IntakeSlipOwner
 }
 
 export function editIntakeSlipDeniedMessage(): string {
-  return "แก้ไขได้เฉพาะใบรับของที่คุณเป็นผู้บันทึก — ติดต่อผู้จัดการหรือแอดมินหากต้องการแก้ไข";
+  return "แก้ไขได้เฉพาะใบรับสินค้าที่คุณเป็นผู้บันทึก — ติดต่อผู้จัดการหรือแอดมินหากต้องการแก้ไข";
 }
 
 export function canDeleteIntakeSlip(

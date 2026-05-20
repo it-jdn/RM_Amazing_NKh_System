@@ -181,7 +181,7 @@ export async function saveIntakeSlipRecord(params: {
       .eq("id", slipId)
       .maybeSingle();
     if (slipErr) throw slipErr;
-    if (!slip) return { ok: false as const, message: "❌ ไม่พบใบรับของ", replaced: false };
+    if (!slip) return { ok: false as const, message: "❌ ไม่พบใบรับสินค้า", replaced: false };
 
     const { error: updErr } = await supabase
       .from("intake_slips")
@@ -234,8 +234,8 @@ export async function saveIntakeSlipRecord(params: {
   return {
     ok: true as const,
     message: isUpdate
-      ? `✅ อัปเดตใบรับของสำเร็จ ${rows.length} รายการ (no.${first}–${last})`
-      : `✅ บันทึกใบรับของใหม่ ${rows.length} รายการ (no.${first}–${last})`,
+      ? `✅ อัปเดตใบรับสินค้าสำเร็จ ${rows.length} รายการ (no.${first}–${last})`
+      : `✅ บันทึกใบรับสินค้าใหม่ ${rows.length} รายการ (no.${first}–${last})`,
     replaced: isUpdate,
     slipId,
   };

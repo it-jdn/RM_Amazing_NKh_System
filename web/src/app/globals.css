@@ -3717,7 +3717,7 @@ input.intake-touch-input,
   color: #64748b;
   margin: 2px 0 4px;
 }
-/* ── Intake document (ใบรับของ) ── */
+/* ── Intake document (ใบรับสินค้า) ── */
 .intake-document {
   display: flex;
   flex-direction: column;
@@ -4226,6 +4226,32 @@ input.intake-touch-input,
 }
 .intake-setup-card__head .card-title {
   margin-bottom: 0;
+}
+.intake-setup-card__description,
+.intake-page__description {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #64748b;
+}
+.intake-page__description {
+  margin: 0 0 10px;
+  padding: 0 2px;
+}
+.intake-day-shop-group__add {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.intake-day-shop-group__add-label--short {
+  display: none;
+}
+@media (max-width: 1024px) {
+  .intake-day-shop-group__add-label--full {
+    display: none;
+  }
+  .intake-day-shop-group__add-label--short {
+    display: inline;
+  }
 }
 .intake-back-bar {
   display: flex;

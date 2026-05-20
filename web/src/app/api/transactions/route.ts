@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     if (slipId) {
       const slipRes = await getIntakeSlipById(slipId);
-      if (!slipRes.slip) return jsonError("ไม่พบใบรับของ", 404);
+      if (!slipRes.slip) return jsonError("ไม่พบใบรับสินค้า", 404);
       if (
         !canEditIntakeSlip(auth.session, {
           createdByUserId: slipRes.slip.createdByUserId,

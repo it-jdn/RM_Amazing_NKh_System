@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Amazing Nongkhai — Inventory System",
-  description: "ระบบจัดการสต็อกและรับของ — Amazing Nongkhai",
+  description: "ระบบจัดการสต็อกและรับสินค้า — Amazing Nongkhai",
 };
 
 export const viewport: Viewport = {

@@ -356,6 +356,10 @@ export function IntakeView() {
     requestNavigate({ kind: "slip", slipId, suppCode, slipNo });
   }
 
+  function selectShop(suppCode: string) {
+    requestNavigate({ kind: "supp", value: suppCode });
+  }
+
   function goBackToOverview() {
     requestNavigate({ kind: "supp", value: "" });
   }
@@ -726,6 +730,7 @@ export function IntakeView() {
             <span className="dot dot-green" />
             <span>{t("intake.title")}</span>
           </div>
+          <p className="intake-setup-card__description">{t("intake.description")}</p>
         </div>
         <div className="form-row c2 intake-form-top">
           <div>
@@ -767,7 +772,9 @@ export function IntakeView() {
       </div>
 
       {!suppSel ? (
-        <IntakeDayOverview
+        <>
+          <p className="intake-page__description intake-mobile-only">{t("intake.description")}</p>
+          <IntakeDayOverview
           key={slipListRefresh}
           intakeDate={intakeDate}
           suppliers={activeSuppliers}
@@ -775,7 +782,9 @@ export function IntakeView() {
           mapping={mapping}
           purchaseUnits={purchaseUnits}
           onSelectSlip={openSlip}
+          onSelectShop={selectShop}
         />
+        </>
       ) : (
         <>
           <IntakeBackToOverviewBar
