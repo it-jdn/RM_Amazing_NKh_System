@@ -100,19 +100,11 @@ export function IntakeDayOverview({
       <div className="intake-document__sheet">
         <header className="intake-doc-header intake-doc-header--overview">
           <div className="intake-doc-header__letterhead">
-            <div className="intake-doc-header__title-row intake-doc-header__title-row--overview">
-              <h2 className="intake-doc-header__title-th">
-                {t("intake.dayOverview.titleWithDate", {
-                  date: formatAppDate(intakeDate, locale),
-                })}
-              </h2>
-              {!loading && !error ? (
-                <div className="intake-doc-header__total-block">
-                  <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
-                  <span className="intake-doc-header__value--amount">₩{fmt(overview.dayTotal)}</span>
-                </div>
-              ) : null}
-            </div>
+            <h2 className="intake-doc-header__title-th intake-doc-header__title-th--overview">
+              {t("intake.dayOverview.titleWithDate", {
+                date: formatAppDate(intakeDate, locale),
+              })}
+            </h2>
 
             {loading ? (
               <IntakeLoadPanel message={t("intake.dayOverview.loading")} />
@@ -124,17 +116,25 @@ export function IntakeDayOverview({
                 </button>
               </div>
             ) : (
-              <div className="intake-doc-header__overview-stats">
-                <p className="intake-doc-header__stat intake-doc-header__stat--inline">
-                  <span className="intake-doc-header__stat-value">{overview.slipCount}</span>
-                  <span className="intake-doc-header__stat-label">{t("intake.dayOverview.slipCount")}</span>
-                </p>
-                <p className="intake-doc-header__overview-shops">
-                  {t("intake.dayOverview.summaryShops", {
-                    shops: overview.savedShopCount,
-                  })}
-                </p>
-              </div>
+              <p
+                className="intake-doc-header__overview-kpi"
+                aria-label={t("intake.dayOverview.summarySlips", {
+                  count: overview.slipCount,
+                  shops: overview.savedShopCount,
+                  total: overview.totalShopCount,
+                  amount: fmt(overview.dayTotal),
+                })}
+              >
+                <span className="intake-doc-header__overview-kpi-amount">₩{fmt(overview.dayTotal)}</span>
+                <span className="intake-doc-header__overview-kpi-sep" aria-hidden>
+                  ·
+                </span>
+                <span>{t("intake.dayOverview.slipCountCompact", { n: overview.slipCount })}</span>
+                <span className="intake-doc-header__overview-kpi-sep" aria-hidden>
+                  ·
+                </span>
+                <span>{t("intake.dayOverview.shopCountCompact", { n: overview.savedShopCount })}</span>
+              </p>
             )}
           </div>
         </header>
@@ -198,12 +198,7 @@ function SavedSlipSection({
                     className="btn btn-secondary btn-sm intake-day-shop-group__add"
                     onClick={() => onSelectShop(group.suppCode)}
                   >
-                    <span className="intake-day-shop-group__add-label intake-day-shop-group__add-label--full">
-                      {t("intake.addIntake")}
-                    </span>
-                    <span className="intake-day-shop-group__add-label intake-day-shop-group__add-label--short">
-                      {t("intake.addIntakeShort")}
-                    </span>
+                    {t("intake.addIntake")}
                   </button>
                 </div>
                 <span className="intake-day-shop-group__total">₩{fmt(group.shopTotal)}</span>
