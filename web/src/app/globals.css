@@ -3888,27 +3888,30 @@ input.intake-touch-input,
   padding: 12px 16px 10px;
 }
 .intake-doc-header--overview .intake-doc-header__letterhead {
-  padding: 10px 14px 8px;
+  padding: 12px 16px 10px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
 }
 .intake-doc-header__title-th--overview {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.35;
+  color: #334155;
 }
 .intake-doc-header__overview-kpi {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 5px;
-  margin: 4px 0 0;
-  font-size: 13px;
-  font-weight: 600;
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 500;
   color: #64748b;
   line-height: 1.35;
 }
 .intake-doc-header__overview-kpi-amount {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   color: #166534;
   font-family: var(--font-mono);
   letter-spacing: -0.02em;
@@ -4267,21 +4270,21 @@ input.intake-touch-input,
 }
 .intake-setup-card__head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 4px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 .intake-setup-card__head .card-title {
   margin-bottom: 0;
 }
 .intake-setup-card__description,
 .intake-page__description {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.5;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
   color: #64748b;
+  max-width: 42rem;
 }
 .intake-page__description {
   margin: 0 0 10px;
@@ -4352,10 +4355,69 @@ input.intake-touch-input,
   }
 }
 .intake-document--overview .intake-document__sheet {
-  border-radius: 12px;
+  border-radius: 10px;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 45, 82, 0.06);
 }
 .intake-doc-header--overview .intake-doc-header__letterhead {
-  border-bottom: none;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Desktop intake overview — calmer type scale and spacing */
+@media (min-width: 1025px) {
+  .intake-page.wrap {
+    padding-top: 16px;
+    padding-bottom: 48px;
+  }
+  .intake-page .intake-setup-card {
+    padding: 14px 18px 16px;
+    margin-bottom: 10px;
+  }
+  .intake-page .intake-setup-card .card-title {
+    font-size: 12px;
+    letter-spacing: 0.05em;
+  }
+  .intake-page .intake-setup-card__description {
+    font-size: 12px;
+    line-height: 1.5;
+    max-width: 36rem;
+  }
+  .intake-page .intake-form-top {
+    gap: 14px 20px;
+    margin-top: 2px;
+  }
+  .intake-page .intake-form-top .lbl {
+    font-size: 12px;
+    margin-bottom: 4px;
+    color: #64748b;
+  }
+  .intake-page .intake-setup-card .app-date-field__btn,
+  .intake-page .intake-setup-card .intake-supplier-field select {
+    min-height: 36px;
+    font-size: 14px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+  .intake-page .intake-document--overview {
+    margin-bottom: 10px;
+  }
+  .intake-page .intake-doc-header--overview .intake-doc-header__letterhead {
+    padding: 10px 16px 9px;
+  }
+  .intake-page .intake-doc-header__title-th--overview {
+    font-size: 12px;
+  }
+  .intake-page .intake-doc-header__overview-kpi {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .intake-page .intake-doc-header__overview-kpi-amount {
+    font-size: 12px;
+  }
+  .intake-page .intake-day-slip-list__empty {
+    padding: 14px 16px 16px;
+    font-size: 12px;
+  }
 }
 .intake-doc-header__grid--overview {
   margin-bottom: 0;
@@ -4373,8 +4435,8 @@ input.intake-touch-input,
 }
 .intake-day-slip-list__empty {
   margin: 0;
-  padding: 20px 20px 8px;
-  font-size: 14px;
+  padding: 16px 16px 12px;
+  font-size: 13px;
   color: #64748b;
   text-align: center;
 }
