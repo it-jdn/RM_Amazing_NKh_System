@@ -33,7 +33,6 @@ export function AdminUnitsPanel() {
   const [formNameEN, setFormNameEN] = useState("");
   const [formNameKR, setFormNameKR] = useState("");
   const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [formBaseline, setFormBaseline] = useState("");
 
@@ -164,19 +163,6 @@ export function AdminUnitsPanel() {
     }
   }
 
-  async function importFromHistory() {
-    setImporting(true);
-    try {
-      const r = await apiPost<{ message: string }>("/api/admin/units/rebuild", {});
-      toast(r.message);
-      await reload();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Error");
-    } finally {
-      setImporting(false);
-    }
-  }
-
   return (
     <div className="admin-settings-page">
       <div className="admin-settings-split">
@@ -248,22 +234,6 @@ export function AdminUnitsPanel() {
                 onDelete={deleteUnit}
                 deleting={deleting}
               />
-            }
-            extra={
-              !isEdit ? (
-                <details className="admin-units-import">
-                  <summary>{t("admin.units.importTitle")}</summary>
-                  <p className="admin-hint admin-units-import__hint">{t("admin.units.importHint")}</p>
-                  <button
-                    type="button"
-                    className="btn btn-secondary admin-units-import__btn"
-                    disabled={importing}
-                    onClick={importFromHistory}
-                  >
-                    {importing ? t("admin.units.scanning") : t("admin.units.importBtn")}
-                  </button>
-                </details>
-              ) : undefined
             }
           >
             <AdminFormSection title={t("admin.form.sectionSettings")}>

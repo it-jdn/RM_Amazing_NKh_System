@@ -6878,16 +6878,6 @@ input.intake-touch-input,
   opacity: 0.45;
   cursor: not-allowed;
 }
-.admin-side-form__extra .admin-units-import {
-  margin: 0;
-  padding: 12px 14px;
-}
-.admin-units-import__hint {
-  margin: 8px 0 12px;
-}
-.admin-units-import__btn {
-  width: 100%;
-}
 .admin-shop-table__badge {
   display: inline-block;
   padding: 2px 8px;
@@ -6932,18 +6922,6 @@ input.intake-touch-input,
   .admin-units-list--master {
     columns: 1;
   }
-}
-.admin-units-import {
-  margin: 16px 0 24px;
-  padding: 12px 14px;
-  border: 1px dashed var(--border, #ccc);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.02);
-}
-.admin-units-import summary {
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
 }
 .admin-units-count {
   opacity: 0.55;
