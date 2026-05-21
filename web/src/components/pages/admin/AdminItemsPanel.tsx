@@ -39,6 +39,7 @@ import { AdminItemStandardUnitsEditor } from "@/components/admin/AdminItemStanda
 import { AdminCardTitle } from "@/components/pages/admin/admin-shared";
 import { useCompactAdminLayout } from "@/hooks/useCompactAdminLayout";
 import {
+  defaultStandardRow,
   initStandardRowsForEdit,
   standardPayloadFromRows,
   validateStandardRows,
@@ -117,6 +118,17 @@ export function AdminItemsPanel() {
     ]
   );
   const dirty = formSnapshot !== formBaseline;
+
+  const codeDupWarning = useMemo(() => {
+    const nc = formCode.trim().toUpperCase();
+    if (!nc) return null;
+    if (isEdit && editingCode && nc === editingCode.toUpperCase()) return null;
+    const taken = items.find((i) => i.code.toUpperCase() === nc);
+    if (!taken) return null;
+    return t("admin.items.codeDuplicate")
+      .replace("{code}", nc)
+      .replace("{name}", taken.nameTH);
+  }, [formCode, isEdit, editingCode, items, t]);
 
   useLayoutEffect(() => {
     setFormBaseline(formSnapshot);
@@ -312,20 +324,35 @@ export function AdminItemsPanel() {
       return false;
     }
 
+    const newCode = formCode.trim().toUpperCase();
+    if (isEdit && isAdmin && !newCode) {
+      toast(t("admin.items.codeRequired"));
+      return false;
+    }
+    if (codeDupWarning) {
+      toast(codeDupWarning);
+      return false;
+    }
+
     setSaving(true);
     try {
-      const firstStd = standardRows[0];
+      const defaultStd = defaultStandardRow(standardRows);
       const payload = {
-        itemCode: formCode.trim().toUpperCase() || undefined,
+        itemCode: isAdmin ? newCode || undefined : undefined,
         itemNameTH: formNameTH,
         itemNameEN: formNameEN,
         itemNameKR: formNameKR,
-        mainUnitCode:
-          isEdit && firstStd?.mainUnitCode ? firstStd.mainUnitCode : formMainUnitCode,
-        subUnitCode:
-          isEdit && firstStd?.subUnitCode ? firstStd.subUnitCode : formSubUnitCode,
-        convertRate:
-          isEdit && firstStd ? parseFloat(firstStd.convertRate) || 1 : formConvertRate,
+        mainUnitCode: isEdit
+          ? defaultStd?.mainUnitCode || formMainUnitCode
+          : formMainUnitCode,
+        subUnitCode: isEdit
+          ? defaultStd?.subUnitCode || formSubUnitCode
+          : formSubUnitCode,
+        convertRate: isEdit
+          ? defaultStd
+            ? parseFloat(defaultStd.convertRate) || 1
+            : formConvertRate
+          : formConvertRate,
         categoryCode,
       };
       const r =
@@ -341,7 +368,13 @@ export function AdminItemsPanel() {
       }
 
       const savedCode =
-        isEdit && editingCode ? editingCode : (apiSucceeded(r) && r.itemCode ? r.itemCode : "");
+        isEdit && editingCode
+          ? apiSucceeded(r) && r.itemCode
+            ? r.itemCode
+            : editingCode
+          : apiSucceeded(r) && r.itemCode
+            ? r.itemCode
+            : "";
 
       const standardsPayload =
         standardRows.length > 0
@@ -383,11 +416,10 @@ export function AdminItemsPanel() {
   }
 
   async function handlePrimarySave() {
-    const keepCode = editingCode;
     const ok = await submitForm();
     if (!ok) return;
-    if (keepCode) {
-      setRefreshAfterSaveCode(keepCode);
+    if (editingCode) {
+      setRefreshAfterSaveCode(formCode.trim().toUpperCase() || editingCode);
       return;
     }
     resetForm();
@@ -592,7 +624,7 @@ export function AdminItemsPanel() {
               primaryLabel={isEdit ? t("admin.items.save") : t("admin.items.submit")}
               onPrimary={handlePrimarySave}
               saving={saving}
-              disabled={!unitsReady}
+              disabled={!unitsReady || Boolean(codeDupWarning)}
               showCancel
               cancelLabel={isEdit ? t("admin.items.cancelEdit") : t("admin.items.cancel")}
               onCancel={() => {
@@ -610,7 +642,13 @@ export function AdminItemsPanel() {
             <div className="admin-items-form-meta">
               <AdminFormField
                 label={t("admin.items.code")}
-                hint={isEdit ? undefined : t("admin.items.codeHint")}
+                hint={
+                  isEdit && isAdmin
+                    ? t("admin.items.codeEditHint")
+                    : isEdit
+                      ? undefined
+                      : t("admin.items.codeHint")
+                }
               >
                 <input
                   type="text"
@@ -619,8 +657,14 @@ export function AdminItemsPanel() {
                   onChange={(e) => setFormCode(e.target.value.toUpperCase())}
                   placeholder={isEdit ? undefined : "P0001"}
                   autoCapitalize="characters"
-                  readOnly={isEdit}
+                  readOnly={isEdit && !isAdmin}
+                  aria-invalid={codeDupWarning ? true : undefined}
                 />
+                {codeDupWarning ? (
+                  <p className="admin-warn" role="alert">
+                    {codeDupWarning}
+                  </p>
+                ) : null}
               </AdminFormField>
               <AdminFormField label={t("admin.items.category")}>
                 <select
@@ -752,7 +796,7 @@ export function AdminItemsPanel() {
                       primaryLabel={isEdit ? t("admin.items.save") : t("admin.items.submit")}
                       onPrimary={handlePrimarySave}
                       saving={saving}
-                      disabled={!unitsReady}
+                      disabled={!unitsReady || Boolean(codeDupWarning)}
                       showCancel
                       cancelLabel={isEdit ? t("admin.items.cancelEdit") : t("admin.items.cancel")}
                       onCancel={() => {
@@ -770,7 +814,13 @@ export function AdminItemsPanel() {
                     <div className="admin-items-form-meta">
                       <AdminFormField
                         label={t("admin.items.code")}
-                        hint={isEdit ? undefined : t("admin.items.codeHint")}
+                        hint={
+                          isEdit && isAdmin
+                            ? t("admin.items.codeEditHint")
+                            : isEdit
+                              ? undefined
+                              : t("admin.items.codeHint")
+                        }
                       >
                         <input
                           type="text"
@@ -779,8 +829,14 @@ export function AdminItemsPanel() {
                           onChange={(e) => setFormCode(e.target.value.toUpperCase())}
                           placeholder={isEdit ? undefined : "P0001"}
                           autoCapitalize="characters"
-                          readOnly={isEdit}
+                          readOnly={isEdit && !isAdmin}
+                          aria-invalid={codeDupWarning ? true : undefined}
                         />
+                        {codeDupWarning ? (
+                          <p className="admin-warn" role="alert">
+                            {codeDupWarning}
+                          </p>
+                        ) : null}
                       </AdminFormField>
                       <AdminFormField label={t("admin.items.category")}>
                         <select

@@ -11,6 +11,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
   if ("status" in auth) return auth;
 
   const { code } = await ctx.params;
+  const isAdmin = auth.session.role === "admin";
   const body = (await req.json()) as {
     itemCode?: string;
     itemNameTH?: string;
@@ -22,10 +23,14 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
     categoryCode?: string;
   };
 
+  if (body.itemCode !== undefined && !isAdmin) {
+    return jsonError("เฉพาะผู้ดูแลระบบเท่านั้นที่แก้รหัสสินค้าได้", 403);
+  }
+
   try {
     const result = await saveItemMaster({
       currentItemCode: code,
-      itemCode: body.itemCode,
+      itemCode: isAdmin ? body.itemCode : undefined,
       itemNameTH: String(body.itemNameTH || ""),
       itemNameEN: body.itemNameEN,
       itemNameKR: body.itemNameKR,

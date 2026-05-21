@@ -797,12 +797,40 @@ export async function reorderSuppliers(codes: string[]) {
   return { ok: true, message: "✅ บันทึกลำดับร้านค้าใน dropdown รับสินค้าแล้ว" };
 }
 
+/** เปลี่ยนรหัสสินค้า — สร้างแถว items ใหม่ก่อน แล้วอัปเดตตารางที่อ้างอิง จึงลบแถวเก่า (หลีกเลี่ยง FK 23503) */
 async function renameItemCode(
   supabase: ReturnType<typeof createAdminClient>,
   oldCode: string,
   newCode: string
 ) {
-  const tables = [
+  const oldKey = String(oldCode || "").trim().toUpperCase();
+  const newKey = String(newCode || "").trim().toUpperCase();
+  if (!oldKey || !newKey || oldKey === newKey) return;
+
+  const { data: item, error: loadErr } = await supabase
+    .from("items")
+    .select("*")
+    .eq("item_code", oldKey)
+    .maybeSingle();
+  if (loadErr) throw loadErr;
+  if (!item) throw new Error(`❌ ไม่พบสินค้า ${oldKey}`);
+
+  const { data: taken, error: takenErr } = await supabase
+    .from("items")
+    .select("item_code")
+    .eq("item_code", newKey)
+    .maybeSingle();
+  if (takenErr) throw takenErr;
+  if (taken) throw new Error(`❌ รหัส "${newKey}" ถูกใช้แล้ว`);
+
+  const { item_code: _omit, ...itemFields } = item;
+  const { error: insErr } = await supabase.from("items").insert({
+    ...itemFields,
+    item_code: newKey,
+  });
+  if (insErr) throw insErr;
+
+  const childTables = [
     "transactions",
     "supplier_item_mapping",
     "supplier_item_purchase_units",
@@ -812,10 +840,16 @@ async function renameItemCode(
     "supplier_item_mapping_versions",
     "unit_pair_hints",
   ] as const;
-  for (const table of tables) {
-    const { error } = await supabase.from(table).update({ item_code: newCode }).eq("item_code", oldCode);
+  for (const table of childTables) {
+    const { error } = await supabase
+      .from(table)
+      .update({ item_code: newKey })
+      .eq("item_code", oldKey);
     if (error) throw error;
   }
+
+  const { error: delErr } = await supabase.from("items").delete().eq("item_code", oldKey);
+  if (delErr) throw delErr;
 }
 
 async function resolveMasterUnits(
@@ -886,14 +920,40 @@ export async function saveItemMaster(data: {
     ? (String(data.categoryCode) as ItemCategoryCode)
     : DEFAULT_ITEM_CATEGORY;
 
-  const unitsResolved = await resolveMasterUnits(supabase, data.mainUnitCode, data.subUnitCode);
+  const currentCode = data.currentItemCode ? String(data.currentItemCode).trim() : "";
+  let existingRow: Record<string, unknown> | null = null;
+  if (currentCode) {
+    const { data: row, error: loadErr } = await supabase
+      .from("items")
+      .select("*")
+      .eq("item_code", currentCode)
+      .maybeSingle();
+    if (loadErr) return { ok: false, message: formatPostgresError(loadErr) };
+    if (!row) return { ok: false, message: "❌ ไม่พบสินค้านี้" };
+    existingRow = row;
+  }
+
+  let mainIn = String(data.mainUnitCode || "").trim();
+  let subIn = String(data.subUnitCode || "").trim();
+  if (existingRow) {
+    if (!mainIn) mainIn = String(existingRow.main_unit_code || "").trim();
+    if (!subIn) subIn = String(existingRow.sub_unit_code || "").trim();
+  }
+
+  let unitsResolved = await resolveMasterUnits(supabase, mainIn, subIn);
+  if (!unitsResolved.ok && existingRow) {
+    const fbMain = String(existingRow.main_unit_code || "").trim();
+    const fbSub = String(existingRow.sub_unit_code || "").trim();
+    if (fbMain && fbSub && (fbMain !== mainIn || fbSub !== subIn)) {
+      unitsResolved = await resolveMasterUnits(supabase, fbMain, fbSub);
+    }
+  }
   if (!unitsResolved.ok) return unitsResolved;
 
   const convertRate = parseFloat(String(data.convertRate)) || 1;
   if (convertRate <= 0) return { ok: false, message: "❌ อัตราแปลงหน่วยต้องมากกว่า 0" };
 
   const { data: items } = await supabase.from("items").select("*");
-  const currentCode = data.currentItemCode ? String(data.currentItemCode).trim() : "";
   const targetCode = String(data.itemCode || currentCode || "")
     .trim()
     .toUpperCase();
@@ -923,34 +983,25 @@ export async function saveItemMaster(data: {
     ...(hasCategoryCol ? { category_code: categoryCode } : {}),
   };
 
-  if (currentCode) {
-    const { data: row } = await supabase
-      .from("items")
-      .select("*")
-      .eq("item_code", currentCode)
-      .maybeSingle();
-    if (!row) return { ok: false, message: "❌ ไม่พบสินค้านี้" };
-
+  if (currentCode && existingRow) {
+    const row = existingRow;
     const newCode = targetCode || currentCode;
     const codeChanging = newCode !== currentCode.toUpperCase();
     if (codeChanging) {
       if (!newCode) return { ok: false, message: "❌ กรุณาระบุรหัสสินค้า" };
-      const { data: taken } = await supabase
-        .from("items")
-        .select("item_code")
-        .eq("item_code", newCode)
-        .maybeSingle();
-      if (taken) return { ok: false, message: `❌ รหัส "${newCode}" ถูกใช้แล้ว` };
       try {
         await renameItemCode(supabase, currentCode, newCode);
       } catch (e) {
-        return { ok: false, message: formatPostgresError(e) };
+        const raw = e instanceof Error ? e.message : "";
+        return {
+          ok: false,
+          message: raw.startsWith("❌") ? raw : formatPostgresError(e),
+        };
       }
     }
 
-    const updateKey = codeChanging ? currentCode : currentCode;
-    const patch = { ...itemPatch, ...(codeChanging ? { item_code: newCode } : {}) };
-    const { error } = await supabase.from("items").update(patch).eq("item_code", updateKey);
+    const updateKey = newCode;
+    const { error } = await supabase.from("items").update(itemPatch).eq("item_code", updateKey);
     if (error) {
       return { ok: false, message: formatPostgresError(error) };
     }
@@ -991,9 +1042,13 @@ export async function saveItemMaster(data: {
   }
 
   let itemCode = targetCode;
-  if (!itemCode) itemCode = await generateItemCode(supabase);
-  if ((items || []).some((i) => String(i.item_code).toUpperCase() === itemCode)) {
+  if (!itemCode) {
     itemCode = await generateItemCode(supabase);
+    if ((items || []).some((i) => String(i.item_code).toUpperCase() === itemCode)) {
+      itemCode = await generateItemCode(supabase);
+    }
+  } else if ((items || []).some((i) => String(i.item_code).toUpperCase() === itemCode)) {
+    return { ok: false, message: `❌ รหัส "${itemCode}" ถูกใช้แล้ว` };
   }
 
   const { error } = await supabase.from("items").insert({

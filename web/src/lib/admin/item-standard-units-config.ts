@@ -61,6 +61,12 @@ export function loadStandardRowsForItem(
 }
 
 /** หน่วยเดียว = default เสมอ; หลายหน่วย = ต้องมี default หนึ่งแถว */
+/** แถวมาตรฐานที่ใช้ sync กับตาราง items (ไม่ใช่แถวแรกในลิสต์เสมอ) */
+export function defaultStandardRow(rows: StandardUnitRow[]): StandardUnitRow | undefined {
+  if (!rows.length) return undefined;
+  return rows.find((r) => r.isDefault) ?? rows[0];
+}
+
 export function normalizeStandardRows(rows: StandardUnitRow[]): StandardUnitRow[] {
   if (!rows.length) return rows;
   if (rows.length === 1) {
@@ -89,11 +95,12 @@ export function initStandardRowsForEdit(
 }
 
 export function standardPayloadFromRows(rows: StandardUnitRow[]) {
-  return rows.map((row, i) => ({
+  const normalized = normalizeStandardRows(rows);
+  return normalized.map((row, i) => ({
     mainUnitCode: String(row.mainUnitCode || "").trim(),
     subUnitCode: String(row.subUnitCode || "").trim(),
     convertRate: parseFloat(row.convertRate) || 1,
-    isDefault: i === 0,
+    isDefault: row.isDefault,
     sortOrder: i,
   }));
 }

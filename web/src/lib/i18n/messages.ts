@@ -60,6 +60,10 @@ const messages = {
     "admin.items.title": "สินค้า",
     "admin.items.hint": "กำหนดรหัส ชื่อ (3 ภาษา) และหน่วยหลัก/ย่อยจากรายการหน่วยสินค้า — ก่อนไปตั้งราคาและร้านที่เมนู「สินค้ากับร้านค้า」",
     "admin.items.codeHint": "เว้นว่างเพื่อสร้างรหัสอัตโนมัติ (เช่น P0001)",
+    "admin.items.codeEditHint":
+      "แก้ไขรหัสได้ — ระบบจะอัปเดตการอ้างอิงในร้าน ประวัติ และรายงาน (ห้ามใช้รหัสซ้ำ)",
+    "admin.items.codeDuplicate": "รหัส \"{code}\" ถูกใช้แล้วโดย \"{name}\" — ไม่สามารถบันทึกได้",
+    "admin.items.codeRequired": "กรุณาระบุรหัสสินค้า",
     "admin.items.sectionUnits": "หน่วยสินค้า (จากฐานข้อมูล)",
     "admin.items.unitsCol": "หน่วย",
     "admin.items.unitsRequired": "กรุณาเลือกหน่วยหลักและหน่วยย่อย",
@@ -612,6 +616,10 @@ const messages = {
     "admin.items.title": "Products",
     "admin.items.hint": "Set code, names (3 languages), and main/sub units from the units catalog — then map shops under Products & shops.",
     "admin.items.codeHint": "Leave blank for auto code (e.g. P0001)",
+    "admin.items.codeEditHint":
+      "Code is editable; shop links, history, and reports are updated (duplicates are blocked).",
+    "admin.items.codeDuplicate": "Code \"{code}\" is already used by \"{name}\" — cannot save.",
+    "admin.items.codeRequired": "Item code is required.",
     "admin.items.sectionUnits": "Units (from catalog)",
     "admin.items.unitsCol": "Units",
     "admin.items.unitsRequired": "Select main and sub units from the catalog.",
@@ -1164,6 +1172,10 @@ const messages = {
     "admin.items.title": "상품",
     "admin.items.hint": "코드·상품명(3개 언어)·주/보조 단위(단위 목록에서 선택) — 이후 「상품·매장 연동」에서 매장별 설정",
     "admin.items.codeHint": "비우면 자동 생성 (예: P0001)",
+    "admin.items.codeEditHint":
+      "코드 수정 가능 — 매장·이력·보고서 참조가 함께 갱신됩니다(중복 코드는 저장 불가).",
+    "admin.items.codeDuplicate": "코드 \"{code}\"는 \"{name}\"에서 이미 사용 중입니다 — 저장할 수 없습니다.",
+    "admin.items.codeRequired": "상품 코드를 입력하세요.",
     "admin.items.sectionUnits": "단위 (마스터 목록)",
     "admin.items.unitsCol": "단위",
     "admin.items.unitsRequired": "주단위·보조단위를 선택하세요.",
