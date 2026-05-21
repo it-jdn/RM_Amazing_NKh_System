@@ -20,6 +20,10 @@ import {
   formatAppDateLong,
   formatAppDateTime,
 } from "@/lib/utils/format";
+import {
+  buildHistorySlipPrintHtml,
+  openHistorySlipPrintDocument,
+} from "@/lib/history/print-history-slip-document";
 import { displayNumericField, sanitizeDecimalInput } from "@/lib/utils/numeric-input";
 import type {
   AppRole,
@@ -159,6 +163,97 @@ export function HistorySlipDetail({
     }));
   }
 
+  const createdBy = activeSlip?.createdByName || slipRows[0]?.savedByName;
+  const createdAt = activeSlip?.createdAt || slipRows[0]?.savedAt;
+  const updatedBy = activeSlip?.updatedByName?.trim();
+  const updatedAt = activeSlip?.updatedAt;
+  const showUpdated =
+    Boolean(updatedBy) &&
+    (updatedAt !== createdAt || updatedBy !== createdBy);
+
+  function handlePrintPdf() {
+    if (loadingMeta) return;
+    const rxLines = tableRows.filter((r) => r.kind === "rx");
+    if (!rxLines.length) {
+      toast(t("intake.toastNeedItem"));
+      return;
+    }
+
+    const lines = rxLines.map((row, i) => {
+      const txn = row.txn;
+      const item = row.item;
+      const rowKey = intakeRowKey(txn.itemCode, txn.mainUnit);
+      const v = rowVals[rowKey] || { qty: "", total: "" };
+      const qtyN = parseFloat(v.qty) || txn.qty;
+      const totalN = parseFloat(v.total) || txn.totalPrice;
+      const unitPrice =
+        qtyN > 0 && totalN > 0
+          ? Math.round((totalN / qtyN) * 100) / 100
+          : txn.unitPrice;
+      const primary = item
+        ? itemDisplayName(item, locale)
+        : txn.itemNameTH || txn.itemCode;
+      const secondary = item ? itemSecondaryName(item, locale) : "";
+      return {
+        index: i + 1,
+        product: primary,
+        productSub: secondary || undefined,
+        unit: txn.mainUnit,
+        qty: fmt(qtyN),
+        total: `₩${fmt(totalN)}`,
+        unitPrice: unitPrice != null ? `₩${fmt(unitPrice)}` : "—",
+      };
+    });
+
+    const slipNoLabel =
+      activeSlip != null
+        ? t("intake.slipList.slipNo", { n: activeSlip.slipNo })
+        : legacyMode
+          ? t("hist.slipTabs")
+          : "—";
+
+    const html = buildHistorySlipPrintHtml({
+      brandName: "Amazing Nongkhai",
+      heading: `${t("intake.slipDoc.title")} — ${suppName}`,
+      shopName: suppName,
+      dateText: formatAppDateLong(date, locale),
+      docNoText: slipNoLabel,
+      recorderText: createdBy?.trim() || t("hist.savedByUnknown"),
+      savedAtText: createdAt ? formatAppDateTime(createdAt, locale) : "—",
+      updatedStamp:
+        showUpdated && updatedAt
+          ? `${formatAppDateTime(updatedAt, locale)} · ${updatedBy || "—"}`
+          : undefined,
+      noteText: slipNote || undefined,
+      lines,
+      receivedCount,
+      totalText: `₩${fmt(total)}`,
+      labels: {
+        docTitle: t("intake.slipDoc.title"),
+        docTitleEn: t("intake.slipDoc.titleEn"),
+        shop: t("intake.slipDoc.shop"),
+        date: t("intake.slipDoc.date"),
+        docNo: t("intake.slipDoc.docNo"),
+        recorder: t("intake.slipDoc.recorder"),
+        savedAt: t("hist.savedAt"),
+        updatedAt: t("hist.updatedAt"),
+        note: t("hist.note"),
+        colNo: "#",
+        colProduct: t("hist.product"),
+        colUnit: t("hist.unit"),
+        colQty: t("hist.qty"),
+        colValue: t("hist.value"),
+        colUnitPrice: t("hist.unitPrice"),
+        receivedCount: t("hist.receivedCount"),
+        totalWon: t("hist.totalWon"),
+      },
+    });
+
+    if (!openHistorySlipPrintDocument(html)) {
+      toast(t("hist.printPdfBlocked"));
+    }
+  }
+
   async function handleSave() {
     if (!canEdit) {
       toast(t("intake.readOnlyHint"));
@@ -210,14 +305,6 @@ export function HistorySlipDetail({
     }
   }
 
-  const createdBy = activeSlip?.createdByName || slipRows[0]?.savedByName;
-  const createdAt = activeSlip?.createdAt || slipRows[0]?.savedAt;
-  const updatedBy = activeSlip?.updatedByName?.trim();
-  const updatedAt = activeSlip?.updatedAt;
-  const showUpdated =
-    Boolean(updatedBy) &&
-    (updatedAt !== createdAt || updatedBy !== createdBy);
-
   return (
     <div className="hist-detail-panel">
       <div className="detail-hdr hist-detail-hdr">
@@ -230,6 +317,14 @@ export function HistorySlipDetail({
             <div className="hist-detail-hdr__total" aria-label={t("hist.totalWon")}>
               ₩{fmt(total)}
             </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm hist-detail-hdr__print"
+              disabled={loadingMeta || receivedCount === 0}
+              onClick={handlePrintPdf}
+            >
+              {t("hist.printPdf")}
+            </button>
             <DeleteIntakeBatchButton
               date={date}
               suppCode={suppCode}

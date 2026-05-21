@@ -869,6 +869,13 @@ input[type="radio"] {
   color: var(--green);
   white-space: nowrap;
 }
+.hist-detail-hdr__print {
+  width: auto;
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
 .hist-detail-hdr__delete {
   width: auto;
   min-height: 32px;
@@ -944,6 +951,7 @@ input[type="radio"] {
     align-items: flex-end;
     gap: 6px;
   }
+  .hist-detail-hdr__print,
   .hist-detail-hdr__delete {
     min-height: 36px;
     max-width: 100%;
