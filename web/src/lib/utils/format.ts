@@ -48,6 +48,22 @@ export function getAppDayOfWeekShort(dayIndex: number, locale: Locale): string {
   return DOW_EN[i];
 }
 
+/** Weekday name for compact date blocks (e.g. พุธ, Wed) */
+export function getAppDayOfWeekLabel(dayIndex: number, locale: Locale): string {
+  const i = ((dayIndex % 7) + 7) % 7;
+  if (locale === "th") return DOW_TH_FULL[i];
+  if (locale === "kr") return DOW_KR[i];
+  return DOW_EN[i];
+}
+
+/** Short month label for calendar-style blocks (e.g. พ.ค.) */
+export function getAppMonthShort(monthIndex: number, locale: Locale): string {
+  const m = ((monthIndex % 12) + 12) % 12;
+  if (locale === "th") return MO_TH[m];
+  if (locale === "kr") return MO_KR[m];
+  return MO_EN[m];
+}
+
 /** Weekday + standard short date */
 export function formatAppDateLong(dateStr: string, locale: Locale): string {
   const d = parseISODateLocal(dateStr);

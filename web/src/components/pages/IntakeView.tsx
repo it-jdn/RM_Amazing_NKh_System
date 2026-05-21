@@ -799,7 +799,6 @@ export function IntakeView() {
 
       {!suppSel ? (
         <>
-          <p className="intake-page__description intake-mobile-only">{t("intake.description")}</p>
           <IntakeDayOverview
           key={slipListRefresh}
           intakeDate={intakeDate}

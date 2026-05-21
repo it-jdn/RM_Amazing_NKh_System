@@ -13,11 +13,10 @@ import { useToast } from "@/components/Toast";
 import { AppDateField } from "@/components/ui/AppDateField";
 import {
   fmt,
-  formatAppDate,
   formatAppDateLong,
   formatAppDateTime,
   formatAppMonthYear,
-  getAppDayOfWeekShort,
+  getAppDayOfWeekLabel,
   HIST_DATE_PRESETS,
   histDatePresetRange,
 } from "@/lib/utils/format";
@@ -163,7 +162,6 @@ export function HistoryView() {
               m={m}
               dd={dd}
               locale={locale}
-              itemsLabel={t("hist.itemsCount", { n: g.count })}
               onOpen={() => setDetail({ date: g.date, suppCode: g.suppCode })}
             />
           );
@@ -277,7 +275,6 @@ function HistGroup({
   m,
   dd,
   locale,
-  itemsLabel,
   onOpen,
 }: {
   g: { date: string; suppName: string; count: number; total: number };
@@ -286,35 +283,42 @@ function HistGroup({
   m: string;
   dd: Date;
   locale: Locale;
-  itemsLabel: string;
   onOpen: () => void;
 }) {
+  const { t } = useLocale();
+  const shopLabel =
+    g.suppName.length > 48 ? `${g.suppName.substring(0, 48)}…` : g.suppName;
+
   return (
-    <div>
-      {showMonth && <div className="month-sep">{formatAppMonthYear(y, m, locale)}</div>}
+    <div className="hist-list-group">
+      {showMonth ? (
+        <div className="hist-month-sep">{formatAppMonthYear(y, m, locale)}</div>
+      ) : null}
       <div
-        className="day-card day-card--tap"
+        className="hist-day-card hist-day-card--tap"
         role="button"
         tabIndex={0}
         onClick={onOpen}
         onKeyDown={(e) => e.key === "Enter" && onOpen()}
       >
-        <div className="day-card-inner">
-          <div style={{ textAlign: "center", minWidth: 50 }}>
-                <div className="day-date-num">{dd.getDate()}</div>
-            <div style={{ fontSize: 10, color: "var(--muted)" }}>
-              {getAppDayOfWeekShort(dd.getDay(), locale)}
-            </div>
+        <div className="hist-day-card__inner">
+          <div className="hist-day-card__date" aria-hidden>
+            <span className="hist-day-card__date-num">{dd.getDate()}</span>
+            <span className="hist-day-card__date-dow">
+              {getAppDayOfWeekLabel(dd.getDay(), locale)}
+            </span>
           </div>
-          <div style={{ flex: 1 }}>
-            <div className="day-supp">
-              {g.suppName.length > 40 ? g.suppName.substring(0, 40) + "..." : g.suppName}
+          <div className="hist-day-card__content">
+            <div className="hist-day-card__shop">{shopLabel}</div>
+            <div className="hist-day-card__summary">
+              <span className="hist-day-card__summary-lines">
+                {t("hist.summaryLines", { n: g.count })}
+              </span>
+              <span className="hist-day-card__summary-total">
+                <span className="hist-day-card__summary-total-label">{t("hist.summaryTotal")}</span>
+                <span className="hist-day-card__summary-total-value">₩{fmt(g.total)}</span>
+              </span>
             </div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>{formatAppDate(g.date, locale)}</div>
-          </div>
-          <div className="day-stats">
-            <span className="day-count-badge">{itemsLabel}</span>
-            <span className="day-cost">₩{fmt(g.total)}</span>
           </div>
         </div>
       </div>

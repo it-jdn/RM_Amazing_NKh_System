@@ -194,16 +194,14 @@ function SavedSlipSection({
                     {t("intake.dayOverview.shopSlipCount", { n: group.slips.length })}
                   </span>
                 </div>
-                <div className="intake-day-shop-group__head-actions">
-                  <span className="intake-day-shop-group__total">₩{fmt(group.shopTotal)}</span>
-                  <button
-                    type="button"
-                    className="btn btn-sm intake-day-shop-group__add"
-                    onClick={() => onSelectShop(group.suppCode)}
-                  >
-                    {t("intake.addIntake")}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm intake-day-shop-group__add"
+                  onClick={() => onSelectShop(group.suppCode)}
+                >
+                  {t("intake.addIntake")}
+                </button>
+                <span className="intake-day-shop-group__total">₩{fmt(group.shopTotal)}</span>
               </div>
               <div className="intake-day-slip-table">
                 <div className="intake-day-slip-list__thead" role="row">
@@ -242,11 +240,15 @@ function SavedSlipSection({
                             </span>
                             <span
                               className="intake-day-slip-list__cell intake-day-slip-list__cell--lines"
+                              data-label={t("intake.dayOverview.thLines")}
                               title={t("intake.dayOverview.thLines")}
                             >
                               {row.lineCount}
                             </span>
-                            <span className="intake-day-slip-list__cell intake-day-slip-list__cell--meta">
+                            <span
+                              className="intake-day-slip-list__cell intake-day-slip-list__cell--meta"
+                              data-label={t("intake.dayOverview.thMeta")}
+                            >
                               <span className="intake-day-slip-list__meta">
                                 <span className="intake-day-slip-list__time">
                                   {formatAppDateTime(row.createdAt, locale)}
@@ -266,10 +268,16 @@ function SavedSlipSection({
                                 ) : null}
                               </span>
                             </span>
-                            <span className="intake-day-slip-list__cell intake-day-slip-list__cell--amt">
+                            <span
+                              className="intake-day-slip-list__cell intake-day-slip-list__cell--amt"
+                              data-label={t("intake.dayOverview.thAmount")}
+                            >
                               <span className="intake-day-slip-list__amount">₩{fmt(row.totalPrice)}</span>
                             </span>
-                            <span className="intake-day-slip-list__cell intake-day-slip-list__cell--status">
+                            <span
+                              className="intake-day-slip-list__cell intake-day-slip-list__cell--status"
+                              data-label={t("intake.dayOverview.thStatus")}
+                            >
                               <span className="rx-badge rx-yes">{t("intake.dayOverview.saved")}</span>
                             </span>
                           </span>
