@@ -358,7 +358,7 @@ export async function getTransactions(filters?: {
   let query = supabase
     .from("transactions")
     .select(
-      "slip_id, txn_date, supp_code, supp_name, item_code, item_name_th, qty, main_unit, unit_price, total_price, note, saved_at, saved_by_name"
+      "slip_id, txn_date, supp_code, supp_name, item_code, item_name_th, qty, main_unit, unit_price, total_price, note, saved_at, saved_by_user_id, saved_by_name"
     );
 
   if (filters?.slipId) query = query.eq("slip_id", filters.slipId);
@@ -387,6 +387,7 @@ export async function getTransactions(filters?: {
       totalPrice: parseFloat(String(r.total_price)) || 0,
       note: String(r.note || ""),
       savedAt: r.saved_at ? String(r.saved_at) : undefined,
+      savedByUserId: r.saved_by_user_id ? String(r.saved_by_user_id) : null,
       savedByName: String(r.saved_by_name || ""),
     })),
   };

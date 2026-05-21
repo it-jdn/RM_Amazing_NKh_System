@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
 import { requireSession } from "@/lib/auth/api";
 import { jsonError, jsonOk } from "@/lib/api/response";
-import { listIntakeSlips } from "@/lib/services/data";
+import {
+  canEditIntakeSlip,
+} from "@/lib/auth/intake-slip-permissions";
+import { getTransactions, listIntakeSlips } from "@/lib/services/data";
 
 export async function GET(req: NextRequest) {
   const auth = await requireSession();
@@ -14,7 +17,42 @@ export async function GET(req: NextRequest) {
     if (!dateFrom && !dateTo && !suppCode) {
       return jsonError("ต้องระบุ dateFrom/dateTo หรือ suppCode");
     }
-    return jsonOk(await listIntakeSlips({ dateFrom, dateTo, suppCode }));
+    const listed = await listIntakeSlips({ dateFrom, dateTo, suppCode });
+    const slips = listed.slips
+      .slice()
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((slip, index) => ({
+        ...slip,
+        slipNo: index + 1,
+        canEdit: canEditIntakeSlip(auth.session, {
+          createdByUserId: slip.createdByUserId,
+          txnDate: slip.date,
+        }),
+      }));
+
+    let legacy: { canEdit: boolean; lineCount: number } | undefined;
+    if (
+      slips.length === 0 &&
+      dateFrom &&
+      dateTo &&
+      suppCode &&
+      dateFrom === dateTo
+    ) {
+      const { rows } = await getTransactions({ dateFrom, dateTo, suppCode });
+      const legacyRows = rows.filter((r) => !r.slipId);
+      if (legacyRows.length > 0) {
+        const ownerId = legacyRows[0]?.savedByUserId ?? null;
+        legacy = {
+          canEdit: canEditIntakeSlip(auth.session, {
+            createdByUserId: ownerId,
+            txnDate: dateFrom,
+          }),
+          lineCount: legacyRows.length,
+        };
+      }
+    }
+
+    return jsonOk({ success: true, slips, legacy });
   } catch (e) {
     return jsonError(e instanceof Error ? e.message : "Error", 500);
   }

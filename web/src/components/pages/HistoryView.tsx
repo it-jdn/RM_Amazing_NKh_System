@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAppData } from "@/context/AppDataContext";
-import { DeleteIntakeBatchButton } from "@/components/intake/DeleteIntakeBatchButton";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
-import { itemDisplayName, itemSecondaryName } from "@/lib/i18n/item-name";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import type { Supplier } from "@/lib/types";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -13,16 +11,14 @@ import { useToast } from "@/components/Toast";
 import { AppDateField } from "@/components/ui/AppDateField";
 import {
   fmt,
-  formatAppDateLong,
-  formatAppDateTime,
   formatAppMonthYear,
   getAppDayOfWeekLabel,
   HIST_DATE_PRESETS,
   histDatePresetRange,
 } from "@/lib/utils/format";
-import { aggregateTransactionsByItem, latestTransactionAudit } from "@/lib/domain/transactions";
+import { HistorySlipDetail } from "@/components/history/HistorySlipDetail";
 import type { Locale } from "@/lib/i18n/types";
-import type { AppRole, Item, TransactionRow } from "@/lib/types";
+import type { TransactionRow } from "@/lib/types";
 
 const HIST_PRESET_KEYS: Record<string, MessageKey> = {
   today: "hist.preset.today",
@@ -73,13 +69,14 @@ export function HistoryView() {
         <button type="button" className="detail-back" onClick={() => setDetail(null)}>
           {t("hist.back")}
         </button>
-        <HistoryDetail
+        <HistorySlipDetail
           date={detail.date}
           suppCode={detail.suppCode}
           histTxns={histTxns}
           items={items}
           mapping={mapping}
           role={role}
+          onSaved={loadHist}
           onDeleted={async () => {
             await loadHist();
             setDetail(null);
@@ -147,25 +144,27 @@ export function HistoryView() {
             : t("hist.empty")}
         </div>
       ) : (
-        sorted.map((g) => {
-          const mo = String(g.date).substring(0, 7);
-          const showMonth = mo !== lastMonth;
-          if (showMonth) lastMonth = mo;
-          const [y, m] = mo.split("-");
-          const dd = new Date(String(g.date).substring(0, 10) + "T00:00:00");
-          return (
-            <HistGroup
-              key={g.date + g.suppCode}
-              g={g}
-              showMonth={showMonth}
-              y={y}
-              m={m}
-              dd={dd}
-              locale={locale}
-              onOpen={() => setDetail({ date: g.date, suppCode: g.suppCode })}
-            />
-          );
-        })
+        <div className="hist-list-groups">
+          {sorted.map((g) => {
+            const mo = String(g.date).substring(0, 7);
+            const showMonth = mo !== lastMonth;
+            if (showMonth) lastMonth = mo;
+            const [y, m] = mo.split("-");
+            const dd = new Date(String(g.date).substring(0, 10) + "T00:00:00");
+            return (
+              <HistGroup
+                key={g.date + g.suppCode}
+                g={g}
+                showMonth={showMonth}
+                y={y}
+                m={m}
+                dd={dd}
+                locale={locale}
+                onOpen={() => setDetail({ date: g.date, suppCode: g.suppCode })}
+              />
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -326,198 +325,3 @@ function HistGroup({
   );
 }
 
-function DateTitle({ date }: { date: string }) {
-  return <DateTitleDiv date={date} />;
-}
-
-function DateTitleDiv({ date }: { date: string }) {
-  const { locale } = useLocale();
-  return <div className="hist-detail-date">{formatAppDateLong(date, locale)}</div>;
-}
-
-function HistoryDetail({
-  date,
-  suppCode,
-  histTxns,
-  items,
-  mapping,
-  role,
-  onDeleted,
-}: {
-  date: string;
-  suppCode: string;
-  histTxns: TransactionRow[];
-  items: Item[];
-  mapping: { suppCode: string; itemCode: string }[];
-  role: AppRole;
-  onDeleted: () => void;
-}) {
-  const { locale, t } = useLocale();
-  const txns = histTxns.filter((row) => row.date === date && row.suppCode === suppCode);
-  const suppName = txns[0]?.suppName || suppCode;
-  const total = txns.reduce((s, row) => s + (parseFloat(String(row.totalPrice)) || 0), 0);
-  const mappedCodes = mapping.filter((m) => m.suppCode === suppCode).map((m) => m.itemCode);
-  const allItems = items.filter((i) => mappedCodes.includes(i.code));
-  const rxMap: Record<string, TransactionRow> = {};
-  aggregateTransactionsByItem(txns).forEach((row) => {
-    rxMap[row.itemCode] = row;
-  });
-  const received = allItems.filter((i) => rxMap[i.code]);
-  const allRows = [...received, ...allItems.filter((i) => !rxMap[i.code])];
-  const slipAudit = latestTransactionAudit(txns);
-
-  return (
-    <>
-      <div className="detail-hdr">
-        <div className="hist-detail-head">
-          <DateTitle date={date} />
-          <h2 className="hist-detail-shop">{suppName}</h2>
-          {slipAudit ? (
-            <dl className="hist-detail-audit">
-              <div className="hist-detail-audit__row">
-                <dt>{t("hist.savedBy")}</dt>
-                <dd>{slipAudit.savedByName?.trim() || t("hist.savedByUnknown")}</dd>
-              </div>
-              <div className="hist-detail-audit__row">
-                <dt>{t("hist.savedAt")}</dt>
-                <dd>
-                  {slipAudit.savedAt ? formatAppDateTime(slipAudit.savedAt, locale) : "—"}
-                </dd>
-              </div>
-            </dl>
-          ) : null}
-        </div>
-        <div className="detail-hdr__actions">
-          <DeleteIntakeBatchButton
-            date={date}
-            suppCode={suppCode}
-            suppName={suppName}
-            role={role}
-            className="btn btn-hist-delete-day btn-sm"
-            onDeleted={onDeleted}
-          />
-          <div className="dh-cost">₩{fmt(total)}</div>
-        </div>
-      </div>
-      <div className="tbl-scroll">
-        <table className="itbl">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>{t("hist.product")}</th>
-              <th>{t("hist.unit")}</th>
-              <th style={{ textAlign: "right" }}>{t("hist.qty")}</th>
-              <th style={{ textAlign: "right" }}>{t("hist.value")}</th>
-              <th style={{ textAlign: "right" }}>{t("hist.unitPrice")}</th>
-              <th>{t("hist.note")}</th>
-              <th>{t("hist.savedBy")}</th>
-              <th>{t("hist.savedAt")}</th>
-              <th>{t("hist.status")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {allRows.map((item, idx) => {
-              const txn = rxMap[item.code];
-              const isRx = !!txn;
-              const primary = itemDisplayName(item, locale);
-              const secondary = itemSecondaryName(item, locale);
-              const bg = isRx
-                ? idx % 2 === 0
-                  ? "#F5FCF7"
-                  : "#EEF9F2"
-                : idx % 2 === 0
-                  ? "#FAFAFA"
-                  : "#F5F5F5";
-              return (
-                <tr key={item.code} style={{ background: bg }}>
-                  <td style={{ textAlign: "center", color: "var(--muted)" }}>{idx + 1}</td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{primary}</div>
-                    {secondary ? <div className="name-sub">{secondary}</div> : null}
-                  </td>
-                  <td>
-                    <HistUnitCell item={item} txn={isRx ? txn : undefined} />
-                  </td>
-                  <td
-                    style={{
-                      textAlign: "right",
-                      fontFamily: "IBM Plex Mono, monospace",
-                      fontWeight: isRx ? 600 : 400,
-                    }}
-                  >
-                    {isRx ? fmt(txn.qty) : "—"}
-                  </td>
-                  <td
-                    style={{
-                      textAlign: "right",
-                      fontFamily: "IBM Plex Mono, monospace",
-                      fontWeight: 700,
-                      color: "var(--green)",
-                    }}
-                  >
-                    {isRx ? `₩${fmt(txn.totalPrice)}` : "—"}
-                  </td>
-                  <td style={{ textAlign: "right", fontFamily: "IBM Plex Mono, monospace" }}>
-                    {isRx ? `₩${fmt(txn.unitPrice)}` : "—"}
-                  </td>
-                  <td style={{ fontSize: 12, color: "var(--muted)" }}>
-                    {(isRx && txn.note) || ""}
-                  </td>
-                  <td className="hist-audit-cell">
-                    {isRx ? txn.savedByName?.trim() || t("hist.savedByUnknown") : "—"}
-                  </td>
-                  <td className="hist-audit-cell hist-audit-cell--time">
-                    {isRx && txn.savedAt ? formatAppDateTime(txn.savedAt, locale) : "—"}
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <span className={`rx-badge ${isRx ? "rx-yes" : "rx-no"}`}>
-                      {isRx ? t("hist.received") : t("hist.notReceived")}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div className="sum-bar" style={{ marginTop: 14 }}>
-        <SumItem label={t("hist.receivedCount")} val={received.length} />
-        <div className="sum-sep" />
-        <SumItem label={t("hist.systemCount")} val={allItems.length} />
-        <SumItem label={t("hist.totalWon")} val={`₩${fmt(total)}`} />
-      </div>
-    </>
-  );
-}
-
-function HistUnitCell({
-  item,
-  txn,
-}: {
-  item: Item;
-  txn?: TransactionRow;
-}) {
-  const mainUnit = txn?.mainUnit || item.unit;
-  const showSub =
-    item.subUnit && item.subUnit !== mainUnit && (item.convertRate ?? 1) !== 1;
-
-  return (
-    <div className="hist-unit-cell">
-      <span className="badge badge-blue">{mainUnit}</span>
-      {showSub ? (
-        <span className="hist-unit-sub">
-          {item.subUnit} ×{item.convertRate}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function SumItem({ label, val }: { label: string; val: string | number }) {
-  return (
-    <div className="sum-item">
-      <div style={{ fontSize: 10, opacity: 0.7 }}>{label}</div>
-      <div className="s-val">{val}</div>
-    </div>
-  );
-}

@@ -129,6 +129,7 @@ export interface TransactionRow {
   totalPrice: number;
   note: string;
   savedAt?: string;
+  savedByUserId?: string | null;
   savedByName?: string;
 }
 
@@ -149,6 +150,8 @@ export interface IntakeSlipSummary {
   productCount: number;
   totalPrice: number;
 }
+
+export type IntakeSlipSummaryWithEdit = IntakeSlipSummary & { canEdit: boolean; slipNo: number };
 
 export interface SaveAudit {
   userId: string;
