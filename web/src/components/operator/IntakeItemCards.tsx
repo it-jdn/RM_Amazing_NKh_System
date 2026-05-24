@@ -1,11 +1,11 @@
 "use client";
 
 import { IconPlus, IconX } from "@/components/icons/AppIcons";
-import { IntakePurchaseUnitSelect } from "@/components/intake/IntakePurchaseUnitSelect";
+import { IntakePurchaseUnitSuffix } from "@/components/intake/IntakePurchaseUnitSelect";
 import { useLocale } from "@/context/LocaleContext";
-import { itemDisplayName, itemSecondaryName } from "@/lib/i18n/item-name";
+import { unitConversionMessageParams } from "@/lib/domain/intake-unit-conversion";
+import { itemDisplayName } from "@/lib/i18n/item-name";
 import type { Item, ItemPurchaseUnit } from "@/lib/types";
-import { fmt } from "@/lib/utils/format";
 import { displayNumericField } from "@/lib/utils/numeric-input";
 
 type CurItem = Item & {
@@ -52,7 +52,7 @@ export function IntakeItemCards({
         <div className="intake-cards-toolbar__head">
           <div className="intake-search-field">
             <input
-              type="search"
+              type="text"
               placeholder={t("intake.search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -78,7 +78,7 @@ export function IntakeItemCards({
             aria-label={t("intake.addProduct")}
             title={t("intake.addProduct")}
           >
-            <IconPlus size={20} />
+            <IconPlus size={18} />
           </button>
         </div>
       </div>
@@ -88,33 +88,29 @@ export function IntakeItemCards({
           const v = rowVals[it.rowKey] || { qty: "", total: "" };
           const filled = isFilled(v);
           const primary = itemDisplayName(it, locale);
-          const secondary = itemSecondaryName(it, locale);
+          const hasConversion =
+            Boolean(it.subUnit?.trim()) &&
+            it.subUnit.trim() !== it.unit.trim() &&
+            Number(it.convertRate) > 0 &&
+            Number(it.convertRate) !== 1;
+          const conversionText = hasConversion
+            ? t("intake.unitConversion", unitConversionMessageParams(it.unit, it.subUnit, it.convertRate))
+            : null;
 
           return (
             <article key={it.rowKey} className={`intake-item-card ${filled ? "filled" : ""}`}>
               <header className="intake-item-card__hdr">
                 <span className="intake-item-card__idx">{idx + 1}</span>
                 <div className="intake-item-card__title">
-                  <div className="intake-item-card__name">{primary}</div>
-                  {secondary ? <div className="intake-item-card__sub">{secondary}</div> : null}
-                  <span className="intake-item-card__code">{it.code}</span>
+                  <div className="intake-item-card__name intake-item-card__name--single" title={primary}>
+                    {primary}
+                  </div>
                 </div>
+                <span className="intake-item-card__code">{it.code}</span>
               </header>
 
-              {it.purchaseOptions.length > 1 ? (
-                <div className="intake-item-card__unit-row">
-                  <span className="intake-item-card__unit-lbl">{t("intake.purchaseUnit")}</span>
-                  <IntakePurchaseUnitSelect
-                    options={it.purchaseOptions}
-                    valueMainUnitCode={it.mainUnitCode}
-                    onChange={(code) => onPurchaseUnitChange(it.code, code)}
-                    disabled={readOnly}
-                  />
-                </div>
-              ) : null}
-
               <div className="intake-item-card__fields">
-                <div className="intake-field-block">
+                <div className="intake-field-block intake-field-block--qty">
                   <label className="intake-field-block__lbl">{t("intake.qty")}</label>
                   <div className="intake-field-block__input-wrap">
                     <input
@@ -130,7 +126,12 @@ export function IntakeItemCards({
                       disabled={readOnly}
                       readOnly={readOnly}
                     />
-                    <span className="intake-field-block__suffix">{it.unit}</span>
+                    <IntakePurchaseUnitSuffix
+                      options={it.purchaseOptions}
+                      valueMainUnitCode={it.mainUnitCode}
+                      onChange={(code) => onPurchaseUnitChange(it.code, code)}
+                      disabled={readOnly}
+                    />
                   </div>
                 </div>
                 <div className="intake-field-block intake-field-block--total">
@@ -153,22 +154,19 @@ export function IntakeItemCards({
                       readOnly={readOnly}
                     />
                   </div>
-                  {it.refPrice > 0 ? (
-                    <span className="intake-ref-price">
-                      {t("intake.refPrice", { price: fmt(it.refPrice), unit: it.unit })}
-                    </span>
-                  ) : null}
                 </div>
               </div>
 
-              <div className="intake-item-card__meta">
-                <span className="badge badge-gray">
-                  {it.subUnit} ×{it.convertRate}
-                </span>
-                <span className="intake-item-card__unit-price">
+              <footer className="intake-item-card__foot">
+                {conversionText ? (
+                  <span className="intake-item-card__foot-convert">{conversionText}</span>
+                ) : (
+                  <span className="intake-item-card__foot-convert" aria-hidden />
+                )}
+                <span className="intake-item-card__foot-unit-price">
                   {t("intake.unitPrice")}: {calcUp(it.rowKey, it.convertRate)}
                 </span>
-              </div>
+              </footer>
             </article>
           );
         })}

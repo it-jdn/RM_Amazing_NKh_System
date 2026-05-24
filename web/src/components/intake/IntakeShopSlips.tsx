@@ -5,7 +5,6 @@ import { sortSlipsOldestFirst } from "@/lib/domain/intake-day-overview";
 import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
 import { IconDocument, IconPlus } from "@/components/icons/AppIcons";
-import { formatAppDateTime } from "@/lib/utils/format";
 import type { IntakeSlipSummary } from "@/lib/types";
 
 type Props = {
@@ -17,7 +16,7 @@ type Props = {
 };
 
 export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSlip, onNewSlip }: Props) {
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
   const [slips, setSlips] = useState<IntakeSlipSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -69,7 +68,6 @@ export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSl
         orderedSlips.map((s, idx) => {
           const n = idx + 1;
           const active = activeSlipId === s.id;
-          const edited = s.updatedAt !== s.createdAt;
           return (
             <button
               key={s.id}
@@ -81,16 +79,6 @@ export function IntakeShopSlips({ intakeDate, suppCode, activeSlipId, onSelectSl
             >
               <IconDocument size={15} className="intake-slip-tab__doc-icon" aria-hidden />
               <span className="intake-slip-tab__label">{t("intake.slipList.slipNo", { n })}</span>
-              {edited ? (
-                <span
-                  className="intake-slip-tab__edited"
-                  title={t("intake.slipList.editedAt", {
-                    at: formatAppDateTime(s.updatedAt, locale),
-                  })}
-                >
-                  {t("intake.slipList.editedBadge")}
-                </span>
-              ) : null}
             </button>
           );
         })

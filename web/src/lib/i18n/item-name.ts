@@ -1,32 +1,81 @@
 import type { Locale } from "./types";
 
-type NamedItem = {
+export type NamedItem = {
   nameTH: string;
   nameEN?: string;
   nameKR?: string;
 };
 
-export function itemDisplayName(item: NamedItem, locale: Locale): string {
+/** Legacy CSV / txn snapshots: "ชื่อไทย / English / 한국어" */
+export function parseLegacyCombinedItemName(raw: string): NamedItem {
+  const trimmed = raw.trim();
+  if (!trimmed.includes(" / ")) {
+    return { nameTH: trimmed, nameEN: "", nameKR: "" };
+  }
+  const parts = trimmed.split(" / ").map((p) => p.trim());
+  return {
+    nameTH: parts[0] || trimmed,
+    nameEN: parts[1] || "",
+    nameKR: parts[2] || "",
+  };
+}
+
+function normalizeNamedItem(item: NamedItem): NamedItem {
   const th = item.nameTH?.trim() || "";
   const en = item.nameEN?.trim() || "";
   const kr = item.nameKR?.trim() || "";
-  if (locale === "en") return en || th;
+  if (th.includes(" / ") && !en && !kr) {
+    return parseLegacyCombinedItemName(th);
+  }
+  return item;
+}
+
+export function itemDisplayName(item: NamedItem, locale: Locale): string {
+  const n = normalizeNamedItem(item);
+  const th = n.nameTH?.trim() || "";
+  const en = n.nameEN?.trim() || "";
+  const kr = n.nameKR?.trim() || "";
+  if (locale === "en") return en || th || kr;
   if (locale === "kr") return kr || en || th;
   return th || en || kr;
 }
 
-/** ชื่อรอง (ภาษาอื่น) สำหรับแสดงใต้ชื่อหลักบนการ์ด */
+export function itemDisplayNameByCode<T extends NamedItem & { code: string }>(
+  code: string,
+  items: readonly T[],
+  locale: Locale,
+  fallback?: string
+): string {
+  const item = items.find((i) => i.code === code);
+  if (item) return itemDisplayName(item, locale);
+  const fb = fallback?.trim();
+  if (fb) return itemDisplayName(parseLegacyCombinedItemName(fb), locale);
+  return code;
+}
+
+/** Catalog item, or parsed txn snapshot when code is unknown. */
+export function itemLabel(
+  item: NamedItem | null | undefined,
+  locale: Locale,
+  snapshot?: string
+): string {
+  if (item) return itemDisplayName(item, locale);
+  const fb = snapshot?.trim();
+  if (!fb) return "—";
+  return itemDisplayName(parseLegacyCombinedItemName(fb), locale);
+}
+
+/** ชื่อรอง (ภาษาอื่น) สำหรับแสดงใต้ชื่อหลักบนการ์ด — เฉพาะโหมดภาษาไทย */
 export function itemSecondaryName(item: NamedItem, locale: Locale): string | null {
-  const primary = itemDisplayName(item, locale);
+  if (locale === "en" || locale === "kr") return null;
+  const n = normalizeNamedItem(item);
+  const primary = itemDisplayName(n, locale);
   const parts: string[] = [];
-  if (locale !== "th" && item.nameTH?.trim() && item.nameTH.trim() !== primary) {
-    parts.push(item.nameTH.trim());
+  if (n.nameEN?.trim() && n.nameEN.trim() !== primary) {
+    parts.push(n.nameEN.trim());
   }
-  if (locale !== "en" && item.nameEN?.trim() && item.nameEN.trim() !== primary) {
-    parts.push(item.nameEN.trim());
-  }
-  if (locale !== "kr" && item.nameKR?.trim() && item.nameKR.trim() !== primary) {
-    parts.push(item.nameKR.trim());
+  if (n.nameKR?.trim() && n.nameKR.trim() !== primary) {
+    parts.push(n.nameKR.trim());
   }
   const unique = [...new Set(parts)];
   return unique.length ? unique.join(" · ") : null;

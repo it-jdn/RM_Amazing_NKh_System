@@ -1,10 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconPrint } from "@/components/icons/AppIcons";
+import { HistoryEditCards } from "@/components/history/HistoryEditCards";
+import { HistoryStickyFooter } from "@/components/history/HistoryStickyFooter";
 import { DeleteIntakeBatchButton } from "@/components/intake/DeleteIntakeBatchButton";
 import { apiGet, apiPost } from "@/lib/api/client";
 import { apiSucceeded } from "@/lib/api/success";
+import { useAppData } from "@/context/AppDataContext";
 import { useLocale } from "@/context/LocaleContext";
+import { supplierDisplayNameByCode } from "@/lib/i18n/supplier-name";
 import { useToast } from "@/components/Toast";
 import {
   buildHistoryTransactions,
@@ -14,9 +19,10 @@ import {
   type HistoryRowVals,
 } from "@/lib/domain/history-slip-edit";
 import { intakeRowKey } from "@/lib/domain/intake-row-key";
-import { itemDisplayName, itemSecondaryName } from "@/lib/i18n/item-name";
+import { itemDisplayName, itemLabel, itemSecondaryName } from "@/lib/i18n/item-name";
 import {
   fmt,
+  formatAppDate,
   formatAppDateLong,
   formatAppDateTime,
 } from "@/lib/utils/format";
@@ -60,6 +66,7 @@ export function HistorySlipDetail({
   onDeleted,
 }: Props) {
   const { locale, t } = useLocale();
+  const { suppliers } = useAppData();
   const toast = useToast();
 
   const [slips, setSlips] = useState<IntakeSlipSummaryWithEdit[]>([]);
@@ -115,7 +122,13 @@ export function HistorySlipDetail({
   }, [legacyMode, dayTxns, selectedSlipId]);
 
   const canEdit = legacyMode ? legacyCanEdit : Boolean(activeSlip?.canEdit);
-  const suppName = activeSlip?.suppName || slipRows[0]?.suppName || suppCode;
+  const suppNameSnapshot = activeSlip?.suppName || slipRows[0]?.suppName || suppCode;
+  const suppName = supplierDisplayNameByCode(
+    suppCode,
+    suppliers,
+    locale,
+    suppNameSnapshot
+  );
   const slipNote = activeSlip?.slipNote ?? slipNoteForSave("", slipRows);
 
   const mappedCodes = mapping.filter((m) => m.suppCode === suppCode).map((m) => m.itemCode);
@@ -192,7 +205,7 @@ export function HistorySlipDetail({
           : txn.unitPrice;
       const primary = item
         ? itemDisplayName(item, locale)
-        : txn.itemNameTH || txn.itemCode;
+        : itemLabel(null, locale, txn.itemNameTH || txn.itemCode);
       const secondary = item ? itemSecondaryName(item, locale) : "";
       return {
         index: i + 1,
@@ -220,10 +233,8 @@ export function HistorySlipDetail({
       docNoText: slipNoLabel,
       recorderText: createdBy?.trim() || t("hist.savedByUnknown"),
       savedAtText: createdAt ? formatAppDateTime(createdAt, locale) : "—",
-      updatedStamp:
-        showUpdated && updatedAt
-          ? `${formatAppDateTime(updatedAt, locale)} · ${updatedBy || "—"}`
-          : undefined,
+      updatedByText: showUpdated ? updatedBy || "—" : undefined,
+      updatedAtText: showUpdated && updatedAt ? formatAppDateTime(updatedAt, locale) : undefined,
       noteText: slipNote || undefined,
       lines,
       receivedCount,
@@ -236,6 +247,7 @@ export function HistorySlipDetail({
         docNo: t("intake.slipDoc.docNo"),
         recorder: t("intake.slipDoc.recorder"),
         savedAt: t("hist.savedAt"),
+        updatedBy: t("hist.updatedBy"),
         updatedAt: t("hist.updatedAt"),
         note: t("hist.note"),
         colNo: "#",
@@ -305,6 +317,11 @@ export function HistorySlipDetail({
     }
   }
 
+  function rowKeyFor(row: { kind: "rx" | "empty"; txn?: TransactionRow }) {
+    if (row.kind !== "rx" || !row.txn) return null;
+    return intakeRowKey(row.txn.itemCode, row.txn.mainUnit);
+  }
+
   return (
     <div className="hist-detail-panel">
       <div className="detail-hdr hist-detail-hdr">
@@ -312,51 +329,58 @@ export function HistorySlipDetail({
           <div className="hist-detail-head">
             <DateTitle date={date} />
             <h2 className="hist-detail-shop">{suppName}</h2>
+            {slips.length > 1 ? (
+              <div className="hist-slip-tabs" role="tablist" aria-label={t("hist.slipTabs")}>
+                {slips.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedSlipId === s.id}
+                    className={`hist-slip-tabs__btn ${selectedSlipId === s.id ? "hist-slip-tabs__btn--active" : ""}`}
+                    onClick={() => setSelectedSlipId(s.id)}
+                  >
+                    {t("intake.slipList.slipNo", { n: s.slipNo })}
+                  </button>
+                ))}
+              </div>
+            ) : activeSlip ? (
+              <p className="hist-detail-slip-label">
+                {t("intake.slipList.slipNo", { n: activeSlip.slipNo })}
+              </p>
+            ) : legacyMode ? (
+              <p className="hist-detail-slip-label">{t("hist.slipTabs")}</p>
+            ) : null}
           </div>
           <div className="hist-detail-hdr__aside">
             <div className="hist-detail-hdr__total" aria-label={t("hist.totalWon")}>
               ₩{fmt(total)}
             </div>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm hist-detail-hdr__print"
-              disabled={loadingMeta || receivedCount === 0}
-              onClick={handlePrintPdf}
-            >
-              {t("hist.printPdf")}
-            </button>
-            <DeleteIntakeBatchButton
-              date={date}
-              suppCode={suppCode}
-              suppName={suppName}
-              slipId={legacyMode ? undefined : selectedSlipId || undefined}
-              role={role}
-              className="btn btn-hist-delete-day btn-sm hist-detail-hdr__delete"
-              onDeleted={onDeleted}
-            />
+            <div className="hist-detail-hdr__actions">
+              <button
+                type="button"
+                className="hist-detail-hdr__icon-btn"
+                disabled={loadingMeta || receivedCount === 0}
+                onClick={handlePrintPdf}
+                aria-label={t("hist.printPdf")}
+                title={t("hist.printPdf")}
+              >
+                <IconPrint size={18} aria-hidden />
+              </button>
+              <DeleteIntakeBatchButton
+                date={date}
+                suppCode={suppCode}
+                suppName={suppName}
+                slipId={legacyMode ? undefined : selectedSlipId || undefined}
+                role={role}
+                iconOnly
+                className="hist-detail-hdr__icon-btn hist-detail-hdr__icon-btn--danger"
+                onDeleted={onDeleted}
+              />
+            </div>
           </div>
         </div>
-        {slips.length > 1 ? (
-          <div className="hist-slip-tabs" role="tablist" aria-label={t("hist.slipTabs")}>
-            {slips.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                role="tab"
-                aria-selected={selectedSlipId === s.id}
-                className={`hist-slip-tabs__btn ${selectedSlipId === s.id ? "hist-slip-tabs__btn--active" : ""}`}
-                onClick={() => setSelectedSlipId(s.id)}
-              >
-                {t("intake.slipList.slipNo", { n: s.slipNo })}
-              </button>
-            ))}
-          </div>
-        ) : activeSlip ? (
-          <p className="hist-detail-slip-label">
-            {t("intake.slipList.slipNo", { n: activeSlip.slipNo })}
-          </p>
-        ) : null}
-        <dl className="hist-detail-audit">
+        <dl className="hist-detail-audit hist-detail-audit--desktop">
           <div className="hist-detail-audit__row">
             <dt>{t("hist.savedBy")}</dt>
             <dd>{createdBy?.trim() || t("hist.savedByUnknown")}</dd>
@@ -378,6 +402,29 @@ export function HistorySlipDetail({
             </>
           ) : null}
         </dl>
+        <p className="hist-detail-meta hist-detail-meta--mobile">
+          <span>
+            {t("intake.slipDoc.dateShort")} {formatAppDate(date, locale)}
+          </span>
+          <span className="hist-detail-meta__sep" aria-hidden>
+            ·
+          </span>
+          <span className="hist-detail-meta__who">
+            {createdBy?.trim() || t("hist.savedByUnknown")}
+          </span>
+          {showUpdated && updatedAt ? (
+            <>
+              <span className="hist-detail-meta__sep" aria-hidden>
+                ·
+              </span>
+              <span className="hist-detail-meta__edited">
+                {t("intake.slipAudit.updatedShort", {
+                  when: formatAppDateTime(updatedAt, locale),
+                })}
+              </span>
+            </>
+          ) : null}
+        </p>
       </div>
 
       <div className="hist-detail-body">
@@ -387,7 +434,17 @@ export function HistorySlipDetail({
         </p>
       ) : null}
 
-      <div className="tbl-scroll">
+      <div className="hist-mobile-only">
+        <HistoryEditCards
+          tableRows={tableRows}
+          rowVals={rowVals}
+          canEdit={canEdit}
+          rowKeyFor={rowKeyFor}
+          onSetRow={setRow}
+        />
+      </div>
+
+      <div className="tbl-scroll hist-desktop-only">
         <table className="itbl hist-edit-table">
           <thead>
             <tr>
@@ -414,7 +471,7 @@ export function HistorySlipDetail({
                 qtyN > 0 && totalN > 0 ? Math.round((totalN / qtyN) * 100) / 100 : txn?.unitPrice;
               const primary = item
                 ? itemDisplayName(item, locale)
-                : txn?.itemNameTH || txn?.itemCode || "—";
+                : itemLabel(null, locale, txn?.itemNameTH || txn?.itemCode);
               const secondary = item ? itemSecondaryName(item, locale) : "";
               const bg = isRx
                 ? idx % 2 === 0
@@ -490,7 +547,7 @@ export function HistorySlipDetail({
         </table>
       </div>
 
-      <div className="hist-detail-footer">
+      <div className="hist-detail-footer hist-desktop-only">
         <div className="hist-detail-footer__bar">
           <div className="hist-detail-footer__stat">
             <span className="hist-detail-footer__lbl">{t("hist.receivedCount")}</span>
@@ -509,6 +566,15 @@ export function HistorySlipDetail({
         </div>
       </div>
       </div>
+
+      <HistoryStickyFooter
+        receivedCount={receivedCount}
+        canEdit={canEdit}
+        dirty={dirty}
+        saving={saving}
+        loadingMeta={loadingMeta}
+        onSave={() => void handleSave()}
+      />
     </div>
   );
 }

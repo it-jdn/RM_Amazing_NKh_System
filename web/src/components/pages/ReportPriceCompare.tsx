@@ -13,9 +13,10 @@ import {
 import { Line } from "react-chartjs-2";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
+import { itemDisplayNameByCode } from "@/lib/i18n/item-name";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { fmt, formatAppDate } from "@/lib/utils/format";
-import type { Supplier } from "@/lib/types";
+import type { Item, Supplier } from "@/lib/types";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend);
 
@@ -50,6 +51,7 @@ export function ReportPriceCompare(props: {
   itemCode: string;
   active: boolean;
   suppliers: Supplier[];
+  items: Item[];
 }) {
   const { locale, t } = useLocale();
   const [priceHistory, setPriceHistory] = useState<PriceHistRow[]>([]);
@@ -109,6 +111,10 @@ export function ReportPriceCompare(props: {
   function shopLabel(code: string) {
     const s = props.suppliers.find((x) => x.code === code);
     return s ? supplierDisplayName(s, locale) : code;
+  }
+
+  function itemLabel(code: string, snapshot?: string) {
+    return itemDisplayNameByCode(code, props.items, locale, snapshot);
   }
 
   if (!props.active || !loaded) return null;
@@ -202,7 +208,7 @@ export function ReportPriceCompare(props: {
                   <tr key={`${p.date}-${p.itemCode}-${i}`}>
                     <td>{formatAppDate(p.date, locale)}</td>
                     <td>
-                      <b>{p.itemNameTH}</b>
+                      <b>{itemLabel(p.itemCode, p.itemNameTH)}</b>
                     </td>
                     <td>
                       {p.mainUnit} / {p.subUnit}

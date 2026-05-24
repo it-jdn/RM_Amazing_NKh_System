@@ -108,6 +108,25 @@ export function IconRefresh(props: IconProps) {
   );
 }
 
+export function IconPrint(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 9V3h12v6" />
+      <rect x="6" y="14" width="12" height="8" rx="1" />
+    </Svg>
+  );
+}
+
+export function IconTrash(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" />
+      <path d="M10 11v6M14 11v6" />
+    </Svg>
+  );
+}
+
 export function IconGlobe(props: IconProps) {
   return (
     <Svg {...props}>
@@ -121,6 +140,16 @@ export function IconEdit(props: IconProps) {
   return (
     <Svg {...props}>
       <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </Svg>
+  );
+}
+
+/** Link / chain (ผูกร้านค้า) */
+export function IconStoreLink(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </Svg>
   );
 }

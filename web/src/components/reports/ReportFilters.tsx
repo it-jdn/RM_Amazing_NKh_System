@@ -9,7 +9,7 @@ import {
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { AppDateField } from "@/components/ui/AppDateField";
-import { IconChevronDown } from "@/components/icons/AppIcons";
+import { IconChevronDown, IconPrint } from "@/components/icons/AppIcons";
 import { formatAppDate, histDatePresetRange } from "@/lib/utils/format";
 import type { Item, ItemCategory, Supplier } from "@/lib/types";
 
@@ -73,7 +73,7 @@ export function ReportFilters({
   onPrint,
 }: Props) {
   const { locale, t } = useLocale();
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const categories = itemCategories.length ? itemCategories : FALLBACK_ITEM_CATEGORIES;
   const datesDisabled = datePreset === "all";
   const displayFrom =
@@ -160,10 +160,12 @@ export function ReportFilters({
       <button
         key={key}
         type="button"
-        className="btn btn-ghost btn-sm report-filters__print-btn"
+        className="report-filters__icon-btn report-filters__print-btn"
         onClick={onPrint}
+        aria-label={t("report.print")}
+        title={t("report.print")}
       >
-        {t("report.print")}
+        <IconPrint size={18} aria-hidden />
       </button>
     );
   }
@@ -187,6 +189,20 @@ export function ReportFilters({
             aria-hidden
           />
         </button>
+        <select
+          className="hist-preset-select hist-preset-select--mobile report-filters__preset-select"
+          value={REPORT_PRESETS.some((p) => p.id === datePreset) ? datePreset : "custom"}
+          onChange={(e) => {
+            if (e.target.value !== "custom") applyPreset(e.target.value);
+          }}
+          aria-label={t("hist.period")}
+        >
+          {REPORT_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {t(p.key)}
+            </option>
+          ))}
+        </select>
         <div className="report-filters__title-wrap">
           <h1 className="report-filters__title">{t("report.title")}</h1>
           {!filtersOpen && filterSummary ? (
@@ -207,9 +223,13 @@ export function ReportFilters({
         ) : null}
         {!filtersOpen ? (
           <div className="report-filters__actions report-filters__actions--collapsed-print">
-            {renderPrintBtn("print")}
+            {renderPrintBtn("print-collapsed")}
           </div>
-        ) : null}
+        ) : (
+          <div className="report-filters__actions report-filters__actions--open-print">
+            {renderPrintBtn("print-open")}
+          </div>
+        )}
       </div>
 
       <div

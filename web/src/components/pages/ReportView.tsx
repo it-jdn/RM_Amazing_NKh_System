@@ -20,12 +20,14 @@ import {
   FALLBACK_ITEM_CATEGORIES,
   itemCategoryDisplayName,
 } from "@/lib/catalog/item-categories";
-import { supplierDisplayName } from "@/lib/i18n/supplier-name";
+import { itemDisplayNameByCode } from "@/lib/i18n/item-name";
+import { supplierDisplayName, supplierDisplayNameByCode } from "@/lib/i18n/supplier-name";
 import { apiGet } from "@/lib/api/client";
 import { useToast } from "@/components/Toast";
 import { fmt, formatAppDate } from "@/lib/utils/format";
 import { downloadExcelTable } from "@/lib/reports/export-excel";
 import { ReportPriceCompare } from "@/components/pages/ReportPriceCompare";
+import { ReportChartsFold } from "@/components/reports/ReportChartsFold";
 import { ReportFilters } from "@/components/reports/ReportFilters";
 import { ReportHeatmap } from "@/components/reports/ReportHeatmap";
 import { ReportKpiCard, ReportKpiGrid } from "@/components/reports/ReportKpiGrid";
@@ -106,6 +108,7 @@ interface ReportData {
     date: string;
     suppName: string;
     suppCode: string;
+    itemCode: string;
     itemNameTH: string;
     qty: number;
     mainUnit: string;
@@ -142,6 +145,18 @@ export function ReportView() {
       return cat ? itemCategoryDisplayName(cat, locale) : fallbackTH;
     },
     [reportCategories, locale]
+  );
+
+  const itemName = useCallback(
+    (itemCode: string, snapshot?: string) =>
+      itemDisplayNameByCode(itemCode, items, locale, snapshot),
+    [items, locale]
+  );
+
+  const shopName = useCallback(
+    (suppCode: string, snapshot?: string) =>
+      supplierDisplayNameByCode(suppCode, suppliers, locale, snapshot),
+    [suppliers, locale]
   );
 
   const excelRange = rFrom && rTo ? `${rFrom}_${rTo}` : "all";
@@ -217,7 +232,7 @@ export function ReportView() {
       [rowCol, t("report.item"), t("report.qty"), t("report.lines"), t("report.share"), t("report.value")],
       data.byItem.map((x, i) => [
         i + 1,
-        x.itemName,
+        itemName(x.itemCode, x.itemName),
         x.qty,
         x.count,
         `${x.sharePct.toFixed(1)}%`,
@@ -236,8 +251,8 @@ export function ReportView() {
       data.rows.map((r, i) => [
         i + 1,
         r.date,
-        r.suppName || r.suppCode,
-        r.itemNameTH,
+        shopName(r.suppCode, r.suppName),
+        itemName(r.itemCode, r.itemNameTH),
         `${r.qty} ${r.mainUnit}`,
         r.totalPrice,
       ])
@@ -332,7 +347,7 @@ export function ReportView() {
 
   const topValueBar = data?.topItemsByValue.length
     ? {
-        labels: data.topItemsByValue.map((x) => x.itemName),
+        labels: data.topItemsByValue.map((x) => itemName(x.itemCode, x.itemName)),
         datasets: [
           {
             data: data.topItemsByValue.map((x) => x.totalPrice),
@@ -391,6 +406,7 @@ export function ReportView() {
 
           <p className="admin-hint report-unit-note">{t("report.unitNote")}</p>
 
+          <ReportChartsFold>
           <div className="report-charts-grid">
             <div className="card">
               <div className="card-title">
@@ -491,6 +507,7 @@ export function ReportView() {
           </div>
 
           <ReportHeatmap cells={data.weeklyHeatmap} title={t("report.heatmap")} />
+          </ReportChartsFold>
 
           <ReportTableSection
             title={t("report.byCategory")}
@@ -498,8 +515,8 @@ export function ReportView() {
             onExportExcel={exportCategoryExcel}
             exportDisabled={!data.byCategory.length}
           >
-            <div className="tbl-scroll">
-              <table className="dtbl">
+            <div className="tbl-scroll tbl-scroll--cards">
+              <table className="dtbl dtbl--cards">
                 <thead>
                   <tr>
                     <th>{t("admin.table.rowCol")}</th>
@@ -514,14 +531,14 @@ export function ReportView() {
                   {data.byCategory.length ? (
                     data.byCategory.map((row, i) => (
                       <tr key={row.categoryCode}>
-                        <td className="row-num">{i + 1}</td>
-                        <td>
+                        <td className="row-num" data-label={t("admin.table.rowCol")}>{i + 1}</td>
+                        <td data-label={t("report.category")}>
                           <b>{categoryLabel(row.categoryCode, row.categoryNameTH)}</b>
                         </td>
-                        <td>{row.distinctItems}</td>
-                        <td>{row.count}</td>
-                        <td>{row.sharePct.toFixed(1)}%</td>
-                        <td className="gval">₩{fmt(row.totalPrice)}</td>
+                        <td data-label={t("report.categoryItems")}>{row.distinctItems}</td>
+                        <td data-label={t("report.categoryTrans")}>{row.count}</td>
+                        <td data-label={t("report.share")}>{row.sharePct.toFixed(1)}%</td>
+                        <td className="gval" data-label={t("report.value")}>₩{fmt(row.totalPrice)}</td>
                       </tr>
                     ))
                   ) : (
@@ -542,8 +559,8 @@ export function ReportView() {
             onExportExcel={exportItemExcel}
             exportDisabled={!data.byItem.length}
           >
-            <div className="tbl-scroll">
-              <table className="dtbl">
+            <div className="tbl-scroll tbl-scroll--cards">
+              <table className="dtbl dtbl--cards">
                 <thead>
                   <tr>
                     <th>{t("admin.table.rowCol")}</th>
@@ -558,14 +575,14 @@ export function ReportView() {
                   {data.byItem.length ? (
                     data.byItem.map((x, i) => (
                       <tr key={x.itemCode}>
-                        <td className="row-num">{i + 1}</td>
-                        <td>
-                          <b>{x.itemName}</b>
+                        <td className="row-num" data-label={t("admin.table.rowCol")}>{i + 1}</td>
+                        <td data-label={t("report.item")}>
+                          <b>{itemName(x.itemCode, x.itemName)}</b>
                         </td>
-                        <td className="gval">{fmt(x.qty)}</td>
-                        <td>{x.count}</td>
-                        <td>{x.sharePct.toFixed(1)}%</td>
-                        <td className="gval">₩{fmt(x.totalPrice)}</td>
+                        <td className="gval" data-label={t("report.qty")}>{fmt(x.qty)}</td>
+                        <td data-label={t("report.lines")}>{x.count}</td>
+                        <td data-label={t("report.share")}>{x.sharePct.toFixed(1)}%</td>
+                        <td className="gval" data-label={t("report.value")}>₩{fmt(x.totalPrice)}</td>
                       </tr>
                     ))
                   ) : (
@@ -586,8 +603,8 @@ export function ReportView() {
             onExportExcel={exportDetailExcel}
             exportDisabled={!data.rows.length}
           >
-            <div className="tbl-scroll">
-              <table className="dtbl">
+            <div className="tbl-scroll tbl-scroll--cards">
+              <table className="dtbl dtbl--cards">
                 <thead>
                   <tr>
                     <th>{t("admin.table.rowCol")}</th>
@@ -602,16 +619,19 @@ export function ReportView() {
                   {data.rows.length ? (
                     data.rows.map((r, i) => (
                       <tr key={`${r.date}-${r.suppCode}-${r.itemNameTH}-${i}`}>
-                        <td className="row-num">{i + 1}</td>
-                        <td>{formatAppDate(r.date, locale)}</td>
-                        <td>{r.suppName || r.suppCode}</td>
-                        <td>
-                          <b>{r.itemNameTH}</b>
+                        <td className="row-num" data-label={t("admin.table.rowCol")}>{i + 1}</td>
+                        <td data-label={t("intake.date")}>{formatAppDate(r.date, locale)}</td>
+                        <td data-label={t("report.shop")}>{shopName(r.suppCode, r.suppName)}</td>
+                        <td data-label={t("report.item")}>
+                          <b>{itemName(r.itemCode, r.itemNameTH)}</b>
                         </td>
-                        <td style={{ fontFamily: "IBM Plex Mono, monospace" }}>
+                        <td
+                          data-label={t("report.qty")}
+                          style={{ fontFamily: "IBM Plex Mono, monospace" }}
+                        >
                           {fmt(r.qty)} {r.mainUnit}
                         </td>
-                        <td className="gval">₩{fmt(r.totalPrice)}</td>
+                        <td className="gval" data-label={t("report.value")}>₩{fmt(r.totalPrice)}</td>
                       </tr>
                     ))
                   ) : (
@@ -633,6 +653,7 @@ export function ReportView() {
             itemCode={rItem}
             active={showCompare}
             suppliers={suppliers}
+            items={items}
           />
         </>
       )}

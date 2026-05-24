@@ -1,10 +1,8 @@
 "use client";
 
-import { DeleteIntakeBatchButton } from "@/components/intake/DeleteIntakeBatchButton";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
 import { useLocale } from "@/context/LocaleContext";
 import { formatAppDate, formatAppDateTime, fmt } from "@/lib/utils/format";
-import type { AppRole } from "@/lib/types";
 
 export type IntakeSlipStatus = "saved" | "modified" | "draft" | "new";
 
@@ -19,17 +17,10 @@ type Props = {
   createdByName?: string;
   updatedAt?: string;
   updatedByName?: string;
-  productCount: number;
   hasDuplicateRows: boolean;
-  role: AppRole;
-  suppCode: string;
-  canEdit: boolean;
   readOnly: boolean;
   loading?: boolean;
   saving?: boolean;
-  onReset: () => void;
-  onDeleted: () => void;
-  showSavedActions: boolean;
 };
 
 export function IntakeSlipStatusBar({
@@ -37,12 +28,7 @@ export function IntakeSlipStatusBar({
   createdAt,
   createdByName,
   updatedAt,
-  updatedByName,
-  productCount,
-  hasDuplicateRows,
-  role,
   intakeDate,
-  suppCode,
   slipId,
   slipNo,
   slipTotal,
@@ -50,13 +36,17 @@ export function IntakeSlipStatusBar({
   readOnly,
   loading,
   saving,
-  onReset,
-  onDeleted,
-  showSavedActions,
+  hasDuplicateRows,
 }: Props) {
   const { locale, t } = useLocale();
 
   const effectiveStatus = saving ? "saving" : loading ? "loading" : status;
+
+  const showStatusChip =
+    !readOnly &&
+    effectiveStatus !== "saved" &&
+    effectiveStatus !== "loading" &&
+    effectiveStatus !== "saving";
 
   const statusLabel =
     effectiveStatus === "saving"
@@ -73,8 +63,8 @@ export function IntakeSlipStatusBar({
                 ? t("intake.slipStatus.draft")
                 : t("intake.slipStatus.new");
 
-  const showEditStamp = !loading && !!createdAt;
   const wasEdited = updatedAt && createdAt && updatedAt !== createdAt;
+  const showUpdatedHint = !loading && wasEdited;
 
   const headingTitle =
     slipId && slipNo != null
@@ -82,95 +72,56 @@ export function IntakeSlipStatusBar({
       : t("intake.slipDoc.headingDraft", { shop: shopName });
 
   const showTotal = slipTotal != null && slipTotal > 0;
+  const recorder = createdByName?.trim() || "—";
 
   return (
     <header
-      className={`intake-doc-header intake-doc-header--compact intake-doc-header--${readOnly ? "readonly" : effectiveStatus}`}
+      className={`intake-doc-header intake-doc-header--compact intake-doc-header--slip-minimal intake-doc-header--${readOnly ? "readonly" : effectiveStatus}`}
       role="status"
       aria-live="polite"
       aria-busy={loading || saving || undefined}
     >
-      <div className="intake-doc-header__letterhead">
-        <div className="intake-doc-header__title-row">
-          <div className="intake-doc-header__titles">
-            <div className="intake-doc-header__title-with-status">
-              <h2 className="intake-doc-header__title-th intake-doc-header__title-th--slip-heading">{headingTitle}</h2>
-              <span
-                className={`intake-doc-header__badge intake-doc-header__badge--${readOnly ? "readonly" : effectiveStatus}`}
-              >
-                {statusLabel}
-              </span>
-            </div>
-          </div>
-          <div className="intake-doc-header__actions intake-doc-header__actions--slip-trailing">
-            {showTotal ? (
-              <div className="intake-doc-header__total-block">
-                <span className="intake-doc-header__label">{t("intake.totalWon")}</span>
-                <span className="intake-doc-header__value--amount intake-doc-header__value--amount-slip">
-                  ₩{fmt(slipTotal!)}
-                </span>
-              </div>
-            ) : null}
-            {!loading && !saving && showSavedActions ? (
-              <div className="intake-doc-header__tools intake-doc-header__tools--after-total">
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm intake-doc-header__tool intake-doc-header__tool--slip intake-doc-header__tool--reset"
-                  onClick={onReset}
-                >
-                  {t("intake.resetForm")}
-                </button>
-                <DeleteIntakeBatchButton
-                  date={intakeDate}
-                  suppCode={suppCode}
-                  suppName={shopName}
-                  slipId={slipId}
-                  role={role}
-                  className="btn btn-danger-outline btn-sm intake-doc-header__tool intake-doc-header__tool--slip"
-                  onDeleted={onDeleted}
-                />
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="intake-doc-header__meta-row intake-doc-header__meta-row--slip-subtle">
-          <span className="intake-doc-header__meta-item">
-            <span className="intake-doc-header__label">{t("intake.slipDoc.date")}</span>
-            <span className="intake-doc-header__value">{formatAppDate(intakeDate, locale)}</span>
-          </span>
-          <span className="intake-doc-header__meta-item">
-            <span className="intake-doc-header__label">{t("intake.slipDoc.recorder")}</span>
-            <span className="intake-doc-header__value">{createdByName || "—"}</span>
-          </span>
-          {!showTotal ? (
-            <span className="intake-doc-header__meta-item">
-              <span className="intake-doc-header__label">{t("intake.products")}</span>
-              <span className="intake-doc-header__value">
-                {loading || saving ? "…" : t("intake.products", { n: productCount })}
-              </span>
-            </span>
+      <div className="intake-slip-head">
+        <div className="intake-slip-head__primary">
+          <h2 className="intake-slip-head__title">{headingTitle}</h2>
+          {showTotal ? (
+            <p className="intake-slip-head__amount" aria-label={t("intake.totalWon")}>
+              <span className="intake-slip-head__amount-lbl">{t("intake.slipDoc.totalShort")}</span>
+              <span className="intake-slip-head__amount-val">₩{fmt(slipTotal!)}</span>
+            </p>
           ) : null}
         </div>
 
-        {showEditStamp ? (
-          <div className="intake-doc-header__stamps intake-doc-header__stamps--compact">
-            <p className="intake-doc-header__stamp">
-              {t("intake.slipAudit.created", {
-                when: formatAppDateTime(createdAt!, locale),
-                by: createdByName || "—",
-              })}
-            </p>
-            {wasEdited ? (
-              <p className="intake-doc-header__stamp intake-doc-header__stamp--updated">
-                {t("intake.slipAudit.updated", {
-                  when: formatAppDateTime(updatedAt!, locale),
-                  by: updatedByName || "—",
-                })}
-              </p>
+        <div className="intake-slip-head__secondary">
+          <p className="intake-slip-head__meta">
+            <span>
+              {t("intake.slipDoc.dateShort")} {formatAppDate(intakeDate, locale)}
+            </span>
+            <span className="intake-slip-head__sep" aria-hidden>
+              ·
+            </span>
+            <span className="intake-slip-head__recorder">{recorder}</span>
+            {showUpdatedHint ? (
+              <>
+                <span className="intake-slip-head__sep" aria-hidden>
+                  ·
+                </span>
+                <span className="intake-slip-head__edited">
+                  {t("intake.slipAudit.updatedShort", {
+                    when: formatAppDateTime(updatedAt!, locale),
+                  })}
+                </span>
+              </>
             ) : null}
-          </div>
-        ) : null}
+          </p>
+          {showStatusChip ? (
+            <span
+              className={`intake-slip-head__chip intake-slip-head__chip--${effectiveStatus}`}
+            >
+              {statusLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {loading ? <IntakeLoadPanel message={t("intake.slipStatus.loadingDetail")} compact /> : null}

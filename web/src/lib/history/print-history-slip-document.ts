@@ -6,6 +6,7 @@ export type HistorySlipPrintLabels = {
   docNo: string;
   recorder: string;
   savedAt: string;
+  updatedBy: string;
   updatedAt: string;
   note: string;
   colNo: string;
@@ -36,7 +37,8 @@ export type HistorySlipPrintPayload = {
   docNoText: string;
   recorderText: string;
   savedAtText: string;
-  updatedStamp?: string;
+  updatedByText?: string;
+  updatedAtText?: string;
   noteText?: string;
   lines: HistorySlipPrintLine[];
   receivedCount: number;
@@ -75,8 +77,11 @@ export function buildHistorySlipPrintHtml(payload: HistorySlipPrintPayload): str
     ? `<p class="note"><strong>${escapeHtml(L.note)}:</strong> ${escapeHtml(payload.noteText.trim())}</p>`
     : "";
 
-  const updatedBlock = payload.updatedStamp
-    ? `<p class="meta">${escapeHtml(L.updatedAt)}: ${escapeHtml(payload.updatedStamp)}</p>`
+  const updatedByBlock = payload.updatedByText?.trim()
+    ? `<dt>${escapeHtml(L.updatedBy)}</dt><dd>${escapeHtml(payload.updatedByText.trim())}</dd>`
+    : "";
+  const updatedAtBlock = payload.updatedAtText?.trim()
+    ? `<dt>${escapeHtml(L.updatedAt)}</dt><dd>${escapeHtml(payload.updatedAtText.trim())}</dd>`
     : "";
 
   return `<!DOCTYPE html>
@@ -109,7 +114,6 @@ export function buildHistorySlipPrintHtml(payload: HistorySlipPrintPayload): str
     }
     .meta-grid dt { margin: 0; font-size: 11px; color: #64748b; font-weight: 600; }
     .meta-grid dd { margin: 0 0 6px; font-weight: 700; }
-    .meta { margin: 0 0 8px; font-size: 12px; color: #475569; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -163,8 +167,9 @@ export function buildHistorySlipPrintHtml(payload: HistorySlipPrintPayload): str
     <dt>${escapeHtml(L.date)}</dt><dd>${escapeHtml(payload.dateText)}</dd>
     <dt>${escapeHtml(L.recorder)}</dt><dd>${escapeHtml(payload.recorderText)}</dd>
     <dt>${escapeHtml(L.savedAt)}</dt><dd>${escapeHtml(payload.savedAtText)}</dd>
+    ${updatedByBlock}
+    ${updatedAtBlock}
   </dl>
-  ${updatedBlock}
   <table>
     <thead>
       <tr>
@@ -187,20 +192,62 @@ export function buildHistorySlipPrintHtml(payload: HistorySlipPrintPayload): str
 </html>`;
 }
 
-/** เปิดหน้าพิมพ์ — ในเบราว์เซอร์เลือก「บันทึกเป็น PDF」ได้ */
-export function openHistorySlipPrintDocument(html: string): boolean {
-  const win = window.open("", "_blank", "noopener,noreferrer");
-  if (!win) return false;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  window.setTimeout(() => {
+function printViaHiddenFrame(html: string): boolean {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "print");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+  document.body.appendChild(iframe);
+
+  const win = iframe.contentWindow;
+  const doc = win?.document;
+  if (!doc) {
+    iframe.remove();
+    return false;
+  }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const runPrint = () => {
     try {
-      win.print();
+      win?.focus();
+      win?.print();
     } catch {
       /* ignore */
     }
-  }, 300);
+    window.setTimeout(() => iframe.remove(), 800);
+  };
+
+  window.setTimeout(runPrint, 350);
   return true;
+}
+
+/** เปิดหน้าพิมพ์ — ในเบราว์เซอร์เลือก「บันทึกเป็น PDF」ได้ (รองรับมือถือด้วย iframe) */
+export function openHistorySlipPrintDocument(html: string): boolean {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      window.setTimeout(() => {
+        try {
+          win.print();
+        } catch {
+          printViaHiddenFrame(html);
+        }
+      }, 400);
+      return true;
+    }
+  } catch {
+    /* popup blocked */
+  }
+
+  return printViaHiddenFrame(html);
 }

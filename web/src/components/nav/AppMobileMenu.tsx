@@ -18,7 +18,7 @@ import {
 } from "@/components/icons/AppIcons";
 import { userDisplayInitial } from "@/lib/users/display-name";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
-import { useAdminUnsavedOptional } from "@/components/admin/AdminUnsavedChangesProvider";
+import { useGuardedNavigation } from "@/hooks/useGuardedNavigation";
 import {
   adminCatalogNavItemsForRole,
   adminUsersNavItemForRole,
@@ -63,7 +63,7 @@ type Props = {
 export function AppMobileMenu({ role, displayName, onLogout }: Props) {
   const pathname = usePathname();
   const { t } = useLocale();
-  const unsaved = useAdminUnsavedOptional();
+  const { navigate, goToReceiving } = useGuardedNavigation();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -144,17 +144,26 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
           aria-label={t("nav.menu")}
         >
           <header className="operator-menu__hdr">
-            <Image
-              src="/amazing-nkh-logo.png"
-              alt=""
-              width={48}
-              height={34}
-              className="operator-menu__logo"
-            />
-            <div className="operator-menu__brand">
-              <span className="operator-menu__title">Amazing Nongkhai</span>
-              <span className="operator-menu__subtitle">{t("brand.subtitle")}</span>
-            </div>
+            <button
+              type="button"
+              className="operator-menu__brand-btn"
+              onClick={() => {
+                close();
+                goToReceiving();
+              }}
+            >
+              <Image
+                src="/amazing-nkh-logo-nav.png"
+                alt=""
+                width={1024}
+                height={724}
+                className="operator-menu__logo"
+              />
+              <div className="operator-menu__brand">
+                <span className="operator-menu__title">Amazing Nongkhai</span>
+                <span className="operator-menu__subtitle">{t("brand.subtitle")}</span>
+              </div>
+            </button>
             <button type="button" className="operator-menu__close" onClick={close} aria-label={t("intake.cancel")}>
               <IconX size={18} />
             </button>
@@ -169,7 +178,15 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
                   key={link.href}
                   href={link.href}
                   className={`operator-menu__link ${active ? "active" : ""}`}
-                  onClick={close}
+                  onClick={(e) => {
+                    if (!active) {
+                      e.preventDefault();
+                      close();
+                      navigate(link.href);
+                      return;
+                    }
+                    close();
+                  }}
                 >
                   <span className="operator-menu__link-icon" aria-hidden>
                     <LinkIcon size={20} />
@@ -192,10 +209,10 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
                       href={item.href}
                       className={`operator-menu__sublink ${active ? "active" : ""}`}
                       onClick={(e) => {
-                        if (!active && unsaved) {
+                        if (!active) {
                           e.preventDefault();
                           close();
-                          unsaved.requestNavigation(item.href);
+                          navigate(item.href);
                           return;
                         }
                         close();
@@ -211,10 +228,10 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
                     className={`operator-menu__sublink operator-menu__sublink--users ${settingsItemActive(pathname, usersItem) ? "active" : ""}`}
                     onClick={(e) => {
                       const active = settingsItemActive(pathname, usersItem);
-                      if (!active && unsaved) {
+                      if (!active) {
                         e.preventDefault();
                         close();
-                        unsaved.requestNavigation(usersItem.href);
+                        navigate(usersItem.href);
                         return;
                       }
                       close();

@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useAppData } from "@/context/AppDataContext";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
-import { supplierDisplayName } from "@/lib/i18n/supplier-name";
+import { supplierDisplayName, supplierDisplayNameByCode } from "@/lib/i18n/supplier-name";
 import type { Supplier } from "@/lib/types";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { useToast } from "@/components/Toast";
 import { AppDateField } from "@/components/ui/AppDateField";
+import { IconChevronDown, IconRefresh } from "@/components/icons/AppIcons";
+import { PageBackLink } from "@/components/ui/PageBackLink";
 import {
   fmt,
   formatAppMonthYear,
@@ -65,10 +67,11 @@ export function HistoryView() {
 
   if (detail) {
     return (
-      <div className="wrap">
-        <button type="button" className="detail-back" onClick={() => setDetail(null)}>
-          {t("hist.back")}
-        </button>
+      <div className="wrap wrap--hist-detail wrap--with-sticky-save">
+        <PageBackLink
+          label={t("hist.back").replace(/^←\s*/, "")}
+          onClick={() => setDetail(null)}
+        />
         <HistorySlipDetail
           date={detail.date}
           suppCode={detail.suppCode}
@@ -120,7 +123,7 @@ export function HistoryView() {
   let lastMonth = "";
 
   return (
-    <div className="wrap">
+    <div className="wrap wrap--hist-list">
       <HistFilters
         hFrom={hFrom}
         setHFrom={setHFrom}
@@ -133,8 +136,13 @@ export function HistoryView() {
         suppliers={suppliers}
         histSortAsc={histSortAsc}
         setHistSortAsc={setHistSortAsc}
+        itemCount={sorted.length}
       />
-      {sorted.length > 0 && <div className="hist-count-bar">{t("hist.itemsCount", { n: sorted.length })}</div>}
+      {sorted.length > 0 && (
+        <div className="hist-count-bar hist-count-bar--desktop">
+          {t("hist.itemsCount", { n: sorted.length })}
+        </div>
+      )}
       {loading ? (
         <div className="hist-empty">{t("hist.loading")}</div>
       ) : !sorted.length ? (
@@ -155,6 +163,7 @@ export function HistoryView() {
               <HistGroup
                 key={g.date + g.suppCode}
                 g={g}
+                suppliers={suppliers}
                 showMonth={showMonth}
                 y={y}
                 m={m}
@@ -182,8 +191,10 @@ function HistFilters(props: {
   suppliers: Supplier[];
   histSortAsc: boolean;
   setHistSortAsc: (v: boolean) => void;
+  itemCount: number;
 }) {
   const { locale, t } = useLocale();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   function applyPreset(id: string) {
     const { from, to } = histDatePresetRange(id);
@@ -199,76 +210,152 @@ function HistFilters(props: {
   }
 
   return (
-    <div className="hist-filters hist-filters--stack">
-      <div className="hist-presets">
-        <span className="hist-presets__label">{t("hist.period")}</span>
-        <div className="hist-presets__chips">
+    <div className={`hist-filters hist-filters--stack${filtersOpen ? " hist-filters--open" : ""}`}>
+      <div className="hist-filters__mobile-head">
+        <button
+          type="button"
+          className="hist-filters__toggle"
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          aria-label={filtersOpen ? t("hist.filterCollapse") : t("hist.filterExpand")}
+        >
+          <IconChevronDown
+            size={18}
+            className={`hist-filters__toggle-chev${filtersOpen ? " hist-filters__toggle-chev--open" : ""}`}
+            aria-hidden
+          />
+        </button>
+        <select
+          className="hist-preset-select hist-preset-select--mobile"
+          value={
+            HIST_DATE_PRESETS.some((p) => p.id === props.datePreset) ? props.datePreset : "custom"
+          }
+          onChange={(e) => {
+            if (e.target.value !== "custom") applyPreset(e.target.value);
+          }}
+          aria-label={t("hist.period")}
+        >
           {HIST_DATE_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`sort-toggle hist-preset-btn ${props.datePreset === p.id ? "active" : ""}`}
-              onClick={() => applyPreset(p.id)}
-            >
+            <option key={p.id} value={p.id}>
               {t(HIST_PRESET_KEYS[p.id] ?? "hist.preset.all")}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="filter-group">
-        <label className="lbl">{t("hist.dateFrom")}</label>
-        <AppDateField
-          id="hist-date-from"
-          value={props.hFrom}
-          onChange={(v) => onManualDateChange("from", v)}
-          placeholder={t("hist.dateFrom")}
-          aria-label={t("hist.dateFrom")}
-        />
-      </div>
-      <div className="filter-group">
-        <label className="lbl">{t("hist.dateTo")}</label>
-        <AppDateField
-          id="hist-date-to"
-          value={props.hTo}
-          onChange={(v) => onManualDateChange("to", v)}
-          placeholder={t("hist.dateTo")}
-          aria-label={t("hist.dateTo")}
-        />
-      </div>
-      <div className="filter-group grow">
-        <label className="lbl">{t("hist.supplier")}</label>
-        <select value={props.hSupp} onChange={(e) => props.setHSupp(e.target.value)}>
-          <option value="">{t("hist.allSuppliers")}</option>
-          {props.suppliers.map((s) => (
-            <option key={s.code} value={s.code}>
-              {supplierDisplayName(s, locale)}
             </option>
           ))}
+          <option value="custom">{t("hist.preset.custom")}</option>
         </select>
+        {!filtersOpen && props.itemCount > 0 ? (
+          <span className="hist-filters__count">{t("hist.itemsCount", { n: props.itemCount })}</span>
+        ) : null}
       </div>
-      <button
-        type="button"
-        className={`sort-toggle ${!props.histSortAsc ? "active" : ""}`}
-        onClick={() => props.setHistSortAsc(!props.histSortAsc)}
-      >
-        {props.histSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
-      </button>
-      <button
-        type="button"
-        className="filter-clear"
-        onClick={() => {
-          applyPreset("today");
-          props.setHSupp("");
-        }}
-      >
-        {t("hist.reset")}
-      </button>
+      <div className="hist-filters__period hist-filters__period--desktop">
+        <select
+          className="hist-preset-select hist-preset-select--mobile"
+          value={
+            HIST_DATE_PRESETS.some((p) => p.id === props.datePreset) ? props.datePreset : "custom"
+          }
+          onChange={(e) => {
+            if (e.target.value !== "custom") applyPreset(e.target.value);
+          }}
+          aria-label={t("hist.period")}
+        >
+          {HIST_DATE_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {t(HIST_PRESET_KEYS[p.id] ?? "hist.preset.all")}
+            </option>
+          ))}
+          <option value="custom">{t("hist.preset.custom")}</option>
+        </select>
+        <div className="hist-presets hist-presets--desktop">
+          <span className="hist-presets__label">{t("hist.period")}</span>
+          <div className="hist-presets__chips">
+            {HIST_DATE_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`sort-toggle hist-preset-btn ${props.datePreset === p.id ? "active" : ""}`}
+                onClick={() => applyPreset(p.id)}
+              >
+                {t(HIST_PRESET_KEYS[p.id] ?? "hist.preset.all")}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="hist-filters__collapsible">
+      <div className="hist-filters__dates">
+        <div className="filter-group">
+          <label className="lbl">{t("hist.dateFrom")}</label>
+          <AppDateField
+            id="hist-date-from"
+            value={props.hFrom}
+            onChange={(v) => onManualDateChange("from", v)}
+            placeholder={t("hist.dateFromShort")}
+            aria-label={t("hist.dateFrom")}
+          />
+        </div>
+        <div className="filter-group">
+          <label className="lbl">{t("hist.dateTo")}</label>
+          <AppDateField
+            id="hist-date-to"
+            value={props.hTo}
+            onChange={(v) => onManualDateChange("to", v)}
+            placeholder={t("hist.dateToShort")}
+            aria-label={t("hist.dateTo")}
+          />
+        </div>
+      </div>
+      <div className="hist-filters__bottom">
+        <div className="filter-group grow hist-filters__shop">
+          <label className="lbl">{t("hist.supplier")}</label>
+          <select value={props.hSupp} onChange={(e) => props.setHSupp(e.target.value)}>
+            <option value="">{t("hist.allSuppliers")}</option>
+            {props.suppliers.map((s) => (
+              <option key={s.code} value={s.code}>
+                {supplierDisplayName(s, locale)}
+              </option>
+            ))}
+          </select>
+        </div>
+        {filtersOpen && props.itemCount > 0 ? (
+          <span className="hist-filters__count">{t("hist.itemsCount", { n: props.itemCount })}</span>
+        ) : null}
+        <div className="hist-filters__tools">
+          <button
+            type="button"
+            className={`sort-toggle hist-filters__tool ${!props.histSortAsc ? "active" : ""}`}
+            onClick={() => props.setHistSortAsc(!props.histSortAsc)}
+            aria-label={props.histSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
+            title={props.histSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
+          >
+            <span className="hist-filters__tool-text">
+              {props.histSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
+            </span>
+            <span className="hist-filters__tool-icon" aria-hidden>
+              {props.histSortAsc ? "↑" : "↓"}
+            </span>
+          </button>
+          <button
+            type="button"
+            className="filter-clear hist-filters__tool hist-filters__tool--icon"
+            onClick={() => {
+              applyPreset("today");
+              props.setHSupp("");
+            }}
+            aria-label={t("hist.reset")}
+            title={t("hist.reset")}
+          >
+            <span className="hist-filters__tool-text">{t("hist.reset")}</span>
+            <IconRefresh size={16} className="hist-filters__tool-icon-svg" aria-hidden />
+          </button>
+        </div>
+      </div>
+      </div>
     </div>
   );
 }
 
 function HistGroup({
   g,
+  suppliers,
   showMonth,
   y,
   m,
@@ -276,7 +363,8 @@ function HistGroup({
   locale,
   onOpen,
 }: {
-  g: { date: string; suppName: string; count: number; total: number };
+  g: { date: string; suppCode: string; suppName: string; count: number; total: number };
+  suppliers: Supplier[];
   showMonth: boolean;
   y: string;
   m: string;
@@ -285,8 +373,9 @@ function HistGroup({
   onOpen: () => void;
 }) {
   const { t } = useLocale();
+  const displayName = supplierDisplayNameByCode(g.suppCode, suppliers, locale, g.suppName);
   const shopLabel =
-    g.suppName.length > 48 ? `${g.suppName.substring(0, 48)}…` : g.suppName;
+    displayName.length > 48 ? `${displayName.substring(0, 48)}…` : displayName;
 
   return (
     <div className="hist-list-group">

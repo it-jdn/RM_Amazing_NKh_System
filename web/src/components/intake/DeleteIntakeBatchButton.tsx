@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { IconTrash } from "@/components/icons/AppIcons";
 import { apiDelete } from "@/lib/api/client";
 import {
   canDeleteIntakeBatch,
@@ -17,6 +18,7 @@ type Props = {
   slipId?: string;
   role: AppRole;
   className?: string;
+  iconOnly?: boolean;
   onDeleted: () => void;
 };
 
@@ -27,6 +29,7 @@ export function DeleteIntakeBatchButton({
   slipId,
   role,
   className = "btn btn-danger-outline btn-sm",
+  iconOnly = false,
   onDeleted,
 }: Props) {
   const { locale, t } = useLocale();
@@ -73,15 +76,28 @@ export function DeleteIntakeBatchButton({
     }
   }
 
+  const label = slipId ? t("intake.deleteSlip") : t("intake.deleteBatch");
+
   return (
     <button
       type="button"
       className={className}
       disabled={deleting || !allowed}
-      title={!allowed ? deniedMessage() : undefined}
+      title={!allowed ? deniedMessage() : iconOnly ? label : undefined}
+      aria-label={iconOnly ? label : undefined}
       onClick={handleDelete}
     >
-      {deleting ? t("intake.deleting") : slipId ? t("intake.deleteSlip") : t("intake.deleteBatch")}
+      {iconOnly ? (
+        deleting ? (
+          <span aria-hidden>…</span>
+        ) : (
+          <IconTrash size={20} aria-hidden />
+        )
+      ) : deleting ? (
+        t("intake.deleting")
+      ) : (
+        label
+      )}
     </button>
   );
 }

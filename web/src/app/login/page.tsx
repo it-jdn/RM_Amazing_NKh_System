@@ -40,12 +40,14 @@ function LoginForm() {
   const [role, setRole] = useState<AppRole>("operator");
   const [error, setError] = useState("");
   const [pinError, setPinError] = useState(false);
+  const [pinFormatError, setPinFormatError] = useState(false);
   const [loading, setLoading] = useState(false);
 
   function selectRole(id: AppRole) {
     setRole(id);
     setError("");
     setPinError(false);
+    setPinFormatError(false);
     requestAnimationFrame(() => pinRef.current?.focus());
   }
 
@@ -54,6 +56,7 @@ function LoginForm() {
     if (postingRef.current) return;
     setError("");
     setPinError(false);
+    setPinFormatError(false);
     postingRef.current = true;
     setLoading(true);
     try {
@@ -97,14 +100,14 @@ function LoginForm() {
           </div>
         </div>
       ) : null}
-      <div className="login-lang-corner">
-        <LocaleSwitcher variant="loginCorner" />
-      </div>
       <form
         onSubmit={handleSubmit}
         className={`login-box${loading ? " login-box--busy" : ""}`}
         aria-busy={loading || undefined}
       >
+        <div className="login-box__lang">
+          <LocaleSwitcher variant="loginCorner" />
+        </div>
         <LoginTitle subtitle={t("brand.subtitle")} />
         <div className="login-box__fields">
           <div className="login-sub">{t("login.subtitle")}</div>
@@ -131,13 +134,25 @@ function LoginForm() {
             onChange={(digits) => {
               setPin(digits);
               setPinError(false);
+              setPinFormatError(false);
               setError("");
             }}
+            onNonDigit={() => setPinFormatError(true)}
             pinError={pinError}
+            formatError={pinFormatError}
             disabled={loading}
             aria-label={t("login.pin")}
-            aria-describedby={error ? "login-error" : undefined}
+            aria-describedby={
+              [pinFormatError ? "login-pin-format" : null, error ? "login-error" : null]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
           />
+          {pinFormatError ? (
+            <p id="login-pin-format" className="login-pin-format-hint" role="alert">
+              {t("login.pinDigitsOnly")}
+            </p>
+          ) : null}
           {error ? (
             <div
               id="login-error"
@@ -176,8 +191,8 @@ function LoginTitle({ subtitle }: { subtitle: string }) {
       <Image
         src="/amazing-nkh-logo.png"
         alt="Amazing Nongkhai"
-        width={666}
-        height={471}
+        width={1024}
+        height={759}
         sizes="(max-width: 484px) 92vw, 468px"
         quality={95}
         className="login-brand__logo"

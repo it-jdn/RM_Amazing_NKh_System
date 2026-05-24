@@ -6,8 +6,10 @@ type Props = {
   id: string;
   value: string;
   onChange: (digits: string) => void;
+  onNonDigit?: () => void;
   disabled?: boolean;
   pinError?: boolean;
+  formatError?: boolean;
   "aria-label": string;
   "aria-describedby"?: string;
 };
@@ -18,8 +20,10 @@ export const LoginPinInput = forwardRef<HTMLInputElement, Props>(function LoginP
     id,
     value,
     onChange,
+    onNonDigit,
     disabled,
     pinError,
+    formatError,
     "aria-label": ariaLabel,
     "aria-describedby": ariaDescribedBy,
   },
@@ -31,7 +35,7 @@ export const LoginPinInput = forwardRef<HTMLInputElement, Props>(function LoginP
 
   return (
     <div
-      className={`pin-input-shell${pinError ? " pin-input-shell--error" : ""}${disabled ? " pin-input-shell--disabled" : ""}`}
+      className={`pin-input-shell${pinError || formatError ? " pin-input-shell--error" : ""}${disabled ? " pin-input-shell--disabled" : ""}`}
     >
       <div className="pin-input-dots" aria-hidden="true">
         {value ? "●".repeat(value.length) : null}
@@ -45,10 +49,15 @@ export const LoginPinInput = forwardRef<HTMLInputElement, Props>(function LoginP
         className="pin-input pin-input--masked"
         maxLength={8}
         value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+        onChange={(e) => {
+          const raw = e.target.value;
+          const digits = raw.replace(/\D/g, "");
+          if (raw.length > digits.length) onNonDigit?.();
+          onChange(digits);
+        }}
         disabled={disabled}
         aria-label={ariaLabel}
-        aria-invalid={pinError || undefined}
+        aria-invalid={pinError || formatError || undefined}
         aria-describedby={ariaDescribedBy}
         spellCheck={false}
       />

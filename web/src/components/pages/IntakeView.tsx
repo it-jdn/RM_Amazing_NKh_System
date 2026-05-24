@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useAppData } from "@/context/AppDataContext";
 import { apiGet, apiPost } from "@/lib/api/client";
 import { IntakeSaveConfirmModal } from "@/components/intake/IntakeSaveConfirmModal";
@@ -31,6 +32,7 @@ import {
   type IntakeItemSortState,
 } from "@/lib/domain/intake-item-sort";
 import { extractSlipNoteFromRows } from "@/lib/domain/intake-slip-note";
+import { DeleteIntakeBatchButton } from "@/components/intake/DeleteIntakeBatchButton";
 import { IntakeBackToOverviewBar } from "@/components/intake/IntakeBackToOverviewBar";
 import { IntakeDayOverview } from "@/components/intake/IntakeDayOverview";
 import { IntakeShopSlips } from "@/components/intake/IntakeShopSlips";
@@ -45,6 +47,8 @@ import { unitDisplayName } from "@/lib/i18n/unit-display-name";
 import type { UnitPairHint } from "@/lib/types";
 import { useModalLayer } from "@/hooks/useModalLayer";
 import { useIntakeNavGuardOptional } from "@/context/IntakeNavGuardContext";
+import { RECEIVING_PATH } from "@/lib/auth/paths";
+import { unitConversionMessageParams } from "@/lib/domain/intake-unit-conversion";
 import { fmt, todayISO } from "@/lib/utils/format";
 import {
   displayNumericField,
@@ -63,7 +67,8 @@ type CurItem = Item & {
 type PendingNav =
   | { kind: "date"; value: string }
   | { kind: "supp"; value: string }
-  | { kind: "slip"; slipId: string; suppCode: string; slipNo?: number };
+  | { kind: "slip"; slipId: string; suppCode: string; slipNo?: number }
+  | { kind: "external"; href: string };
 
 type SlipMetaResponse = {
   success: boolean;
@@ -76,6 +81,8 @@ type SlipMetaResponse = {
 };
 
 export function IntakeView() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { suppliers, items, mapping, purchaseUnits, itemPurchaseStandards, units, reload, role } =
     useAppData();
   const activeSuppliers = useMemo(
@@ -329,29 +336,73 @@ export function IntakeView() {
     return isIntakeRowValsDirty(rowVals, baselineVals);
   }, [suppSel, rowVals, baselineVals]);
 
-  const setIntakeNavDirty = useIntakeNavGuardOptional()?.setIntakeDirty;
+  const intakeGuard = useIntakeNavGuardOptional();
+  const setIntakeNavDirty = intakeGuard?.setIntakeDirty;
   useEffect(() => {
     if (!setIntakeNavDirty) return;
     setIntakeNavDirty(isDirty);
     return () => setIntakeNavDirty(false);
   }, [isDirty, setIntakeNavDirty]);
 
-  function applyNavigation(nav: PendingNav) {
-    if (nav.kind === "date") {
-      setIntakeDate(nav.value);
-      setSuppSel("");
-      setActiveSlipId("");
-      setActiveSlipNo(null);
-    } else if (nav.kind === "supp") {
-      setSuppSel(nav.value);
-      setActiveSlipId("");
-      setActiveSlipNo(null);
-    } else {
-      setSuppSel(nav.suppCode);
-      setActiveSlipId(nav.slipId);
-      setActiveSlipNo(nav.slipNo ?? null);
-    }
-  }
+  const applyNavigation = useCallback(
+    (nav: PendingNav) => {
+      if (nav.kind === "external") {
+        if (nav.href === RECEIVING_PATH || nav.href.startsWith(`${RECEIVING_PATH}/`)) {
+          setSuppSel("");
+          setActiveSlipId("");
+          setActiveSlipNo(null);
+          if (pathname !== RECEIVING_PATH) {
+            router.push(RECEIVING_PATH);
+          }
+        } else {
+          router.push(nav.href);
+        }
+        return;
+      }
+      if (nav.kind === "date") {
+        setIntakeDate(nav.value);
+        setSuppSel("");
+        setActiveSlipId("");
+        setActiveSlipNo(null);
+      } else if (nav.kind === "supp") {
+        setSuppSel(nav.value);
+        setActiveSlipId("");
+        setActiveSlipNo(null);
+      } else {
+        setSuppSel(nav.suppCode);
+        setActiveSlipId(nav.slipId);
+        setActiveSlipNo(nav.slipNo ?? null);
+      }
+    },
+    [pathname, router]
+  );
+
+  useEffect(() => {
+    const setHandler = intakeGuard?.setLeaveNavigationHandler;
+    if (!setHandler) return;
+    const handler = (href: string) => {
+      const toReceiving = href === RECEIVING_PATH || href.startsWith(`${RECEIVING_PATH}/`);
+      if (toReceiving) {
+        if (!suppSel && pathname === RECEIVING_PATH && !isDirty) return;
+        const nav: PendingNav = { kind: "external", href: RECEIVING_PATH };
+        if (!isDirty) {
+          applyNavigation(nav);
+          return;
+        }
+        setPendingNav(nav);
+        setShowUnsavedNav(true);
+        return;
+      }
+      if (!isDirty) {
+        router.push(href);
+        return;
+      }
+      setPendingNav({ kind: "external", href });
+      setShowUnsavedNav(true);
+    };
+    setHandler(handler);
+    return () => setHandler(null);
+  }, [applyNavigation, intakeGuard?.setLeaveNavigationHandler, isDirty, pathname, router, suppSel]);
 
   function requestNavigate(nav: PendingNav) {
     if (nav.kind === "date" && nav.value === intakeDate) return;
@@ -722,28 +773,16 @@ export function IntakeView() {
         createdByName={slipAudit?.createdByName}
         updatedAt={slipAudit?.updatedAt}
         updatedByName={slipAudit?.updatedByName}
-        productCount={slipProductCount}
         hasDuplicateRows={hasDuplicateRows}
-        role={role}
-        suppCode={suppSel}
-        canEdit={canEditSlip}
         readOnly={readOnly}
         loading={loadingSlip}
         saving={saving}
-        onReset={() => setShowResetConfirm(true)}
         slipNo={activeSlipNo ?? undefined}
         slipTotal={
           !activeSlipId || isDirty || slipStatus === "draft" || slipStatus === "new"
             ? sumTotal
             : activeSlipMeta?.totalPrice
         }
-        onDeleted={() => {
-          setActiveSlipId("");
-          setActiveSlipNo(null);
-          setSlipListRefresh((k) => k + 1);
-          resetNewSlipForm();
-        }}
-        showSavedActions={Boolean(activeSlipId && canEditSlip)}
       />
     );
   }
@@ -882,10 +921,28 @@ export function IntakeView() {
             sumCount={sumCount}
             sumTotal={sumTotal}
             formFilled={formFilledCount}
-            formTotal={filteredItems.length}
             saving={saving || loadingSlip || readOnly}
-            shopName={shopName}
             onSave={requestSave}
+            slipActions={
+              activeSlipId && canEditSlip && !readOnly
+                ? {
+                    onReset: () => setShowResetConfirm(true),
+                    delete: {
+                      date: intakeDate,
+                      suppCode: suppSel,
+                      suppName: shopName,
+                      slipId: activeSlipId,
+                      role,
+                      onDeleted: () => {
+                        setActiveSlipId("");
+                        setActiveSlipNo(null);
+                        setSlipListRefresh((k) => k + 1);
+                        resetNewSlipForm();
+                      },
+                    },
+                  }
+                : undefined
+            }
           />
 
           <div className="sum-bar sum-bar--desktop">
@@ -905,12 +962,38 @@ export function IntakeView() {
               <div style={{ fontSize: 10, opacity: 0.7 }}>{t("intake.totalWon")}</div>
               <div className="s-val">₩{fmt(sumTotal)}</div>
             </div>
+            {activeSlipId && canEditSlip && !readOnly ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={saving || loadingSlip}
+                  onClick={() => setShowResetConfirm(true)}
+                >
+                  {t("intake.resetForm")}
+                </button>
+                <DeleteIntakeBatchButton
+                  date={intakeDate}
+                  suppCode={suppSel}
+                  suppName={shopName}
+                  slipId={activeSlipId}
+                  role={role}
+                  className="btn btn-danger-outline btn-sm"
+                  onDeleted={() => {
+                    setActiveSlipId("");
+                    setActiveSlipNo(null);
+                    setSlipListRefresh((k) => k + 1);
+                    resetNewSlipForm();
+                  }}
+                />
+              </>
+            ) : null}
             <button
               type="button"
               className="btn btn-green"
               disabled={saving || loadingSlip || readOnly}
               onClick={requestSave}
-              style={{ marginLeft: "auto" }}
+              style={{ marginLeft: activeSlipId && canEditSlip && !readOnly ? undefined : "auto" }}
             >
               {saving ? t("intake.saving") : loadingSlip ? t("intake.slipStatus.loading") : t("intake.save")}
             </button>
@@ -1196,8 +1279,12 @@ function IntakeTable({
                     ) : null}
                   </td>
                   <td className="itbl__sub">
-                    <span className="badge badge-gray">{it.subUnit}</span>
-                    <span className="itbl__convert">×{it.convertRate}</span>
+                    <span className="itbl__unit-conversion">
+                      {t(
+                        "intake.unitConversion",
+                        unitConversionMessageParams(it.unit, it.subUnit, it.convertRate)
+                      )}
+                    </span>
                   </td>
                 </tr>
               );

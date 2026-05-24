@@ -13,7 +13,7 @@ import {
 } from "@/lib/navigation/admin-nav";
 import type { AdminNavItem } from "@/lib/navigation/admin-nav";
 import type { AppRole } from "@/lib/types";
-import { useAdminUnsavedOptional } from "@/components/admin/AdminUnsavedChangesProvider";
+import { useGuardedNavigation } from "@/hooks/useGuardedNavigation";
 import { useDropdownTransition } from "@/hooks/useDropdownTransition";
 
 type MenuPos = { top: number; left: number; minWidth: number };
@@ -35,7 +35,7 @@ export function NavSettingsMenu({ role }: { role: AppRole }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
   const settingsActive = isAdminSettingsPath(pathname);
-  const unsaved = useAdminUnsavedOptional();
+  const { navigate } = useGuardedNavigation();
 
   useEffect(() => setMounted(true), []);
 
@@ -108,9 +108,9 @@ export function NavSettingsMenu({ role }: { role: AppRole }) {
                 className={`nav-settings__option ${active ? "active" : ""}`}
                 onClick={(e) => {
                   setOpen(false);
-                  if (!active && unsaved) {
+                  if (!active) {
                     e.preventDefault();
-                    unsaved.requestNavigation(item.href);
+                    navigate(item.href);
                   }
                 }}
               >
@@ -129,9 +129,9 @@ export function NavSettingsMenu({ role }: { role: AppRole }) {
                 className={`nav-settings__option nav-settings__option--users ${navItemActive(pathname, usersItem) ? "active" : ""}`}
                 onClick={(e) => {
                   setOpen(false);
-                  if (!navItemActive(pathname, usersItem) && unsaved) {
+                  if (!navItemActive(pathname, usersItem)) {
                     e.preventDefault();
-                    unsaved.requestNavigation(usersItem.href);
+                    navigate(usersItem.href);
                   }
                 }}
               >

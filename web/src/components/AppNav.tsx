@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { AppRole } from "@/lib/types";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -14,8 +13,7 @@ import { getCurrentNavTitleKey } from "@/lib/navigation/nav-title";
 import { AppMobileMenu } from "@/components/nav/AppMobileMenu";
 import { NavSettingsMenu } from "@/components/nav/NavSettingsMenu";
 import { NavUserMenu } from "@/components/nav/NavUserMenu";
-import { useAdminUnsavedOptional } from "@/components/admin/AdminUnsavedChangesProvider";
-import { useIntakeNavGuardOptional } from "@/context/IntakeNavGuardContext";
+import { useGuardedNavigation } from "@/hooks/useGuardedNavigation";
 
 const TABS: { href: string; labelKey: MessageKey; roles: AppRole[] }[] = [
   { href: "/receiving", labelKey: "nav.intake", roles: ["operator", "admin", "manager"] },
@@ -48,29 +46,18 @@ export function AppNav({
     return pathname === href;
   }
 
-  const adminUnsaved = useAdminUnsavedOptional();
-  const intakeGuard = useIntakeNavGuardOptional();
+  const { navigate, goToReceiving } = useGuardedNavigation();
 
-  const refreshPage = useCallback(() => {
-    window.location.reload();
-  }, []);
+  function onLogoClick(e: React.MouseEvent) {
+    e.preventDefault();
+    goToReceiving();
+  }
 
-  const onLogoClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      if (adminUnsaved?.dirty) {
-        adminUnsaved.guardAction(refreshPage);
-        return;
-      }
-      if (intakeGuard?.intakeDirty) {
-        if (!window.confirm(t("intake.logoRefreshUnsavedConfirm"))) return;
-        refreshPage();
-        return;
-      }
-      refreshPage();
-    },
-    [adminUnsaved, intakeGuard, refreshPage, t]
-  );
+  function onTabClick(e: React.MouseEvent, href: string) {
+    if (tabActive(href)) return;
+    e.preventDefault();
+    navigate(href);
+  }
 
   async function logout() {
     await apiPost("/api/auth/logout", {});
@@ -102,6 +89,7 @@ export function AppNav({
               key={tab.href}
               href={tab.href}
               className={`nav-tab ${tabActive(tab.href) ? "active" : ""}`}
+              onClick={(e) => onTabClick(e, tab.href)}
             >
               {t(tab.labelKey)}
             </Link>
@@ -144,10 +132,10 @@ function NavBrand({
       onClick={onLogoClick}
     >
       <Image
-        src="/amazing-nkh-logo.png"
+        src="/amazing-nkh-logo-nav.png"
         alt=""
-        width={54}
-        height={38}
+        width={1024}
+        height={724}
         className="nav-brand__logo"
         priority
       />
