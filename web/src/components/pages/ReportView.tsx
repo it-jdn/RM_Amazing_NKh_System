@@ -32,6 +32,7 @@ import { ReportFilters } from "@/components/reports/ReportFilters";
 import { ReportHeatmap } from "@/components/reports/ReportHeatmap";
 import { ReportKpiCard, ReportKpiGrid } from "@/components/reports/ReportKpiGrid";
 import { ReportTableSection } from "@/components/reports/ReportTableSection";
+import { ReportTablePager, useReportTablePaging } from "@/components/reports/ReportTablePager";
 
 ChartJS.register(
   CategoryScale,
@@ -121,6 +122,17 @@ function wonTicks(v: string | number) {
   return "₩" + fmt(Number(v));
 }
 
+const CATEGORY_CHART_COLORS = [
+  "rgba(255,66,26,.75)",
+  "rgba(26,107,181,.75)",
+  "rgba(76,140,74,.75)",
+  "rgba(120,90,180,.75)",
+  "rgba(200,150,50,.75)",
+  "rgba(220,100,140,.75)",
+  "rgba(60,160,160,.75)",
+  "rgba(140,120,90,.75)",
+];
+
 export function ReportView() {
   const { suppliers, items, itemCategories: categoriesFromApi } = useAppData();
   const itemCategories = categoriesFromApi.length ? categoriesFromApi : FALLBACK_ITEM_CATEGORIES;
@@ -135,6 +147,10 @@ export function ReportView() {
   const [showCompare, setShowCompare] = useState(false);
   const [loading, setLoading] = useState(false);
   const [datePreset, setDatePreset] = useState("all");
+
+  const categoryPaging = useReportTablePaging(data?.byCategory.length ?? 0);
+  const itemPaging = useReportTablePaging(data?.byItem.length ?? 0);
+  const detailPaging = useReportTablePaging(data?.rows.length ?? 0);
 
   const reportCategories =
     data?.itemCategories?.length ? data.itemCategories : itemCategories;
@@ -314,15 +330,62 @@ export function ReportView() {
         datasets: [
           {
             data: data.byCategory.map((x) => x.totalPrice),
-            backgroundColor: [
-              "rgba(232,66,26,.75)",
-              "rgba(26,107,181,.75)",
-              "rgba(76,140,74,.75)",
-              "rgba(120,90,180,.75)",
-              "rgba(200,150,50,.75)",
-            ],
+            backgroundColor: data.byCategory.map(
+              (_, i) => CATEGORY_CHART_COLORS[i % CATEGORY_CHART_COLORS.length]!
+            ),
           },
         ],
+      }
+    : null;
+
+  const categoryChartOptions = data?.byCategory.length
+    ? {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1,
+        plugins: {
+          legend: {
+            position: "bottom" as const,
+            labels: {
+              boxWidth: 10,
+              padding: 6,
+              font: { size: 10 },
+              generateLabels(chart: ChartJS) {
+                const labels = chart.data.labels ?? [];
+                const dataset = chart.data.datasets[0];
+                if (!dataset) return [];
+                const colors = dataset.backgroundColor as string[];
+                return labels.map((label, i) => {
+                  const row = data.byCategory[i];
+                  if (!row) {
+                    return { text: String(label), fillStyle: colors[i] ?? "#ccc", hidden: false, index: i };
+                  }
+                  const text = `${label} · ₩${fmt(row.totalPrice)} · ${row.sharePct.toFixed(1)}% · ${row.count} ${t("report.lines")}`;
+                  return {
+                    text,
+                    fillStyle: colors[i % colors.length] ?? "#ccc",
+                    strokeStyle: "transparent",
+                    hidden: false,
+                    index: i,
+                  };
+                });
+              },
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label(ctx: { dataIndex: number }) {
+                const row = data.byCategory[ctx.dataIndex];
+                if (!row) return "";
+                return [
+                  `${t("report.value")}: ₩${fmt(row.totalPrice)}`,
+                  `${t("report.share")}: ${row.sharePct.toFixed(1)}%`,
+                  `${t("report.categoryTrans")}: ${row.count}`,
+                ];
+              },
+            },
+          },
+        },
       }
     : null;
 
@@ -457,19 +520,15 @@ export function ReportView() {
           </div>
 
           <div className="report-charts-grid report-charts-grid--3">
-            {categoryDoughnut && (
-              <div className="card">
+            {categoryDoughnut && categoryChartOptions && (
+              <div className="card report-category-chart-card">
                 <div className="card-title">
                   <span className="dot dot-orange" />
                   <span>{t("report.byCategory")}</span>
                 </div>
-                <Doughnut
-                  data={categoryDoughnut}
-                  options={{
-                    responsive: true,
-                    plugins: { legend: { position: "right" } },
-                  }}
-                />
+                <div className="report-category-chart-wrap">
+                  <Doughnut data={categoryDoughnut} options={categoryChartOptions} />
+                </div>
               </div>
             )}
             {suppBarData && (
@@ -515,6 +574,16 @@ export function ReportView() {
             onExportExcel={exportCategoryExcel}
             exportDisabled={!data.byCategory.length}
           >
+            <ReportTablePager
+              totalRows={data.byCategory.length}
+              pageSize={categoryPaging.pageSize}
+              page={categoryPaging.page}
+              totalPages={categoryPaging.totalPages}
+              from={categoryPaging.from}
+              to={categoryPaging.to}
+              onPageSizeChange={categoryPaging.setPageSize}
+              onPageChange={categoryPaging.setPage}
+            />
             <div className="tbl-scroll tbl-scroll--cards">
               <table className="dtbl dtbl--cards">
                 <thead>
@@ -529,9 +598,11 @@ export function ReportView() {
                 </thead>
                 <tbody>
                   {data.byCategory.length ? (
-                    data.byCategory.map((row, i) => (
+                    data.byCategory
+                      .slice(categoryPaging.offset, categoryPaging.offset + categoryPaging.limit)
+                      .map((row, i) => (
                       <tr key={row.categoryCode}>
-                        <td className="row-num" data-label={t("admin.table.rowCol")}>{i + 1}</td>
+                        <td className="row-num" data-label={t("admin.table.rowCol")}>{categoryPaging.offset + i + 1}</td>
                         <td data-label={t("report.category")}>
                           <b>{categoryLabel(row.categoryCode, row.categoryNameTH)}</b>
                         </td>
@@ -559,6 +630,16 @@ export function ReportView() {
             onExportExcel={exportItemExcel}
             exportDisabled={!data.byItem.length}
           >
+            <ReportTablePager
+              totalRows={data.byItem.length}
+              pageSize={itemPaging.pageSize}
+              page={itemPaging.page}
+              totalPages={itemPaging.totalPages}
+              from={itemPaging.from}
+              to={itemPaging.to}
+              onPageSizeChange={itemPaging.setPageSize}
+              onPageChange={itemPaging.setPage}
+            />
             <div className="tbl-scroll tbl-scroll--cards">
               <table className="dtbl dtbl--cards">
                 <thead>
@@ -573,9 +654,11 @@ export function ReportView() {
                 </thead>
                 <tbody>
                   {data.byItem.length ? (
-                    data.byItem.map((x, i) => (
+                    data.byItem
+                      .slice(itemPaging.offset, itemPaging.offset + itemPaging.limit)
+                      .map((x, i) => (
                       <tr key={x.itemCode}>
-                        <td className="row-num" data-label={t("admin.table.rowCol")}>{i + 1}</td>
+                        <td className="row-num" data-label={t("admin.table.rowCol")}>{itemPaging.offset + i + 1}</td>
                         <td data-label={t("report.item")}>
                           <b>{itemName(x.itemCode, x.itemName)}</b>
                         </td>
@@ -603,6 +686,16 @@ export function ReportView() {
             onExportExcel={exportDetailExcel}
             exportDisabled={!data.rows.length}
           >
+            <ReportTablePager
+              totalRows={data.rows.length}
+              pageSize={detailPaging.pageSize}
+              page={detailPaging.page}
+              totalPages={detailPaging.totalPages}
+              from={detailPaging.from}
+              to={detailPaging.to}
+              onPageSizeChange={detailPaging.setPageSize}
+              onPageChange={detailPaging.setPage}
+            />
             <div className="tbl-scroll tbl-scroll--cards">
               <table className="dtbl dtbl--cards">
                 <thead>
@@ -617,9 +710,11 @@ export function ReportView() {
                 </thead>
                 <tbody>
                   {data.rows.length ? (
-                    data.rows.map((r, i) => (
-                      <tr key={`${r.date}-${r.suppCode}-${r.itemNameTH}-${i}`}>
-                        <td className="row-num" data-label={t("admin.table.rowCol")}>{i + 1}</td>
+                    data.rows
+                      .slice(detailPaging.offset, detailPaging.offset + detailPaging.limit)
+                      .map((r, i) => (
+                      <tr key={`${r.date}-${r.suppCode}-${r.itemNameTH}-${detailPaging.offset + i}`}>
+                        <td className="row-num" data-label={t("admin.table.rowCol")}>{detailPaging.offset + i + 1}</td>
                         <td data-label={t("intake.date")}>{formatAppDate(r.date, locale)}</td>
                         <td data-label={t("report.shop")}>{shopName(r.suppCode, r.suppName)}</td>
                         <td data-label={t("report.item")}>

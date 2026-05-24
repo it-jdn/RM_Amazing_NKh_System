@@ -266,7 +266,7 @@ export function HistorySlipDetail({
     }
   }
 
-  async function handleSave() {
+  const handleSave = useCallback(async () => {
     if (!canEdit) {
       toast(t("intake.readOnlyHint"));
       return;
@@ -315,7 +315,36 @@ export function HistorySlipDetail({
     } finally {
       setSaving(false);
     }
-  }
+  }, [
+    canEdit,
+    rowVals,
+    slipRows,
+    items,
+    mapping,
+    date,
+    suppCode,
+    suppName,
+    slipNote,
+    legacyMode,
+    selectedSlipId,
+    toast,
+    t,
+    onSaved,
+    loadMeta,
+  ]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (canEdit && dirty && !saving && !loadingMeta) {
+          void handleSave();
+        }
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canEdit, dirty, saving, loadingMeta, handleSave]);
 
   function rowKeyFor(row: { kind: "rx" | "empty"; txn?: TransactionRow }) {
     if (row.kind !== "rx" || !row.txn) return null;

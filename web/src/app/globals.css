@@ -32,9 +32,14 @@
   --control-font-size: 14px;
   --control-radius: 8px;
   --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a6a99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  /* Mobile UX foundation — breakpoints: tablet ≤1024px, phone ≤768px */
+  /* Mobile UX foundation — breakpoints: phone ≤768, tablet ≤1024, desktop ≥1025 */
+  --bp-phone: 768px;
+  --bp-tablet: 1024px;
+  --bp-desktop: 1025px;
   --page-gutter-phone: 12px;
   --page-gutter-tablet: 14px;
+  --page-gutter-desktop: 20px;
+  --content-max-width: 1400px;
   /* Z-index stack: nav 200 → sticky-bar 250 → modal 300 → drawer 900 → toast 999 */
   --z-nav: 200;
   --z-sticky-bar: 250;
@@ -368,7 +373,7 @@ button.nav-brand {
   font-size: 12px;
 }
 
-.wrap { max-width: 1400px; margin: 0 auto; padding: 20px 20px 80px; }
+.wrap { max-width: var(--content-max-width); margin: 0 auto; padding: var(--page-gutter-desktop) var(--page-gutter-desktop) 80px; }
 
 .card {
   background: var(--surface);
@@ -1393,9 +1398,69 @@ input[type="radio"] {
 
 .hist-mobile-only { display: none; }
 .hist-desktop-only { display: block; }
+.hist-list-table-wrap { display: none; }
+.hist-list-cards { display: block; }
 @media (max-width: 1024px) {
   .hist-mobile-only { display: block; }
   .hist-desktop-only { display: none !important; }
+}
+@media (min-width: 1025px) {
+  .hist-list-table-wrap { display: block; }
+  .hist-list-cards { display: none; }
+  .hist-list-table-scroll {
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+  .hist-list-table {
+    min-width: 1080px;
+    font-size: 14px;
+  }
+  .hist-list-table thead th {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+  .hist-list-table__th-num,
+  .hist-list-table__num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .hist-list-table__shop {
+    font-weight: 600;
+    max-width: 420px;
+  }
+  .hist-list-table__total {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--green);
+  }
+  .hist-list-table__who {
+    max-width: 140px;
+    font-size: 13px;
+  }
+  .hist-list-table__when {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: #475569;
+  }
+  .hist-list-table__when-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: #64748b;
+  }
+  .hist-list-table__row {
+    cursor: pointer;
+  }
+  .hist-list-table__row:hover {
+    background: #f0f7ff !important;
+  }
+  .hist-list-table__row:focus-visible {
+    outline: 2px solid var(--brand-blue);
+    outline-offset: -2px;
+  }
 }
 
 .hist-edit-cards {
@@ -3143,6 +3208,7 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
 
 /* Tablet intake: date + shop bar (≤1024px, iPad) */
 @media (max-width: 1024px) {
+  .sum-bar--desktop { display: none !important; }
   .intake-mobile-only { display: block; }
   .intake-desktop-only { display: none; }
 
@@ -6442,6 +6508,55 @@ input.intake-touch-input,
 
 /* Desktop intake overview — calmer type scale and spacing */
 @media (min-width: 1025px) {
+  .main--operator .wrap {
+    padding-left: var(--page-gutter-desktop);
+    padding-right: var(--page-gutter-desktop);
+    padding-bottom: 48px;
+  }
+  .main--operator .wrap.wrap--with-sticky-save {
+    padding-bottom: 48px;
+  }
+  .wrap.wrap--hist-detail.wrap--with-sticky-save {
+    padding-bottom: var(--page-gutter-desktop);
+  }
+
+  .intake-desktop-only .tbl-scroll {
+    max-height: min(70vh, 720px);
+    overflow: auto;
+  }
+  table.itbl--intake thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  table.itbl--intake thead th.itbl__th-sort {
+    background: var(--brand-dark);
+  }
+  table.itbl--intake tbody tr:hover {
+    filter: brightness(0.98);
+  }
+  table.itbl--intake tbody tr:focus-within {
+    outline: 2px solid rgba(26, 107, 181, 0.35);
+    outline-offset: -2px;
+  }
+
+  .hist-detail-footer__bar {
+    background: linear-gradient(135deg, var(--brand-dark) 0%, #2254cc 100%);
+    color: #fff;
+    border: none;
+    border-radius: 0 0 8px 8px;
+    padding: 12px 16px;
+  }
+  .hist-detail-footer__lbl {
+    color: rgba(255, 255, 255, 0.75);
+  }
+  .hist-detail-footer__val {
+    color: #fff;
+  }
+  .hist-detail-footer__save {
+    min-height: var(--control-height);
+  }
+
   .intake-page.wrap {
     padding-top: 16px;
     padding-bottom: 48px;
@@ -9827,12 +9942,72 @@ input.intake-touch-input,
 .report-charts-grid--3 {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
+.report-charts-grid--3 > .card {
+  min-width: 0;
+}
+.report-category-chart-wrap {
+  width: 100%;
+}
+.report-category-chart-wrap canvas {
+  max-height: 240px;
+}
+@media (min-width: 1025px) {
+  .report-charts-grid--3 {
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: start;
+  }
+  .report-category-chart-wrap canvas {
+    max-height: 200px;
+  }
+}
 .report-pagination {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin: 0 0 12px;
+  padding: 0 2px;
   font-size: 0.9rem;
+}
+.report-pagination__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.report-pagination__size-label {
+  color: var(--muted, #64748b);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.report-pagination__size select {
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: #fff;
+  font-size: 13px;
+}
+.report-pagination__range {
+  color: var(--muted, #64748b);
+  font-size: 13px;
+}
+.report-pagination__nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.report-pagination__page {
+  font-size: 13px;
+  color: var(--navy, #1e293b);
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .report-pagination__nav {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 .report-filters__loading {
   font-size: 12px;
@@ -9939,7 +10114,7 @@ input.intake-touch-input,
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1025px) {
   .report-filters__fields .filter-group {
     flex: 0 1 160px;
   }

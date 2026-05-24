@@ -1240,6 +1240,7 @@ function IntakeTable({
                     <input
                       type="text"
                       inputMode="decimal"
+                      enterKeyHint="next"
                       autoComplete="off"
                       className="inp-qty"
                       value={displayNumericField(v.qty)}
@@ -1265,6 +1266,7 @@ function IntakeTable({
                     <input
                       type="text"
                       inputMode="decimal"
+                      enterKeyHint="done"
                       autoComplete="off"
                       className="inp-total"
                       value={displayNumericField(v.total)}

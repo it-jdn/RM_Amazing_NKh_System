@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppData } from "@/context/AppDataContext";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
 import { supplierDisplayName, supplierDisplayNameByCode } from "@/lib/i18n/supplier-name";
-import type { Supplier } from "@/lib/types";
+import type { IntakeSlipSummary, Supplier } from "@/lib/types";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { useToast } from "@/components/Toast";
 import { AppDateField } from "@/components/ui/AppDateField";
@@ -19,6 +19,8 @@ import {
   histDatePresetRange,
 } from "@/lib/utils/format";
 import { HistorySlipDetail } from "@/components/history/HistorySlipDetail";
+import { HistoryListTable } from "@/components/history/HistoryListTable";
+import { buildHistoryListGroups } from "@/lib/domain/history-list-groups";
 import type { Locale } from "@/lib/i18n/types";
 import type { TransactionRow } from "@/lib/types";
 
@@ -37,6 +39,7 @@ export function HistoryView() {
   const { locale, t } = useLocale();
   const toast = useToast();
   const [histTxns, setHistTxns] = useState<TransactionRow[]>([]);
+  const [histSlips, setHistSlips] = useState<IntakeSlipSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [histSortAsc, setHistSortAsc] = useState(false);
   const [hFrom, setHFrom] = useState(() => histDatePresetRange("thisMonth").from);
@@ -65,6 +68,59 @@ export function HistoryView() {
     loadHist();
   }, [loadHist]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSlips() {
+      let slipFrom = hFrom;
+      let slipTo = hTo;
+      if (!slipFrom || !slipTo) {
+        if (histTxns.length === 0) {
+          if (!cancelled) setHistSlips([]);
+          return;
+        }
+        slipFrom = histTxns.reduce(
+          (min, row) => (row.date < min ? row.date : min),
+          histTxns[0]!.date
+        );
+        slipTo = histTxns.reduce(
+          (max, row) => (row.date > max ? row.date : max),
+          histTxns[0]!.date
+        );
+      }
+
+      try {
+        const query = new URLSearchParams({ dateFrom: slipFrom, dateTo: slipTo });
+        const data = await apiGet<{ success: boolean; slips: IntakeSlipSummary[] }>(
+          `/api/transactions/slips?${query}`
+        );
+        if (!cancelled && data.success) setHistSlips(data.slips);
+      } catch {
+        if (!cancelled) setHistSlips([]);
+      }
+    }
+
+    void loadSlips();
+    return () => {
+      cancelled = true;
+    };
+  }, [histTxns, hFrom, hTo]);
+
+  const sorted = useMemo(() => {
+    const filtered = histTxns.filter((txn) => {
+      if (hFrom && txn.date < hFrom) return false;
+      if (hTo && txn.date > hTo) return false;
+      if (hSupp && txn.suppCode !== hSupp) return false;
+      return true;
+    });
+
+    const groups = buildHistoryListGroups(filtered, histSlips);
+    return groups.sort((a, b) => {
+      const cmp = String(a.date).localeCompare(String(b.date));
+      return histSortAsc ? cmp : -cmp;
+    });
+  }, [histTxns, histSlips, hFrom, hTo, hSupp, histSortAsc]);
+
   if (detail) {
     return (
       <div className="wrap wrap--hist-detail wrap--with-sticky-save">
@@ -88,37 +144,6 @@ export function HistoryView() {
       </div>
     );
   }
-
-  const filtered = histTxns.filter((t) => {
-    if (hFrom && t.date < hFrom) return false;
-    if (hTo && t.date > hTo) return false;
-    if (hSupp && t.suppCode !== hSupp) return false;
-    return true;
-  });
-
-  const groups: Record<
-    string,
-    { date: string; suppCode: string; suppName: string; total: number; count: number }
-  > = {};
-  filtered.forEach((t) => {
-    const key = t.date + "||" + t.suppCode;
-    if (!groups[key]) {
-      groups[key] = {
-        date: t.date,
-        suppCode: t.suppCode,
-        suppName: t.suppName || t.suppCode,
-        total: 0,
-        count: 0,
-      };
-    }
-    groups[key].total += parseFloat(String(t.totalPrice)) || 0;
-    groups[key].count++;
-  });
-
-  const sorted = Object.values(groups).sort((a, b) => {
-    const cmp = String(a.date).localeCompare(String(b.date));
-    return histSortAsc ? cmp : -cmp;
-  });
 
   let lastMonth = "";
 
@@ -152,8 +177,14 @@ export function HistoryView() {
             : t("hist.empty")}
         </div>
       ) : (
-        <div className="hist-list-groups">
-          {sorted.map((g) => {
+        <>
+          <HistoryListTable
+            rows={sorted}
+            suppliers={suppliers}
+            onOpen={(g) => setDetail({ date: g.date, suppCode: g.suppCode })}
+          />
+          <div className="hist-list-groups hist-list-cards">
+            {sorted.map((g) => {
             const mo = String(g.date).substring(0, 7);
             const showMonth = mo !== lastMonth;
             if (showMonth) lastMonth = mo;
@@ -173,7 +204,8 @@ export function HistoryView() {
               />
             );
           })}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -387,7 +419,12 @@ function HistGroup({
         role="button"
         tabIndex={0}
         onClick={onOpen}
-        onKeyDown={(e) => e.key === "Enter" && onOpen()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
       >
         <div className="hist-day-card__inner">
           <div className="hist-day-card__date" aria-hidden>
