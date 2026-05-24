@@ -26,11 +26,20 @@ export function HistoryListTable({ rows, suppliers, onOpen }: Props) {
     <div className="hist-list-table-wrap">
       <div className="tbl-scroll hist-list-table-scroll">
         <table className="itbl hist-list-table">
+          <colgroup>
+            <col className="hist-list-table__col-date" />
+            <col className="hist-list-table__col-shop" />
+            <col className="hist-list-table__col-lines" />
+            <col className="hist-list-table__col-total" />
+            <col className="hist-list-table__col-who" />
+            <col className="hist-list-table__col-when" />
+            <col className="hist-list-table__col-when" />
+          </colgroup>
           <thead>
             <tr>
               <th scope="col">{t("intake.date")}</th>
               <th scope="col">{t("hist.supplier")}</th>
-              <th scope="col" className="hist-list-table__th-num">
+              <th scope="col" className="hist-list-table__th-lines">
                 {t("hist.listColLines")}
               </th>
               <th scope="col" className="hist-list-table__th-num">
@@ -64,7 +73,7 @@ export function HistoryListTable({ rows, suppliers, onOpen }: Props) {
                 <td className="hist-list-table__shop">
                   {supplierDisplayNameByCode(g.suppCode, suppliers, locale, g.suppName)}
                 </td>
-                <td className="hist-list-table__num">{g.count}</td>
+                <td className="hist-list-table__lines">{g.count}</td>
                 <td className="hist-list-table__num hist-list-table__total">₩{fmt(g.total)}</td>
                 <td className="hist-list-table__who">{savedBy}</td>
                 <td className="hist-list-table__when">{savedAtText}</td>

@@ -1414,17 +1414,37 @@ input[type="radio"] {
   .hist-list-table {
     min-width: 1080px;
     font-size: 14px;
+    table-layout: fixed;
+    width: 100%;
   }
+  .hist-list-table__col-date { width: 118px; }
+  .hist-list-table__col-shop { width: auto; }
+  .hist-list-table__col-lines { width: 72px; }
+  .hist-list-table__col-total { width: 132px; }
+  .hist-list-table__col-who { width: 140px; }
+  .hist-list-table__col-when { width: 168px; }
   .hist-list-table thead th {
     font-size: 12px;
     font-weight: 700;
     text-transform: none;
     letter-spacing: 0.02em;
+    cursor: default;
   }
-  .hist-list-table__th-num,
-  .hist-list-table__num {
+  table.itbl.hist-list-table thead th.hist-list-table__th-lines,
+  table.itbl.hist-list-table tbody td.hist-list-table__lines {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    padding-left: 8px;
+    padding-right: 8px;
+    white-space: nowrap;
+  }
+  table.itbl.hist-list-table thead th.hist-list-table__th-num,
+  table.itbl.hist-list-table tbody td.hist-list-table__num {
     text-align: right;
     font-variant-numeric: tabular-nums;
+    padding-left: 8px;
+    padding-right: 12px;
+    white-space: nowrap;
   }
   .hist-list-table__shop {
     font-weight: 600;
