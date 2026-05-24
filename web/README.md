@@ -7,7 +7,7 @@ Next.js + Supabase migration of the Google Apps Script inventory intake system.
 ## Setup
 
 1. Create a [Supabase](https://supabase.com) project (region: Northeast Asia recommended).
-2. Run SQL migrations **`001` through `012`** in order from [`supabase/migrations/`](supabase/migrations/) (see root README for the list).
+2. Run SQL migrations **`001` through `013`** in order from [`supabase/migrations/`](supabase/migrations/) (see root README for the list).
 3. Copy `.env.example` to `.env.local` and fill in credentials from **Project Settings → API**:
 
 | Variable | Source |
@@ -60,7 +60,7 @@ If you see `ERR_CONNECTION_REFUSED`, ensure `npm run dev` is running from **`web
 
 ### 1. Supabase production
 
-1. สร้างโปรเจกต์ Supabase ใหม่ (แยกจาก dev) → รัน migration `001`–`012` ใน SQL Editor  
+1. สร้างโปรเจกต์ Supabase ใหม่ (แยกจาก dev) → รัน migration `001`–`013` ใน SQL Editor  
    หรือใส่ `DATABASE_URL` แล้วรัน `DEPLOY_ENV=production npm run db:migrate`
 2. คัดลอก `web/.env.production.example` → `web/.env.production.local` แล้วใส่ keys + `SESSION_SECRET` ใหม่ (`openssl rand -base64 32`)
 3. เติมข้อมูลครั้งแรก:
@@ -100,36 +100,19 @@ cd web && DEPLOY_ENV=production npm run deploy:print-vercel-env
 
 ## Project structure
 
+โครงสร้าง repo เต็ม: [`../README.md`](../README.md) — สรุปสั้นใน `web/`:
+
 ```
 src/
-├── app/
-│   ├── (app)/
-│   │   ├── intake/              # รับสินค้า
-│   │   ├── history/
-│   │   ├── report/
-│   │   ├── profile/
-│   │   └── admin/
-│   │       ├── shops/           # ร้านค้า
-│   │       ├── units/           # หน่วยสินค้า
-│   │       ├── items/           # สินค้า + หน่วยมาตรฐาน
-│   │       ├── products/        # ผูกร้าน + หน่วย/ราคา
-│   │       └── users/
-│   ├── login/
-│   └── api/                     # REST (แทน code.gs)
-├── components/
-│   ├── pages/                   # IntakeView, Admin*Panel, ...
-│   ├── intake/                  # หน่วยซื้อเข้า, slip note
-│   ├── operator/                # UI มือถือ
-│   └── admin/                   # editors หน่วยมาตรฐาน/ร้าน
-├── context/                     # AppData, Locale
-├── lib/
-│   ├── services/data.ts         # Supabase layer
-│   ├── domain/                  # transactions, purchase-units, ...
-│   ├── admin/                   # standard/shop unit row config
-│   └── db/                      # errors, schema detection
-├── middleware.ts
-scripts/                         # seed, import, build-units
-supabase/migrations/             # 001 … 012
+├── app/(app)/receiving|history|report|admin/…
+├── app/api/transactions/slips/…
+├── components/pages|intake|history|operator|admin|reports/
+├── lib/services/data.ts, intake-slips.ts
+├── lib/domain/history-slip-edit.ts, …
+└── lib/history/print-history-slip-document.ts
+scripts/                         # seed, import, db:migrate, deploy:*
+supabase/migrations/             # 001 … 013
+supabase/manual-fixes/           # SQL แก้ข้อมูล (รันมือ)
 ```
 
 Legacy files and CSVs: [`../Backup/`](../Backup/).

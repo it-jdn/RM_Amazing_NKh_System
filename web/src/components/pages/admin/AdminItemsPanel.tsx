@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -29,13 +29,18 @@ import {
   sortFilterItemsCatalog,
   type ItemsCatalogSortKey,
 } from "@/lib/admin/items-catalog-list";
-import { filterItemsByShop } from "@/lib/domain/item-filter";
+import { filterCatalogItems } from "@/lib/domain/item-filter";
 import {
   buildItemShopCodesMap,
   itemLinkedShopNames,
 } from "@/lib/domain/item-linked-shops";
 import { unitDisplayName } from "@/lib/i18n/unit-display-name";
 import { AdminItemStandardUnitsEditor } from "@/components/admin/AdminItemStandardUnitsEditor";
+import {
+  AdminItemShopLinkPanel,
+  type AdminItemShopLinkPanelHandle,
+} from "@/components/pages/admin/AdminItemShopLinkPanel";
+import { IconEdit, IconStoreLink } from "@/components/icons/AppIcons";
 import { AdminCardTitle } from "@/components/pages/admin/admin-shared";
 import { useCompactAdminLayout } from "@/hooks/useCompactAdminLayout";
 import {
@@ -64,7 +69,12 @@ export function AdminItemsPanel() {
   const searchParams = useSearchParams();
   const isAdmin = role === "admin";
 
-  const [filterSupp, setFilterSupp] = useState("");
+  const [filterShopCodes, setFilterShopCodes] = useState<string[]>([]);
+  const [filterCategoryCodes, setFilterCategoryCodes] = useState<string[]>([]);
+  const catalogFilters = useMemo(
+    () => ({ shopCodes: filterShopCodes, categoryCodes: filterCategoryCodes }),
+    [filterShopCodes, filterCategoryCodes]
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<ItemsCatalogSortKey>("code");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -83,11 +93,19 @@ export function AdminItemsPanel() {
   const [standardRows, setStandardRows] = useState<StandardUnitRow[]>([]);
   const [refreshAfterSaveCode, setRefreshAfterSaveCode] = useState<string | null>(null);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [linkCode, setLinkCode] = useState<string | null>(null);
+  const [linkDirty, setLinkDirty] = useState(false);
+  const [linkSheetOpen, setLinkSheetOpen] = useState(false);
   const [sheetMounted, setSheetMounted] = useState(false);
+  const linkPanelRef = useRef<AdminItemShopLinkPanelHandle | null>(null);
   const compactLayout = useCompactAdminLayout();
 
   const isEdit = editingCode !== null;
   const formSheetOpen = compactLayout && (isEdit || addSheetOpen);
+  const linkPanelOpen = compactLayout && !!linkCode && linkSheetOpen;
+  const anyPanelOpen = formSheetOpen || linkPanelOpen;
+  const showItemFormDesktop = !compactLayout && !linkCode;
+  const showLinkPanelDesktop = !compactLayout && !!linkCode;
 
   const formSnapshot = useMemo(
     () =>
@@ -151,8 +169,8 @@ export function AdminItemsPanel() {
   );
 
   const filteredItems = useMemo(
-    () => filterItemsByShop(items, mapping, filterSupp),
-    [items, mapping, filterSupp]
+    () => filterCatalogItems(items, mapping, catalogFilters),
+    [items, mapping, catalogFilters]
   );
 
   const noShopsLabel = t("admin.items.noShops");
@@ -170,7 +188,7 @@ export function AdminItemsPanel() {
       sortFilterItemsCatalog({
         items,
         mapping,
-        filterSupp,
+        catalogFilters,
         searchQuery,
         sortKey,
         sortDir,
@@ -183,7 +201,7 @@ export function AdminItemsPanel() {
     [
       items,
       mapping,
-      filterSupp,
+      catalogFilters,
       searchQuery,
       sortKey,
       sortDir,
@@ -194,6 +212,12 @@ export function AdminItemsPanel() {
       noShopsLabel,
     ]
   );
+
+  function clearLinkPanel() {
+    setLinkCode(null);
+    setLinkDirty(false);
+    setLinkSheetOpen(false);
+  }
 
   function resetForm() {
     setEditingCode(null);
@@ -207,6 +231,7 @@ export function AdminItemsPanel() {
     setFormCategoryCode("");
     setStandardRows([]);
     setAddSheetOpen(false);
+    clearLinkPanel();
   }
 
   function closeFormSheet() {
@@ -215,6 +240,7 @@ export function AdminItemsPanel() {
   }
 
   function startAdd() {
+    clearLinkPanel();
     setEditingCode(null);
     setFormCode("");
     setFormNameTH("");
@@ -225,7 +251,7 @@ export function AdminItemsPanel() {
     setFormConvertRate("1");
     setFormCategoryCode("");
     setStandardRows([]);
-    setAddSheetOpen(true);
+    if (compactLayout) setAddSheetOpen(true);
   }
 
   function startEdit(i: Item) {
@@ -241,35 +267,54 @@ export function AdminItemsPanel() {
     setStandardRows(initStandardRowsForEdit(i, itemPurchaseStandards));
   }
 
-  const deepLinkCode = searchParams.get("edit")?.trim() || null;
+  const deepLinkEdit = searchParams.get("edit")?.trim() || null;
+  const deepLinkLink =
+    searchParams.get("link")?.trim() ||
+    searchParams.get("item")?.trim() ||
+    null;
   const [deepLinkHandled, setDeepLinkHandled] = useState(false);
 
   useEffect(() => {
-    if (!deepLinkCode || deepLinkHandled) return;
-    const item = items.find((i) => i.code === deepLinkCode);
-    if (item) {
-      startEdit(item);
-      setAddSheetOpen(true);
-      setDeepLinkHandled(true);
+    if (deepLinkHandled || !items.length) return;
+    if (deepLinkLink) {
+      const item = items.find((i) => i.code === deepLinkLink);
+      if (item) {
+        clearLinkPanel();
+        setLinkCode(item.code);
+        setLinkSheetOpen(true);
+        setDeepLinkHandled(true);
+      }
+      return;
     }
-  }, [deepLinkCode, items, deepLinkHandled]);
+    if (deepLinkEdit) {
+      const item = items.find((i) => i.code === deepLinkEdit);
+      if (item) {
+        clearLinkPanel();
+        startEdit(item);
+        if (compactLayout) setAddSheetOpen(true);
+        setDeepLinkHandled(true);
+      }
+    }
+  }, [deepLinkEdit, deepLinkLink, items, deepLinkHandled]);
 
   useEffect(() => setSheetMounted(true), []);
 
   useEffect(() => {
-    if (!formSheetOpen) return;
+    if (!anyPanelOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [formSheetOpen]);
+  }, [anyPanelOpen]);
 
   useEffect(() => {
     if (editingCode && !filteredItems.some((i) => i.code === editingCode)) {
       resetForm();
+    } else if (linkCode && !filteredItems.some((i) => i.code === linkCode)) {
+      clearLinkPanel();
     }
-  }, [filteredItems, editingCode]);
+  }, [filteredItems, editingCode, linkCode]);
 
   useEffect(() => {
     if (!refreshAfterSaveCode) return;
@@ -425,22 +470,52 @@ export function AdminItemsPanel() {
     resetForm();
   }
 
-  const { guardAction } = useAdminFormUnsaved({
-    dirty,
-    save: submitForm,
-    discard: useCallback(() => resetForm(), []),
+  const anyDirty = dirty || linkDirty;
+
+  const { guardAction, requestNavigation } = useAdminFormUnsaved({
+    dirty: anyDirty,
+    save: useCallback(async () => {
+      if (linkCode && linkDirty && linkPanelRef.current) {
+        return linkPanelRef.current.save();
+      }
+      return submitForm();
+    }, [linkCode, linkDirty, submitForm]),
+    discard: useCallback(() => {
+      if (linkCode && linkDirty && linkPanelRef.current) {
+        linkPanelRef.current.discard();
+        setLinkDirty(false);
+        return;
+      }
+      resetForm();
+    }, [linkCode, linkDirty]),
   });
 
   function tryStartEdit(i: Item) {
-    if (editingCode === i.code) return;
+    if (editingCode === i.code && formSheetOpen) return;
     guardAction(() => {
+      clearLinkPanel();
       startEdit(i);
-      setAddSheetOpen(true);
-    }, dirty);
+      if (compactLayout) setAddSheetOpen(true);
+    }, anyDirty);
+  }
+
+  function tryStartLink(i: Item) {
+    if (linkCode === i.code && linkPanelOpen) return;
+    guardAction(() => {
+      setEditingCode(null);
+      setAddSheetOpen(false);
+      setLinkCode(i.code);
+      setLinkSheetOpen(true);
+    }, anyDirty);
   }
 
   function tryStartAdd() {
-    guardAction(() => startAdd(), dirty);
+    guardAction(() => startAdd(), anyDirty);
+  }
+
+  function closeLinkSheet() {
+    if (linkDirty && !window.confirm(t("admin.items.discardConfirm"))) return;
+    clearLinkPanel();
   }
 
   async function deleteItemRow() {
@@ -475,17 +550,24 @@ export function AdminItemsPanel() {
       <div className="admin-settings-split admin-settings-split--items">
         <div className="card admin-settings-split__list">
           <div className="admin-items-list-head">
-            <AdminCardTitle title={t("admin.items.listTitle")} dot="blue" />
-            {compactLayout && !formSheetOpen ? (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm admin-items-list-head__add"
-                onClick={tryStartAdd}
-                disabled={!unitsReady}
-              >
-                {t("admin.items.addTitle")}
-              </button>
-            ) : null}
+            <div className="admin-items-list-head__title-row">
+              <div className="admin-items-list-head__title-group">
+                <AdminCardTitle title={t("admin.items.listTitle")} dot="blue" />
+                {!compactLayout || !anyPanelOpen ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm admin-items-list-head__add"
+                    onClick={tryStartAdd}
+                    disabled={!unitsReady}
+                  >
+                    {t("admin.items.addTitle")}
+                  </button>
+                ) : null}
+              </div>
+              <p className="admin-items-list-count">
+                {t("admin.items.count").replace("{n}", String(displayedItems.length))}
+              </p>
+            </div>
           </div>
           {!unitsReady && (
             <p className="admin-warn" style={{ marginTop: 8 }}>
@@ -499,9 +581,13 @@ export function AdminItemsPanel() {
           )}
           <AdminCatalogFilter
             suppliers={suppliers}
-            value={filterSupp}
-            onChange={setFilterSupp}
+            shopCodes={filterShopCodes}
+            onShopCodesChange={setFilterShopCodes}
+            categories={itemCategories}
+            categoryCodes={filterCategoryCodes}
+            onCategoryCodesChange={setFilterCategoryCodes}
             count={displayedItems.length}
+            showCount={false}
             search={searchQuery}
             onSearchChange={setSearchQuery}
             searchLabel={t("admin.items.searchLabel")}
@@ -512,13 +598,14 @@ export function AdminItemsPanel() {
               <table className="admin-shop-table admin-shop-table--cards admin-items-table">
                 <thead>
                   <tr>
-                    <th className="admin-shop-table__order-h">{t("admin.table.rowCol")}</th>
+                    <th className="admin-shop-table__order-h">{t("admin.table.rowColShort")}</th>
                     <AdminItemsCatalogSortTh
                       label={t("admin.items.code")}
                       column="code"
                       sortKey={sortKey}
                       sortDir={sortDir}
                       onSort={handleSort}
+                      className="admin-items-table__code-h"
                     />
                     <AdminItemsCatalogSortTh
                       label={t("admin.items.nameTh")}
@@ -558,7 +645,11 @@ export function AdminItemsPanel() {
                   {displayedItems.map((i, rowIndex) => (
                     <tr
                       key={i.code}
-                      className={editingCode === i.code ? "admin-shop-table__row--selected" : undefined}
+                      className={
+                        editingCode === i.code || linkCode === i.code
+                          ? "admin-shop-table__row--selected"
+                          : undefined
+                      }
                     >
                       <td className="admin-shop-table__order" data-label={t("admin.table.rowCol")}>
                         {rowIndex + 1}
@@ -595,9 +686,26 @@ export function AdminItemsPanel() {
                         {itemSubNames(i.nameEN, i.nameKR)}
                       </td>
                       <td className="admin-shop-table__actions" data-label="">
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => tryStartEdit(i)}>
-                          {t("admin.items.edit")}
-                        </button>
+                        <div className="admin-shop-table__action-group">
+                          <button
+                            type="button"
+                            className="btn-icon-action btn-icon-action--compact"
+                            onClick={() => tryStartEdit(i)}
+                            title={t("admin.items.edit")}
+                            aria-label={`${t("admin.items.edit")}: ${i.nameTH}`}
+                          >
+                            <IconEdit size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon-action btn-icon-action--compact"
+                            onClick={() => tryStartLink(i)}
+                            title={t("admin.items.linkShops")}
+                            aria-label={`${t("admin.items.linkShops")}: ${i.nameTH}`}
+                          >
+                            <IconStoreLink size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -612,7 +720,19 @@ export function AdminItemsPanel() {
         </div>
 
 
-        {!compactLayout && (
+        {!compactLayout && showLinkPanelDesktop && (
+          <div className="card admin-settings-split__panel">
+            <AdminItemShopLinkPanel
+              ref={linkPanelRef}
+              itemCode={linkCode}
+              onDirtyChange={setLinkDirty}
+              onClose={clearLinkPanel}
+              onEditNamesNavigate={requestNavigation}
+            />
+          </div>
+        )}
+
+        {!compactLayout && showItemFormDesktop && (
         <AdminSideForm
           className="admin-side-form--items"
           isEdit={isEdit}
@@ -760,6 +880,49 @@ export function AdminItemsPanel() {
         </AdminSideForm>
         )}
       </div>
+
+      {linkPanelOpen && sheetMounted
+        ? createPortal(
+            <div className="admin-item-form-sheet-portal" role="presentation">
+              <button
+                type="button"
+                className="admin-form-sheet__backdrop"
+                aria-label={t("intake.cancel")}
+                onClick={closeLinkSheet}
+              />
+              <div
+                className="admin-item-form-sheet admin-item-form-sheet--link"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="admin-item-link-sheet-title"
+              >
+                <header className="admin-side-form-sheet-panel__hdr">
+                  <h2 id="admin-item-link-sheet-title" className="admin-side-form-sheet-panel__title">
+                    {t("admin.products.title")}
+                  </h2>
+                  <button
+                    type="button"
+                    className="admin-side-form-sheet-panel__close"
+                    onClick={closeLinkSheet}
+                    aria-label={t("intake.cancel")}
+                  >
+                    ×
+                  </button>
+                </header>
+                <div className="card admin-settings-split__panel admin-settings-split__panel--in-sheet">
+                  <AdminItemShopLinkPanel
+                    ref={linkPanelRef}
+                    itemCode={linkCode!}
+                    onDirtyChange={setLinkDirty}
+                    onClose={closeLinkSheet}
+                    onEditNamesNavigate={requestNavigation}
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {formSheetOpen && sheetMounted
         ? createPortal(

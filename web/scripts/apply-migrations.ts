@@ -24,6 +24,7 @@ const MIGRATION_ORDER = [
   "010_item_categories.sql",
   "011_supplier_item_purchase_units.sql",
   "012_item_purchase_units.sql",
+  "013_intake_slips.sql",
 ] as const;
 
 const OPTIONAL = ["002_seed_pins.sql"] as const;

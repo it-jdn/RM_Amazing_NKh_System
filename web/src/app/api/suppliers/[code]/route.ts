@@ -15,6 +15,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
     suppNameTH?: string;
     suppNameEN?: string;
     suppNameKR?: string;
+    suppBusinessRegNo?: string;
     active?: boolean;
   };
 
@@ -32,6 +33,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
       nameTH: String(body.suppNameTH || ""),
       nameEN: body.suppNameEN,
       nameKR: body.suppNameKR,
+      businessRegNo: body.suppBusinessRegNo,
       active: isAdmin ? body.active : undefined,
     });
     if (!result.ok) return jsonError(result.message, 400);

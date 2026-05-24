@@ -7,12 +7,11 @@ export type AdminNavItem = {
   adminOnly?: boolean;
 };
 
-/** ลำดับตั้งค่าหลัก: ร้านค้า → หน่วยสินค้า → สินค้า → ผูกสินค้ากับร้านค้า */
+/** ลำดับตั้งค่าหลัก: ร้านค้า → หน่วยสินค้า → สินค้า (ผูกร้านอยู่ในหน้าสินค้า) */
 export const ADMIN_CATALOG_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/shops", labelKey: "nav.settings.shops" },
   { href: "/admin/units", labelKey: "nav.settings.units", adminOnly: true },
   { href: "/admin/items", labelKey: "nav.settings.items" },
-  { href: "/admin/products", labelKey: "nav.settings.products" },
 ];
 
 export const ADMIN_USERS_NAV_ITEM: AdminNavItem = {

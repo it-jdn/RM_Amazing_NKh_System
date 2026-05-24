@@ -4,21 +4,32 @@ import path from "path";
 
 const WEB_ROOT = path.resolve(__dirname, "..");
 
-/** Load `.env.production.local` when DEPLOY_ENV=production, else `.env.local`. */
+const ENV_FILES: Record<string, string> = {
+  production: ".env.production.local",
+  staging: ".env.staging.local",
+  local: ".env.local",
+};
+
+/** Load env file from DEPLOY_ENV: production | staging | local (default). */
 export function loadDeployEnv(): string {
-  const production = process.env.DEPLOY_ENV === "production";
-  const primary = production ? ".env.production.local" : ".env.local";
+  const mode = (process.env.DEPLOY_ENV || "local").toLowerCase();
+  const primary = ENV_FILES[mode] ?? ENV_FILES.local;
   const primaryPath = path.join(WEB_ROOT, primary);
 
-  if (production && !fs.existsSync(primaryPath)) {
+  if ((mode === "production" || mode === "staging") && !fs.existsSync(primaryPath)) {
+    const example = primary.replace(".local", ".example");
     throw new Error(
-      `Missing ${primary}. Copy .env.production.example → .env.production.local and fill Supabase production credentials.`
+      `Missing ${primary}. Copy web/${example} → web/${primary} and fill credentials.`
     );
   }
 
   dotenv.config({ path: path.join(WEB_ROOT, ".env.example") });
-  dotenv.config({ path: primaryPath, override: true });
-  return primary;
+  dotenv.config({ path: path.join(WEB_ROOT, ".env.local"), override: true });
+  if (mode !== "local" && fs.existsSync(primaryPath)) {
+    dotenv.config({ path: primaryPath, override: true });
+  }
+
+  return primaryPath;
 }
 
 export function requireSupabaseEnv() {

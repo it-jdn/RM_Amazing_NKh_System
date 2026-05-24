@@ -12,6 +12,7 @@ const TABLES = [
   "item_purchase_units",
   "supplier_item_purchase_units",
   "transactions",
+  "intake_slips",
   "app_users",
 ] as const;
 

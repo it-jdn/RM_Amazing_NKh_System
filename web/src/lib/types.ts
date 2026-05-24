@@ -8,6 +8,8 @@ export interface SessionPayload {
 
 export interface Supplier {
   code: string;
+  /** Saudi business registration number (optional). */
+  businessRegNo?: string;
   nameTH: string;
   nameEN: string;
   nameKR: string;

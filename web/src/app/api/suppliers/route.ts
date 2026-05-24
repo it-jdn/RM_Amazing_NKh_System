@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
       nameTH: body.suppNameTH || body.suppName || "",
       nameEN: body.suppNameEN,
       nameKR: body.suppNameKR,
+      businessRegNo: body.suppBusinessRegNo,
     });
     if (!result.ok) return jsonError(result.message);
     return jsonOk({ success: true, message: result.message });

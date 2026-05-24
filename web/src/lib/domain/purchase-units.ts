@@ -1,4 +1,5 @@
 import type { ItemPurchaseUnit, ItemStandardPurchaseUnit, Mapping } from "@/lib/types";
+import { unitConversionMessageParams } from "@/lib/domain/intake-unit-conversion";
 
 function sortPurchaseOptions(rows: ItemPurchaseUnit[]) {
   return [...rows].sort(
@@ -88,9 +89,20 @@ export function defaultPurchaseUnit(options: ItemPurchaseUnit[]): ItemPurchaseUn
   return options.find((o) => o.isDefault) ?? options[0];
 }
 
+/** ชื่อหน่วยซื้อเข้าหลักเท่านั้น (คอลัมน์หน่วยในหน้ารับสินค้า) */
+export function purchaseUnitMainLabel(o: ItemPurchaseUnit): string {
+  return o.mainUnit.trim() || "—";
+}
+
+/** ป้ายตัวเลือกหน่วยแบบเต็ม (ตั้งค่าผูกร้าน ฯลฯ) */
 export function formatPurchaseUnitOptionLabel(o: ItemPurchaseUnit) {
-  if (o.subUnit && o.convertRate && o.convertRate !== 1) {
-    return `${o.mainUnit} → ${o.subUnit} (×${o.convertRate})`;
+  const { main, rate, sub } = unitConversionMessageParams(
+    o.mainUnit,
+    o.subUnit,
+    o.convertRate
+  );
+  if (o.subUnit && o.convertRate) {
+    return `1 ${main} = ${rate} ${sub}`;
   }
   return o.mainUnit;
 }

@@ -191,7 +191,7 @@ export function AdminItemShopUnitsEditor({
               ))}
             </select>
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end" }}>
+          <div className="admin-copy-row__action">
             <button type="button" className="btn btn-secondary btn-sm" onClick={applyCopyFrom}>
               {t("admin.products.copyApply")}
             </button>

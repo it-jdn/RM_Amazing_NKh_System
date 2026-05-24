@@ -108,6 +108,7 @@ export async function getInitialData(options?: { includeInactiveSuppliers?: bool
     success: true,
     suppliers: (suppRes.data || []).map((s) => ({
       code: String(s.supp_code),
+      businessRegNo: String(s.supp_business_reg_no ?? "").trim() || undefined,
       nameTH: String(s.supp_name || ""),
       nameEN: String(s.supp_name_en ?? ""),
       nameKR: String(s.supp_name_kr ?? ""),
@@ -610,7 +611,7 @@ export async function findSupplierByName(
 
 export async function addSupplier(
   suppCode: string,
-  names: { nameTH: string; nameEN?: string; nameKR?: string }
+  names: { nameTH: string; nameEN?: string; nameKR?: string; businessRegNo?: string }
 ) {
   const supabase = createAdminClient();
   let code = String(suppCode || "").trim().toUpperCase();
@@ -645,6 +646,7 @@ export async function addSupplier(
     supp_name: nameTH,
     supp_name_en: (names.nameEN || "").trim(),
     supp_name_kr: (names.nameKR || "").trim(),
+    supp_business_reg_no: (names.businessRegNo || "").trim(),
     active: true,
     sort_order: nextSortOrder,
   });
@@ -677,6 +679,7 @@ export async function updateSupplier(
     nameTH: string;
     nameEN?: string;
     nameKR?: string;
+    businessRegNo?: string;
     active?: boolean;
   }
 ) {
@@ -721,6 +724,7 @@ export async function updateSupplier(
     supp_name: nameTH,
     supp_name_en: (data.nameEN || "").trim(),
     supp_name_kr: (data.nameKR || "").trim(),
+    supp_business_reg_no: (data.businessRegNo ?? "").trim(),
   };
   if (data.active !== undefined) patch.active = data.active;
   if (codeChanging) patch.supp_code = newCode;

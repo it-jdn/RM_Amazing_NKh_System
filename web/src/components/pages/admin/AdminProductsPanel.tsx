@@ -18,7 +18,7 @@ import {
   sortFilterItemsCatalog,
   type ItemsCatalogSortKey,
 } from "@/lib/admin/items-catalog-list";
-import { filterItemsByShop } from "@/lib/domain/item-filter";
+import { filterCatalogItems, itemMatchesCatalogFilters } from "@/lib/domain/item-filter";
 import {
   buildItemShopCodesMap,
   itemLinkedShopNames,
@@ -58,7 +58,12 @@ export function AdminProductsPanel() {
   const [nameEN, setNameEN] = useState("");
   const [nameKR, setNameKR] = useState("");
   const [shopCfg, setShopCfg] = useState<Record<string, ShopCfg>>({});
-  const [filterSupp, setFilterSupp] = useState("");
+  const [filterShopCodes, setFilterShopCodes] = useState<string[]>([]);
+  const [filterCategoryCodes, setFilterCategoryCodes] = useState<string[]>([]);
+  const catalogFilters = useMemo(
+    () => ({ shopCodes: filterShopCodes, categoryCodes: filterCategoryCodes }),
+    [filterShopCodes, filterCategoryCodes]
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<ItemsCatalogSortKey>("code");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -88,7 +93,7 @@ export function AdminProductsPanel() {
       sortFilterItemsCatalog({
         items,
         mapping,
-        filterSupp,
+        catalogFilters,
         searchQuery,
         sortKey,
         sortDir,
@@ -101,7 +106,7 @@ export function AdminProductsPanel() {
     [
       items,
       mapping,
-      filterSupp,
+      catalogFilters,
       searchQuery,
       sortKey,
       sortDir,
@@ -114,8 +119,8 @@ export function AdminProductsPanel() {
   );
 
   const filteredItems = useMemo(
-    () => filterItemsByShop(items, mapping, filterSupp),
-    [items, mapping, filterSupp]
+    () => filterCatalogItems(items, mapping, catalogFilters),
+    [items, mapping, catalogFilters]
   );
 
   const dirty = !!editCode && JSON.stringify(shopCfg) !== cfgBaseline;
@@ -303,10 +308,22 @@ export function AdminProductsPanel() {
           )}
           <AdminCatalogFilter
             suppliers={suppliers}
-            value={filterSupp}
-            onChange={(code) => {
-              setFilterSupp(code);
-              if (editCode && !filterItemsByShop(items, mapping, code).some((i) => i.code === editCode)) {
+            shopCodes={filterShopCodes}
+            onShopCodesChange={(codes) => {
+              setFilterShopCodes(codes);
+              const nextFilters = { shopCodes: codes, categoryCodes: filterCategoryCodes };
+              const item = editCode ? items.find((i) => i.code === editCode) : null;
+              if (item && !itemMatchesCatalogFilters(item, mapping, nextFilters)) {
+                guardAction(() => loadProduct(""), dirty);
+              }
+            }}
+            categories={itemCategories}
+            categoryCodes={filterCategoryCodes}
+            onCategoryCodesChange={(codes) => {
+              setFilterCategoryCodes(codes);
+              const nextFilters = { shopCodes: filterShopCodes, categoryCodes: codes };
+              const item = editCode ? items.find((i) => i.code === editCode) : null;
+              if (item && !itemMatchesCatalogFilters(item, mapping, nextFilters)) {
                 guardAction(() => loadProduct(""), dirty);
               }
             }}

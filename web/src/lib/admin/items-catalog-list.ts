@@ -1,5 +1,5 @@
 import { itemCategoryDisplayName } from "@/lib/catalog/item-categories";
-import { filterItemsByShop } from "@/lib/domain/item-filter";
+import { filterCatalogItems, type CatalogItemFilters } from "@/lib/domain/item-filter";
 import { unitDisplayName } from "@/lib/i18n/unit-display-name";
 import type { Locale } from "@/lib/i18n/types";
 import type { Item, ItemCategory, ItemCategoryCode, Mapping, UnitOption } from "@/lib/types";
@@ -37,7 +37,7 @@ export function itemSubNames(nameEN: string, nameKR: string) {
 export function sortFilterItemsCatalog(params: {
   items: Item[];
   mapping: Mapping[];
-  filterSupp: string;
+  catalogFilters: CatalogItemFilters;
   searchQuery: string;
   sortKey: ItemsCatalogSortKey;
   sortDir: "asc" | "desc";
@@ -47,7 +47,7 @@ export function sortFilterItemsCatalog(params: {
   linkedShopNames: (itemCode: string) => string[];
   noShopsLabel: string;
 }): Item[] {
-  let list = filterItemsByShop(params.items, params.mapping, params.filterSupp);
+  let list = filterCatalogItems(params.items, params.mapping, params.catalogFilters);
 
   const q = params.searchQuery.trim().toLowerCase();
   if (q) {

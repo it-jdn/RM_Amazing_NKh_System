@@ -10,13 +10,17 @@
     "seed:pins": "tsx scripts/seed-pins.ts",
     "import:csv": "tsx scripts/import-from-csv.ts",
     "import:transactions": "tsx scripts/import-transactions.ts",
+    "import:post": "tsx scripts/post-import-transactions.ts",
+    "sync:migration-items": "tsx scripts/sync-migration-items.ts",
+    "export:db": "tsx scripts/export-db-snapshot.ts",
     "build:units": "tsx scripts/build-units-from-transactions.ts",
     "db:migrate": "tsx scripts/apply-migrations.ts",
     "deploy:verify": "tsx scripts/verify-supabase.ts",
     "deploy:setup": "tsx scripts/deploy-phase1-setup.ts",
     "deploy:print-vercel-env": "tsx scripts/print-vercel-env.ts",
     "reset:user-pins": "tsx scripts/reset-user-pins.ts",
-    "restore:team-users": "tsx scripts/restore-team-users.ts"
+    "restore:team-users": "tsx scripts/restore-team-users.ts",
+    "backfill:kr": "tsx scripts/backfill-korean-sample.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

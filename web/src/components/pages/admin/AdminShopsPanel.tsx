@@ -32,6 +32,7 @@ export function AdminShopsPanel() {
 
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const [formCode, setFormCode] = useState("");
+  const [formBusinessRegNo, setFormBusinessRegNo] = useState("");
   const [formNameTH, setFormNameTH] = useState("");
   const [formNameEN, setFormNameEN] = useState("");
   const [formNameKR, setFormNameKR] = useState("");
@@ -49,12 +50,13 @@ export function AdminShopsPanel() {
       JSON.stringify({
         editingCode,
         formCode,
+        formBusinessRegNo,
         formNameTH,
         formNameEN,
         formNameKR,
         formActive,
       }),
-    [editingCode, formCode, formNameTH, formNameEN, formNameKR, formActive]
+    [editingCode, formCode, formBusinessRegNo, formNameTH, formNameEN, formNameKR, formActive]
   );
   const dirty = formSnapshot !== formBaseline;
 
@@ -90,6 +92,7 @@ export function AdminShopsPanel() {
   function resetForm() {
     setEditingCode(null);
     setFormCode("");
+    setFormBusinessRegNo("");
     setFormNameTH("");
     setFormNameEN("");
     setFormNameKR("");
@@ -100,6 +103,7 @@ export function AdminShopsPanel() {
   function startEdit(s: Supplier) {
     setEditingCode(s.code);
     setFormCode(s.code);
+    setFormBusinessRegNo(s.businessRegNo ?? "");
     setFormNameTH(s.nameTH);
     setFormNameEN(s.nameEN);
     setFormNameKR(s.nameKR);
@@ -149,6 +153,7 @@ export function AdminShopsPanel() {
             suppNameTH: formNameTH,
             suppNameEN: formNameEN,
             suppNameKR: formNameKR,
+            suppBusinessRegNo: formBusinessRegNo,
             active: isAdmin ? formActive : undefined,
           }
         );
@@ -164,6 +169,7 @@ export function AdminShopsPanel() {
           suppNameTH: formNameTH,
           suppNameEN: formNameEN,
           suppNameKR: formNameKR,
+          suppBusinessRegNo: formBusinessRegNo,
         });
         toast(r.message);
         if (apiSucceeded(r)) {
@@ -389,6 +395,14 @@ export function AdminShopsPanel() {
           ) : null}
 
           <AdminFormSection title={t("admin.form.sectionNames")}>
+            <AdminFormField label={t("admin.shops.businessRegNo")}>
+              <input
+                type="text"
+                value={formBusinessRegNo}
+                onChange={(e) => setFormBusinessRegNo(e.target.value)}
+                autoCapitalize="off"
+              />
+            </AdminFormField>
             <AdminFormField label={t("admin.shops.nameTh")}>
               <input
                 type="text"
