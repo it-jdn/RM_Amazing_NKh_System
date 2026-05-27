@@ -15,6 +15,7 @@ import type { Item, ItemCategory, Supplier } from "@/lib/types";
 
 const REPORT_PRESETS = [
   { id: "all", key: "hist.preset.all" },
+  { id: "today", key: "report.presetToday" },
   { id: "last7", key: "report.preset7" },
   { id: "last30", key: "report.preset30" },
   { id: "thisMonth", key: "report.presetMonth" },
@@ -23,6 +24,7 @@ const REPORT_PRESETS = [
 
 const PRESET_LABEL: Record<string, MessageKey> = {
   all: "hist.preset.all",
+  today: "report.presetToday",
   last7: "report.preset7",
   last30: "report.preset30",
   thisMonth: "report.presetMonth",
@@ -73,7 +75,7 @@ export function ReportFilters({
   onPrint,
 }: Props) {
   const { locale, t } = useLocale();
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const categories = itemCategories.length ? itemCategories : FALLBACK_ITEM_CATEGORIES;
   const datesDisabled = datePreset === "all";
   const displayFrom =

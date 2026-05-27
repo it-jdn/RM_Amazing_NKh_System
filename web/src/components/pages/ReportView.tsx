@@ -24,7 +24,7 @@ import { itemDisplayNameByCode } from "@/lib/i18n/item-name";
 import { supplierDisplayName, supplierDisplayNameByCode } from "@/lib/i18n/supplier-name";
 import { apiGet } from "@/lib/api/client";
 import { useToast } from "@/components/Toast";
-import { fmt, formatAppDate } from "@/lib/utils/format";
+import { fmt, formatAppDate, histDatePresetRange } from "@/lib/utils/format";
 import { downloadExcelTable } from "@/lib/reports/export-excel";
 import { ReportPriceCompare } from "@/components/pages/ReportPriceCompare";
 import { ReportChartsFold } from "@/components/reports/ReportChartsFold";
@@ -138,15 +138,15 @@ export function ReportView() {
   const itemCategories = categoriesFromApi.length ? categoriesFromApi : FALLBACK_ITEM_CATEGORIES;
   const { locale, t } = useLocale();
   const toast = useToast();
-  const [rFrom, setRFrom] = useState("");
-  const [rTo, setRTo] = useState("");
+  const [rFrom, setRFrom] = useState(() => histDatePresetRange("thisMonth").from);
+  const [rTo, setRTo] = useState(() => histDatePresetRange("thisMonth").to);
   const [rSupp, setRSupp] = useState("");
   const [rItem, setRItem] = useState("");
   const [rCategory, setRCategory] = useState("");
   const [data, setData] = useState<ReportData | null>(null);
   const [showCompare, setShowCompare] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [datePreset, setDatePreset] = useState("all");
+  const [datePreset, setDatePreset] = useState("thisMonth");
 
   const categoryPaging = useReportTablePaging(data?.byCategory.length ?? 0);
   const itemPaging = useReportTablePaging(data?.byItem.length ?? 0);

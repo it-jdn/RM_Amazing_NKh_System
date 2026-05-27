@@ -1,5 +1,6 @@
 -- รวมแถว transactions ซ้ำในใบเดียว (item_code + trim(main_unit) เหมือนกัน)
--- ใช้เมื่อ diagnose พบ duplicate_extra_rows > 0
+-- ใช้เมื่อ diagnose Query 2 พบ row_count > 1 สำหรับหน่วยเดียวกัน
+-- ไม่ใช้กับเคสผักชี (หลายหน่วย: ถุง+กิโล) — ใช้ลบแถวหน่วยที่ไม่ใช้แทน
 --
 -- ขั้นตอน:
 --   1) รัน diagnose_duplicate_transactions.sql ก่อน
@@ -11,11 +12,12 @@
 
 BEGIN;
 
--- ตัวอย่าง: หา slip มังวอน 26 พ.ค. 2026 ใบแรก
+-- ตัวอย่าง: ระบุ slip_id ตรงใบ (จาก audit หรือ diagnose)
+-- แก้ txn_date / เงื่อนไขร้าน ให้ตรงใบที่ต้องการ
 WITH target_slip AS (
   SELECT id
   FROM intake_slips
-  WHERE txn_date = '2026-05-26'
+  WHERE txn_date = '2026-04-01'
     AND supp_name ILIKE '%มังวอน%'
   ORDER BY created_at ASC
   LIMIT 1
@@ -56,7 +58,7 @@ deleted AS (
     AND t.item_code = g.item_code
     AND trim(t.main_unit) = g.main_unit_norm
     AND t.no <> g.keep_no
-  RETURNING t.no, t.item_code, t.main_unit, t.total_price
+  RETURNING t.no, t.item_code, t.main_unit, t.qty, t.total_price
 )
 SELECT 'kept_updated' AS action, u.no, u.item_code, u.main_unit, u.qty, u.total_price
 FROM updated u

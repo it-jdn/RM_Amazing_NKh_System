@@ -16,6 +16,7 @@
     "build:units": "tsx scripts/build-units-from-transactions.ts",
     "db:migrate": "tsx scripts/apply-migrations.ts",
     "deploy:verify": "tsx scripts/verify-supabase.ts",
+    "audit:slip-duplicates": "tsx scripts/audit-slip-multi-unit-duplicates.ts",
     "deploy:setup": "tsx scripts/deploy-phase1-setup.ts",
     "deploy:print-vercel-env": "tsx scripts/print-vercel-env.ts",
     "reset:user-pins": "tsx scripts/reset-user-pins.ts",
