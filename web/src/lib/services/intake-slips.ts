@@ -2,6 +2,7 @@ import { slipMetaFromRows } from "@/lib/domain/intake-slip";
 import {
   buildTransactionRow,
   bangkokNow,
+  dedupeTransactionInputs,
   toDateStr,
 } from "@/lib/domain/transactions";
 import { extractSlipNoteFromRows } from "@/lib/domain/intake-slip-note";
@@ -155,7 +156,8 @@ export async function saveIntakeSlipRecord(params: {
   slipNote?: string;
   audit?: SaveAudit;
 }) {
-  const { transactions, audit } = params;
+  const { transactions: rawTransactions, audit } = params;
+  const transactions = dedupeTransactionInputs(rawTransactions);
   if (!transactions?.length) {
     return { ok: false as const, message: "❌ ไม่มีรายการส่งมา", replaced: false };
   }

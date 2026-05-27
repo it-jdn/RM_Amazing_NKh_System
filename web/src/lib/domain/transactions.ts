@@ -73,6 +73,36 @@ export function aggregateTransactionsByItem(rows: TransactionRow[]): Transaction
   return Array.from(map.values()).map((c) => c.row);
 }
 
+/** รวมรายการที่จะบันทึก — ป้องกันแถวซ้ำ item+หน่วยในชุดเดียวกัน */
+export function dedupeTransactionInputs(transactions: TransactionInput[]): TransactionInput[] {
+  const map = new Map<string, TransactionInput>();
+
+  for (const t of transactions) {
+    const mainUnit = String(t.mainUnit || "").trim();
+    const key = intakeRowKey(t.itemCode, mainUnit);
+    const qty = parseFloat(String(t.qty)) || 0;
+    const total = parseFloat(String(t.totalPrice)) || 0;
+    const cur = map.get(key);
+
+    if (!cur) {
+      map.set(key, { ...t, mainUnit, qty, totalPrice: total });
+      continue;
+    }
+
+    const sumQty = (parseFloat(String(cur.qty)) || 0) + qty;
+    const sumTotal = (parseFloat(String(cur.totalPrice)) || 0) + total;
+    cur.qty = sumQty;
+    cur.totalPrice = sumTotal;
+    cur.mainUnit = mainUnit;
+    cur.unitPrice =
+      sumQty > 0 && sumTotal > 0
+        ? Math.round((sumTotal / sumQty) * 100) / 100
+        : cur.unitPrice;
+  }
+
+  return [...map.values()];
+}
+
 export function computeRowFields(
   qty: number,
   convertRate: number,
@@ -108,7 +138,7 @@ export function buildTransactionRow(
     item_code: t.itemCode,
     item_name_th: t.itemNameTH,
     qty,
-    main_unit: t.mainUnit,
+    main_unit: String(t.mainUnit || "").trim(),
     convert_rate: convert,
     sub_unit: t.subUnit,
     total_sub: totalSub,

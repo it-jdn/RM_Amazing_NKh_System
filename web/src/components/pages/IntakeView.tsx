@@ -503,20 +503,42 @@ export function IntakeView() {
     return "—";
   }
 
-  const shopItemCodes = useMemo(() => new Set(curItems.map((it) => it.code)), [curItems]);
+  function filledPurchaseRows(): {
+    item: CurItem;
+    opt: ItemPurchaseUnit;
+    rowKey: string;
+    vals: { qty: string; total: string };
+  }[] {
+    const seen = new Set<string>();
+    const rows: {
+      item: CurItem;
+      opt: ItemPurchaseUnit;
+      rowKey: string;
+      vals: { qty: string; total: string };
+    }[] = [];
+
+    for (const it of curItems) {
+      if (seen.has(it.code)) continue;
+      seen.add(it.code);
+      for (const opt of it.purchaseOptions) {
+        const rowKey = intakeRowKey(it.code, opt.mainUnit);
+        const v = rowVals[rowKey];
+        if (!v) continue;
+        const q = parseFloat(v.qty) || 0;
+        const tot = parseFloat(v.total) || 0;
+        if (q <= 0 || tot <= 0) continue;
+        rows.push({ item: it, opt, rowKey, vals: v });
+      }
+    }
+    return rows;
+  }
 
   function sumStats() {
     let n = 0;
     let t = 0;
-    for (const [rowKey, v] of Object.entries(rowVals)) {
-      const parsed = parseIntakeRowKey(rowKey);
-      if (!parsed || !shopItemCodes.has(parsed.itemCode)) continue;
-      const q = parseFloat(v.qty) || 0;
-      const tot = parseFloat(v.total) || 0;
-      if (q > 0 && tot > 0) {
-        n++;
-        t += tot;
-      }
+    for (const row of filledPurchaseRows()) {
+      n++;
+      t += parseFloat(row.vals.total) || 0;
     }
     return { n, t };
   }
@@ -604,37 +626,25 @@ export function IntakeView() {
   function buildTransactions(): TransactionInput[] {
     const supp = suppliers.find((s) => s.code === suppSel);
     const suppLabel = supp ? supplierDisplayName(supp, locale) : suppSel;
-    const itemByCode = new Map(curItems.map((it) => [it.code, it]));
     const txns: TransactionInput[] = [];
 
-    for (const [rowKey, v] of Object.entries(rowVals)) {
-      const parsed = parseIntakeRowKey(rowKey);
-      if (!parsed || !shopItemCodes.has(parsed.itemCode)) continue;
-      const qty = parseFloat(v.qty) || 0;
-      const total = parseFloat(v.total) || 0;
-      if (qty <= 0 || total <= 0) continue;
-
-      const base = itemByCode.get(parsed.itemCode);
-      if (!base) continue;
-      const opt = base.purchaseOptions.find((o) => o.mainUnit === parsed.mainUnit);
-      const mainUnit = opt?.mainUnit ?? parsed.mainUnit;
-      const subUnit = opt?.subUnit ?? base.subUnit;
-      const convertRate = opt?.convertRate ?? base.convertRate;
-      const refPrice = opt?.standardUnitPrice ?? base.refPrice;
-
+    for (const row of filledPurchaseRows()) {
+      const qty = parseFloat(row.vals.qty) || 0;
+      const total = parseFloat(row.vals.total) || 0;
+      const mainUnit = row.opt.mainUnit.trim();
       txns.push({
         date: intakeDate,
         suppCode: suppSel,
         suppName: suppLabel,
-        itemCode: base.code,
-        itemNameTH: base.nameTH,
+        itemCode: row.item.code,
+        itemNameTH: row.item.nameTH,
         qty,
         mainUnit,
-        convertRate,
-        subUnit,
-        unitPrice: qty > 0 && total > 0 ? total / qty : refPrice,
+        convertRate: row.opt.convertRate,
+        subUnit: row.opt.subUnit,
+        unitPrice: qty > 0 && total > 0 ? total / qty : row.opt.standardUnitPrice ?? 0,
         totalPrice: total,
-        standardUnitPriceAtSave: refPrice,
+        standardUnitPriceAtSave: row.opt.standardUnitPrice ?? 0,
         note: loadedSlipNote.trim(),
       });
     }

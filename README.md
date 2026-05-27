@@ -59,20 +59,32 @@ RM_Amazing_NKh_System/
 │   │   │   │   ├── ProfileView.tsx
 │   │   │   │   └── admin/                            # Admin*Panel
 │   │   │   ├── history/
-│   │   │   │   └── HistorySlipDetail.tsx             # แก้ไขใบ, พิมพ์ PDF, ลบใบ
+│   │   │   │   ├── HistorySlipDetail.tsx             # แก้ไขใบ, พิมพ์ PDF, ลบใบ
+│   │   │   │   ├── HistoryListTable.tsx              # ตารางรายการ (desktop ≥1025px)
+│   │   │   │   ├── HistoryEditCards.tsx              # การ์ดแก้ไข (มือถือ/แท็บเล็ต)
+│   │   │   │   └── HistoryStickyFooter.tsx
 │   │   │   ├── intake/                               # slip, สรุปรายวัน, modals
 │   │   │   │   ├── IntakeDayOverview.tsx
 │   │   │   │   ├── IntakeShopSlips.tsx, IntakeSlipStatusBar.tsx
 │   │   │   │   ├── DeleteIntakeBatchButton.tsx
 │   │   │   │   └── …
-│   │   │   ├── operator/                             # มือถือ: การ์ด, sticky bar
+│   │   │   ├── operator/                             # มือถือ: การ์ด, sticky bar, bottom nav
+│   │   │   │   ├── OperatorBottomNav.tsx
+│   │   │   │   ├── IntakeItemCards.tsx, IntakeStickyBar.tsx
+│   │   │   │   └── …
 │   │   │   ├── reports/
+│   │   │   │   ├── ReportFilters.tsx, ReportChartsFold.tsx
+│   │   │   │   ├── ReportTableSection.tsx, ReportTablePager.tsx
+│   │   │   │   └── ReportKpiGrid.tsx, ReportHeatmap.tsx
 │   │   │   ├── admin/
 │   │   │   ├── nav/, ui/, icons/
 │   │   │   ├── AppNav.tsx, AppShell.tsx, Toast.tsx
 │   │   │   └── LocaleSwitcher.tsx
 │   │   ├── context/                                  # AppData, Locale
-│   │   ├── hooks/                                    # drawer, compact admin, modal
+│   │   ├── hooks/                                    # drawer, phone/desktop layout, guarded nav
+│   │   │   ├── usePhoneLayout.ts, useDesktopLayout.ts
+│   │   │   ├── useDrawerNav.ts, useGuardedNavigation.ts
+│   │   │   └── useCompactAdminLayout.ts, …
 │   │   ├── lib/
 │   │   │   ├── auth/                                 # session, paths, intake-slip-permissions
 │   │   │   ├── i18n/
@@ -80,6 +92,7 @@ RM_Amazing_NKh_System/
 │   │   │   │   ├── transactions.ts, purchase-units.ts
 │   │   │   │   ├── intake-slip.ts, intake-day-overview.ts
 │   │   │   │   ├── history-slip-edit.ts              # แก้ไขประวัติต่อใบ
+│   │   │   │   ├── history-list-groups.ts            # รวมกลุ่มรายการประวัติ + audit
 │   │   │   │   ├── intake-row-key.ts, intake-row-draft.ts
 │   │   │   │   └── item-filter.ts, item-linked-shops.ts, …
 │   │   │   ├── history/
@@ -103,7 +116,7 @@ RM_Amazing_NKh_System/
 │   │   ├── fix-gramma-unit.mjs, item-category-mapping.csv
 │   │   └── team-pins.example.json
 │   ├── supabase/
-│   │   ├── migrations/                               # 001–013 (ดูตารางด้านล่าง)
+│   │   ├── migrations/                               # 001–014 (ดูตารางด้านล่าง)
 │   │   └── manual-fixes/                             # SQL แก้ข้อมูลครั้งคราว (ไม่รันอัตโนมัติ)
 │   ├── .env.example, .env.production.example
 │   ├── package.json, vercel.json
@@ -167,27 +180,46 @@ RM_Amazing_NKh_System/
 - มือถือ: ภาพรวมร้านในวันที่เลือก (บันทึกแล้ว / draft ค้าง) ก่อนเข้ารายการสินค้า
 - เลือก **วันที่รับ** + **ร้านค้า** แล้วกรอกจำนวน / ราคารวมต่อรายการ
 - สินค้าที่มีหลายหน่วยซื้อเข้า → เลือกหน่วยก่อนกรอกจำนวน
-- มือถือ: การ์ดต่อสินค้า + แถบบันทึกติดล่าง; จอใหญ่: ตาราง
+- **มือถือ (≤768px):** การ์ดต่อสินค้า + แถบบันทึกติดล่าง + แท็บนำทางล่าง 2 ปุ่ม
+- **แท็บเล็ต (≤1024px):** การ์ด/ sticky save · ซ่อน sum-bar แบบ desktop
+- **Desktop (≥1025px):** ตาราง sticky header, hover/focus แถว, scroll สูงสุด ~70vh
 - หมายเหตุใบ (slip note), แท็บสลับใบ (`IntakeShopSlips`)
 - ลบทั้งใบหรือทั้งวัน+ร้าน (สิทธิ์ตาม role / ผู้บันทึก)
 
 ### หน้าประวัติรับสินค้า (`/history`)
 
-- รายการแบบการ์ด (วัน + ร้าน + สรุปยอด) — กรองช่วงวันที่ / ร้าน / เรียงลำดับ
+- รายการแบบ **การ์ด** (มือถือ/แท็บเล็ต) หรือ **ตาราง** (desktop ≥1025px) — กรองช่วงวันที่ / ร้าน / เรียงลำดับ
+- ตาราง desktop แสดง **ผู้บันทึก · เวลาบันทึก · เวลาแก้ไขล่าสุด** (จาก `intake_slips` หรือ fallback จาก transaction)
 - รายละเอียดต่อ **ใบรับสินค้า** (`HistorySlipDetail`) — แท็บเมื่อมีหลายใบในวันเดียวกัน
 - **แก้ไข** จำนวนและมูลค่า (operator แก้ได้เฉพาะใบตนเอง · manager/admin แก้ใบอื่นได้)
+- Desktop: **⌘/Ctrl+S** บันทึก · footer สไตล์ sum-bar
 - **พิมพ์ PDF** — เปิดหน้าพิมพ์ใบรับ แล้วบันทึกเป็น PDF จากเบราว์เซอร์
 - **ลบใบรับสินค้า** — มุมขวาบนรายละเอียดใบ
+
+### หน้ารายงาน (`/report`)
+
+- KPI, กราฟแนวโน้ม, heatmap — กราฟพับได้บนมือถือ (`ReportChartsFold`)
+- กราฟสรุปตามหมวดหมู่: แสดง **มูลค่า + % + จำนวนรายการ** ใน legend/tooltip · 3 กราฟย่อยอยู่แถวเดียวกันบน desktop
+- ตารางสรุป (หมวด / สินค้า / รายละเอียด): **แบ่งหน้า 50 / 100 / ทั้งหมด** เมื่อแถว >50 · **Export Excel ส่งออกครบทุกแถว**
+- กรองช่วงวันที่, ร้าน, หมวด, สินค้า · พิมพ์รายงาน
 
 ### Admin — สินค้า
 
 - **Admin** แก้ **รหัสสินค้า** ได้ (ตรวจซ้ำก่อนบันทึก · อัปเดต FK ทุกตารางที่อ้างอิง)
 - Manager แก้ชื่อ/หมวด/หน่วยมาตรฐาน แต่ไม่เปลี่ยนรหัส
 
-### Operator UX (มือถือ)
+### Operator UX
+
+**Breakpoint หลัก:** มือถือ ≤768px · แท็บเล็ต ≤1024px · desktop ≥1025px
+
+| จอ | พฤติกรรม |
+|----|----------|
+| มือถือ | แท็บล่าง 2 ปุ่ม (รับของ · ประวัติ) · การ์ด intake/history · sticky save |
+| แท็บเล็ต | drawer nav · การ์ด + sticky footer · ตัวกรองพับได้ |
+| Desktop | nav ด้านบนเต็ม · ตาราง intake/history · bottom nav ซ่อน |
 
 - หลังล็อกอิน **operator** → `/receiving` · **admin/manager** → `/history`
-- แท็บล่าง 2 ปุ่ม: รับของ · ประวัติ (จอ ≤640px)
+- เปลี่ยนหน้าระหว่างกรอก intake ที่ยังไม่บันทึก → ยืนยันก่อนออก (`useGuardedNavigation`)
 
 ---
 
@@ -211,10 +243,11 @@ RM_Amazing_NKh_System/
 | [`011_supplier_item_purchase_units.sql`](web/supabase/migrations/011_supplier_item_purchase_units.sql) | หน่วยซื้อเข้าต่อร้าน + ราคา |
 | [`012_item_purchase_units.sql`](web/supabase/migrations/012_item_purchase_units.sql) | หน่วยซื้อเข้ามาตรฐานต่อสินค้า |
 | [`013_intake_slips.sql`](web/supabase/migrations/013_intake_slips.sql) | ใบรับหลายใบ/วัน/ร้าน + `transactions.slip_id` |
+| [`014_supplier_business_reg_no.sql`](web/supabase/migrations/014_supplier_business_reg_no.sql) | เลขทะเบียนกิจการซัพพลายเออร์ (optional) |
 
 | ตาราง | คำอธิบาย |
 |--------|----------|
-| `suppliers` | ร้านค้า |
+| `suppliers` | ร้านค้า (+ `supp_business_reg_no` ถ้ารัน 014) |
 | `items` | สินค้า — ชื่อ TH/EN/KR, หน่วยหลัก/ย่อย, หมวดหมู่ |
 | `units` | หน่วยมาตรฐานในระบบ |
 | `item_categories` | หมวดหมู่รายงาน (PROT, PROD, SEA, PANTRY, BEV) |
@@ -232,7 +265,7 @@ RM_Amazing_NKh_System/
 ### 1. Supabase + env
 
 1. สร้างโปรเจกต์ที่ [supabase.com](https://supabase.com)
-2. รัน migration `001` → `013` ตามลำดับ (ข้าม `002_seed_pins` ได้ถ้าใช้ `npm run seed:pins`)
+2. รัน migration `001` → `014` ตามลำดับ (ข้าม `002_seed_pins` ได้ถ้าใช้ `npm run seed:pins`)
 3. คัดลอก `web/.env.example` → `web/.env.local`
 
 | ตัวแปร | หาได้จาก |
@@ -305,7 +338,7 @@ npm run reset:user-pins  # รีเซ็ต PIN ตาม script
 
 ---
 
-## Deploy (Vercel) — Production Phase 1
+## Deploy (Vercel)
 
 รายละเอียดครบ: [`web/README.md`](web/README.md) ส่วน **Deploy to Vercel**
 
@@ -317,10 +350,18 @@ DEPLOY_ENV=production npm run deploy:setup         # โปรเจกต์ Su
 DEPLOY_ENV=production npm run deploy:print-vercel-env   # คัดลอกไป Vercel
 ```
 
-Git (จาก root repo): `git remote add origin …` → `git push -u origin main`  
+Git (จาก root repo): `git push origin main` → Vercel deploy อัตโนมัติ  
 Vercel: Import repo → **Root Directory `web`** → ใส่ env → Deploy  
 
-Production (ตัวอย่าง): [https://inven-amazing-nkh.vercel.app](https://inven-amazing-nkh.vercel.app)
+**Production:** [https://inven-amazing-nkh.vercel.app](https://inven-amazing-nkh.vercel.app)
+
+| Git tag | จุดอ้างอิง |
+|---------|------------|
+| `pre-mobile-ux-2026-05-20` | ก่อนปรับ mobile UX รอบใหญ่ |
+| `mobile-ux-phase5` | หลัง mobile UX phase 5 |
+| `v1.0.0` | release แรก |
+
+ก่อน push: `cd web && npm run build`
 
 ---
 
@@ -340,6 +381,7 @@ Logic หลักถูกย้ายไป:
 - [`web/src/lib/domain/history-slip-edit.ts`](web/src/lib/domain/history-slip-edit.ts) — แก้ไขรายการในประวัติ
 - [`web/src/lib/domain/purchase-units.ts`](web/src/lib/domain/purchase-units.ts) — ตัวเลือกหน่วยตอนรับของ
 - [`web/src/lib/history/print-history-slip-document.ts`](web/src/lib/history/print-history-slip-document.ts) — พิมพ์ใบรับ PDF
+- [`web/src/lib/domain/history-list-groups.ts`](web/src/lib/domain/history-list-groups.ts) — รวมกลุ่มประวัติ + audit สำหรับตาราง desktop
 - [`web/src/lib/reports/aggregate.ts`](web/src/lib/reports/aggregate.ts) — สรุปรายงานต้นทุน
 - [`web/src/lib/admin/items-catalog-list.ts`](web/src/lib/admin/items-catalog-list.ts) — กรอง/เรียงรายการสินค้าใน admin
 
