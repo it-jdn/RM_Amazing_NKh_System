@@ -358,7 +358,13 @@ const messages = {
     "intake.title": "รับสินค้า",
     "intake.description":
       "เลือกวันที่และเลือกร้านค้าเพื่อรับสินค้า หรือกดปุ่ม \"เพิ่มรับสินค้า\" เมื่อต้องการรับสินค้าเพิ่มเติม",
-    "intake.date": "วันที่รับสินค้า",
+    "intake.date": "วันที่รับสินค้า (เวลาไทย)",
+    "intake.businessDateHintSame":
+      "วันที่รับสินค้าตามเวลาไทย (ICT) — วันนี้ {businessDate}",
+    "intake.businessDateHintDiff":
+      "วันที่รับสินค้าตามเวลาไทย: วันนี้ {businessDate} · เครื่องคุณแสดง {localDate} · กำลังดู {selectedDate} — ถ้าบันทึกตามวันที่เครื่อง ให้กดเลือกวันที่เครื่องด้านล่าง",
+    "intake.businessDateUseThaiToday": "ใช้วันนี้ (เวลาไทย)",
+    "intake.businessDateUseLocalToday": "ใช้วันนี้ (ตามเครื่อง)",
     "intake.supplier": "ร้านค้า",
     "intake.selectSupplier": "— เลือกร้านค้า —",
     "intake.search": "ค้นหาสินค้า...",
@@ -963,7 +969,13 @@ const messages = {
     "intake.title": "Receive goods",
     "intake.description":
       "Select a date and shop to receive goods, or tap \"Add intake\" when you need another receipt for a shop that already received today.",
-    "intake.date": "Receiving date",
+    "intake.date": "Receiving date (Thailand time)",
+    "intake.businessDateHintSame":
+      "Receiving dates use Thailand time (ICT) — today is {businessDate}",
+    "intake.businessDateHintDiff":
+      "Thailand business date: today {businessDate} · Your device shows {localDate} · Viewing {selectedDate} — if intake was saved on your device date, tap below",
+    "intake.businessDateUseThaiToday": "Use today (Thailand)",
+    "intake.businessDateUseLocalToday": "Use today (device)",
     "intake.supplier": "Supplier",
     "intake.selectSupplier": "— Select supplier —",
     "intake.search": "Search products...",
@@ -1567,7 +1579,12 @@ const messages = {
     "intake.title": "상품 입고",
     "intake.description":
       "날짜와 매장을 선택해 입고하거나, 당일 입고한 매장에서 \"입고 추가\"를 눌러 추가 입고하세요.",
-    "intake.date": "입고일",
+    "intake.date": "입고일 (태국 시간)",
+    "intake.businessDateHintSame": "입고일은 태국 시간(ICT) 기준 — 오늘 {businessDate}",
+    "intake.businessDateHintDiff":
+      "태국 기준 오늘 {businessDate} · 기기 날짜 {localDate} · 조회 중 {selectedDate} — 기기 날짜로 저장했다면 아래 버튼 사용",
+    "intake.businessDateUseThaiToday": "오늘 (태국)",
+    "intake.businessDateUseLocalToday": "오늘 (기기)",
     "intake.supplier": "매장",
     "intake.selectSupplier": "— 매장 선택 —",
     "intake.search": "상품 검색...",

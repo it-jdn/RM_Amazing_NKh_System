@@ -110,13 +110,30 @@ export function fmt(n: number | string) {
   });
 }
 
+/** ปฏิทินธุรกิจรับสินค้า / ประวัติ — ตามเวลาไทย ไม่ขึ้นกับประเทศที่ล็อกอิน */
+export const BUSINESS_TIMEZONE = "Asia/Bangkok";
+
+export function calendarDateInTimezone(date: Date, timeZone: string): string {
+  return date.toLocaleDateString("sv-SE", { timeZone });
+}
+
+/** Calendar date on the user's device (browser timezone). */
+export function browserCalendarTodayISO(): string {
+  try {
+    return calendarDateInTimezone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+  } catch {
+    return calendarDateInTimezone(new Date(), BUSINESS_TIMEZONE);
+  }
+}
+
+/** @deprecated use todayBangkokISO for business dates */
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayBangkokISO();
 }
 
 /** Calendar date in Asia/Bangkok (YYYY-MM-DD). */
 export function todayBangkokISO() {
-  return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+  return calendarDateInTimezone(new Date(), BUSINESS_TIMEZONE);
 }
 
 function toISOStringDate(d: Date): string {
@@ -221,30 +238,38 @@ export function formatDateTimeTH(savedAt: string) {
   return formatAppDateTime(savedAt, "th");
 }
 
+/** @deprecated use daysAgoBangkok for business date ranges */
 export function daysAgoISO(days: number) {
-  return new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  return daysAgoBangkok(days);
+}
+
+export function daysAgoBangkok(days: number): string {
+  const base = parseISODateLocal(todayBangkokISO());
+  if (!base) return todayBangkokISO();
+  base.setDate(base.getDate() - days);
+  return toISOStringDate(base);
 }
 
 export type DateRangeISO = { from: string; to: string };
 
 /** ช่วงวันที่สำเร็จรูปสำหรับหน้าประวัติ */
 export function histDatePresetRange(preset: string): DateRangeISO {
-  const today = todayISO();
+  const today = todayBangkokISO();
   switch (preset) {
     case "today":
       return { from: today, to: today };
     case "yesterday": {
-      const y = daysAgoISO(1);
+      const y = daysAgoBangkok(1);
       return { from: y, to: y };
     }
     case "last7":
-      return { from: daysAgoISO(6), to: today };
+      return { from: daysAgoBangkok(6), to: today };
     case "thisWeek":
       return thisWeekRangeISO();
     case "last30":
-      return { from: daysAgoISO(29), to: today };
+      return { from: daysAgoBangkok(29), to: today };
     case "thisMonth":
-      return { from: today.slice(0, 7) + "-01", to: today };
+      return { from: monthStartISO(), to: today };
     case "lastMonth":
       return lastMonthRangeISO();
     case "all":
@@ -255,14 +280,14 @@ export function histDatePresetRange(preset: string): DateRangeISO {
 }
 
 function lastMonthRangeISO(): DateRangeISO {
-  const [y, m] = todayISO().split("-").map(Number);
-  const first = new Date(Date.UTC(y, m - 2, 1));
-  const last = new Date(Date.UTC(y, m - 1, 0));
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    from: `${first.getUTCFullYear()}-${pad(first.getUTCMonth() + 1)}-01`,
-    to: `${last.getUTCFullYear()}-${pad(last.getUTCMonth() + 1)}-${pad(last.getUTCDate())}`,
-  };
+  const d = parseISODateLocal(todayBangkokISO());
+  if (!d) {
+    const today = todayBangkokISO();
+    return { from: today, to: today };
+  }
+  const first = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  const last = new Date(d.getFullYear(), d.getMonth(), 0);
+  return { from: toISOStringDate(first), to: toISOStringDate(last) };
 }
 
 export const HIST_DATE_PRESETS: { id: string; label: string }[] = [

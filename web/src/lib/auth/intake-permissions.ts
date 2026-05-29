@@ -1,5 +1,5 @@
 import type { AppRole } from "@/lib/types";
-import { daysAgoISO, todayBangkokISO } from "@/lib/utils/format";
+import { daysAgoBangkok, todayBangkokISO } from "@/lib/utils/format";
 
 export const OPERATOR_DELETE_DAYS = 7;
 
@@ -7,7 +7,7 @@ export const OPERATOR_DELETE_DAYS = 7;
 export function canDeleteIntakeBatch(role: AppRole, date: string): boolean {
   if (role === "admin" || role === "manager") return true;
   if (role !== "operator") return false;
-  const min = daysAgoISO(OPERATOR_DELETE_DAYS);
+  const min = daysAgoBangkok(OPERATOR_DELETE_DAYS);
   const max = todayBangkokISO();
   return date >= min && date <= max;
 }
