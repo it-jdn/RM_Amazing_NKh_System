@@ -9,6 +9,7 @@ export const ITEM_CATEGORY_CODES: ItemCategoryCode[] = [
   "SEA",
   "PANTRY",
   "BEV",
+  "MISC",
 ];
 
 /** หมวดเริ่มต้นเมื่อสร้างสินค้าใหม่หรือไม่มีค่าใน DB */
@@ -50,6 +51,13 @@ export const FALLBACK_ITEM_CATEGORIES: ItemCategory[] = [
     nameEN: "Beverages",
     nameKR: "음료",
     sortOrder: 5,
+  },
+  {
+    code: "MISC",
+    nameTH: "ของใช้อื่นๆ",
+    nameEN: "Other Supplies",
+    nameKR: "기타 용품",
+    sortOrder: 6,
   },
 ];
 

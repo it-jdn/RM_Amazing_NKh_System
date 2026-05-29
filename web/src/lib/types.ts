@@ -18,7 +18,7 @@ export interface Supplier {
   sortOrder?: number;
 }
 
-export type ItemCategoryCode = "PROT" | "PROD" | "SEA" | "PANTRY" | "BEV";
+export type ItemCategoryCode = "PROT" | "PROD" | "SEA" | "PANTRY" | "BEV" | "MISC";
 
 export interface ItemCategory {
   code: ItemCategoryCode;

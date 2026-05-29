@@ -93,6 +93,9 @@ export function AdminItemsPanel() {
   const [formBaseline, setFormBaseline] = useState("");
   const [standardRows, setStandardRows] = useState<StandardUnitRow[]>([]);
   const [refreshAfterSaveCode, setRefreshAfterSaveCode] = useState<string | null>(null);
+  /** หลังเพิ่มสินค้าใหม่ — เลื่อนและไฮไลต์แถวในรายการ */
+  const [focusedItemCode, setFocusedItemCode] = useState<string | null>(null);
+  const focusScrollPendingRef = useRef<string | null>(null);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [linkCode, setLinkCode] = useState<string | null>(null);
   const [linkDirty, setLinkDirty] = useState(false);
@@ -221,6 +224,8 @@ export function AdminItemsPanel() {
   }
 
   function resetForm() {
+    setFocusedItemCode(null);
+    focusScrollPendingRef.current = null;
     setEditingCode(null);
     setFormCode("");
     setFormNameTH("");
@@ -242,6 +247,8 @@ export function AdminItemsPanel() {
 
   function startAdd() {
     clearLinkPanel();
+    setFocusedItemCode(null);
+    focusScrollPendingRef.current = null;
     setEditingCode(null);
     setFormCode("");
     setFormNameTH("");
@@ -256,6 +263,8 @@ export function AdminItemsPanel() {
   }
 
   function startEdit(i: Item) {
+    setFocusedItemCode(null);
+    focusScrollPendingRef.current = null;
     setEditingCode(i.code);
     setFormCode(i.code);
     setFormNameTH(i.nameTH);
@@ -317,6 +326,29 @@ export function AdminItemsPanel() {
     }
   }, [filteredItems, editingCode, linkCode]);
 
+  useLayoutEffect(() => {
+    const code = focusedItemCode;
+    if (!code) return;
+    if (!items.some((i) => i.code === code)) return;
+
+    if (!displayedItems.some((i) => i.code === code)) {
+      if (focusScrollPendingRef.current !== code) {
+        focusScrollPendingRef.current = code;
+        setSearchQuery(code);
+      }
+      return;
+    }
+    focusScrollPendingRef.current = null;
+
+    const scrollToRow = () => {
+      document.getElementById(`admin-item-row-${code}`)?.scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
+    };
+    requestAnimationFrame(() => requestAnimationFrame(scrollToRow));
+  }, [focusedItemCode, displayedItems, items]);
+
   useEffect(() => {
     if (!refreshAfterSaveCode) return;
     const i = items.find((x) => x.code === refreshAfterSaveCode);
@@ -349,7 +381,7 @@ export function AdminItemsPanel() {
     setRefreshAfterSaveCode(null);
   }, [refreshAfterSaveCode, items, itemPurchaseStandards]);
 
-  async function submitForm(): Promise<boolean> {
+  async function submitForm(): Promise<string | false> {
     if (!formNameTH.trim()) {
       toast(t("admin.fillRequired"));
       return false;
@@ -452,7 +484,7 @@ export function AdminItemsPanel() {
       }
 
       await reload();
-      return true;
+      return savedCode || false;
     } catch (e) {
       toast(e instanceof Error ? e.message : "❌ เกิดข้อผิดพลาด");
       return false;
@@ -462,13 +494,14 @@ export function AdminItemsPanel() {
   }
 
   async function handlePrimarySave() {
-    const ok = await submitForm();
-    if (!ok) return;
+    const saved = await submitForm();
+    if (!saved) return;
     if (editingCode) {
       setRefreshAfterSaveCode(formCode.trim().toUpperCase() || editingCode);
       return;
     }
     resetForm();
+    setFocusedItemCode(saved);
   }
 
   const anyDirty = dirty || linkDirty;
@@ -479,7 +512,7 @@ export function AdminItemsPanel() {
       if (linkCode && linkDirty && linkPanelRef.current) {
         return linkPanelRef.current.save();
       }
-      return submitForm();
+      return Boolean(await submitForm());
     }, [linkCode, linkDirty, submitForm]),
     discard: useCallback(() => {
       if (linkCode && linkDirty && linkPanelRef.current) {
@@ -503,6 +536,8 @@ export function AdminItemsPanel() {
   function tryStartLink(i: Item) {
     if (linkCode === i.code && linkPanelOpen) return;
     guardAction(() => {
+      setFocusedItemCode(null);
+      focusScrollPendingRef.current = null;
       setEditingCode(null);
       setAddSheetOpen(false);
       setLinkCode(i.code);
@@ -601,7 +636,7 @@ export function AdminItemsPanel() {
               units={units}
               linkedShopNames={linkedShopNames}
               noShopsLabel={noShopsLabel}
-              selectedCode={editingCode ?? linkCode}
+              selectedCode={editingCode ?? linkCode ?? focusedItemCode}
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={handleSort}
@@ -661,8 +696,11 @@ export function AdminItemsPanel() {
                   {displayedItems.map((i, rowIndex) => (
                     <tr
                       key={i.code}
+                      id={`admin-item-row-${i.code}`}
                       className={
-                        editingCode === i.code || linkCode === i.code
+                        editingCode === i.code ||
+                        linkCode === i.code ||
+                        focusedItemCode === i.code
                           ? "admin-shop-table__row--selected"
                           : undefined
                       }

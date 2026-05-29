@@ -81,7 +81,7 @@ export function AdminItemsCatalogMobileList({
           const showSubNames = subNames !== "—";
 
           return (
-            <li key={item.code}>
+            <li key={item.code} id={`admin-item-row-${item.code}`}>
               <article
                 className={`admin-items-mobile-card${selected ? " admin-items-mobile-card--selected" : ""}`}
               >
