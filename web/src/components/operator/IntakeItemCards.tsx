@@ -3,6 +3,10 @@
 import { IconPlus, IconX } from "@/components/icons/AppIcons";
 import { IntakePurchaseUnitSuffix } from "@/components/intake/IntakePurchaseUnitSelect";
 import { useLocale } from "@/context/LocaleContext";
+import {
+  labelsForPurchaseUnit,
+  selectedPurchaseUnitOption,
+} from "@/lib/domain/intake-display-units";
 import { unitConversionMessageParams } from "@/lib/domain/intake-unit-conversion";
 import { itemDisplayName } from "@/lib/i18n/item-name";
 import type { Item, ItemPurchaseUnit, UnitOption } from "@/lib/types";
@@ -90,13 +94,15 @@ export function IntakeItemCards({
           const v = rowVals[it.rowKey] || { qty: "", total: "" };
           const filled = isFilled(v);
           const primary = itemDisplayName(it, locale);
+          const pu = selectedPurchaseUnitOption(it.purchaseOptions, it.mainUnitCode);
+          const { main: unitMain, sub: unitSub } = labelsForPurchaseUnit(pu, units, locale);
           const hasConversion =
-            Boolean(it.subUnit?.trim()) &&
-            it.subUnit.trim() !== it.unit.trim() &&
+            unitSub !== "—" &&
+            unitSub !== unitMain &&
             Number(it.convertRate) > 0 &&
             Number(it.convertRate) !== 1;
           const conversionText = hasConversion
-            ? t("intake.unitConversion", unitConversionMessageParams(it.unit, it.subUnit, it.convertRate))
+            ? t("intake.unitConversion", unitConversionMessageParams(unitMain, unitSub, it.convertRate))
             : null;
 
           return (

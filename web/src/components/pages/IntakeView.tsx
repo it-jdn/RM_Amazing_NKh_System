@@ -48,6 +48,10 @@ import type { UnitOption, UnitPairHint } from "@/lib/types";
 import { useModalLayer } from "@/hooks/useModalLayer";
 import { useIntakeNavGuardOptional } from "@/context/IntakeNavGuardContext";
 import { RECEIVING_PATH } from "@/lib/auth/paths";
+import {
+  labelsForPurchaseUnit,
+  selectedPurchaseUnitOption,
+} from "@/lib/domain/intake-display-units";
 import { unitConversionMessageParams } from "@/lib/domain/intake-unit-conversion";
 import { fmt, todayBangkokISO } from "@/lib/utils/format";
 import {
@@ -1246,6 +1250,8 @@ function IntakeTable({
               const filled = (parseFloat(v.qty) || 0) > 0 && (parseFloat(v.total) || 0) > 0;
               const primary = itemDisplayName(it, locale);
               const secondary = itemSecondaryName(it, locale);
+              const pu = selectedPurchaseUnitOption(it.purchaseOptions, it.mainUnitCode);
+              const { main: unitMain, sub: unitSub } = labelsForPurchaseUnit(pu, units, locale);
               return (
                 <tr key={it.rowKey} className={filled ? "filled" : ""}>
                   <td className="itbl__num">{idx + 1}</td>
@@ -1283,7 +1289,7 @@ function IntakeTable({
                       <span className="badge badge-blue">
                         {it.purchaseOptions[0]
                           ? purchaseUnitOptionLabel(it.purchaseOptions[0], units, locale)
-                          : it.unit}
+                          : unitMain}
                       </span>
                     )}
                   </td>
@@ -1301,7 +1307,7 @@ function IntakeTable({
                     />
                     {it.refPrice > 0 ? (
                       <span className="intake-ref-price intake-ref-price--inline">
-                        {t("intake.refPrice", { price: fmt(it.refPrice), unit: it.unit })}
+                        {t("intake.refPrice", { price: fmt(it.refPrice), unit: unitMain })}
                       </span>
                     ) : null}
                   </td>
@@ -1309,7 +1315,7 @@ function IntakeTable({
                     <span className="itbl__unit-conversion">
                       {t(
                         "intake.unitConversion",
-                        unitConversionMessageParams(it.unit, it.subUnit, it.convertRate)
+                        unitConversionMessageParams(unitMain, unitSub, it.convertRate)
                       )}
                     </span>
                   </td>

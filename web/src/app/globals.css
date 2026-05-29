@@ -3269,6 +3269,13 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     gap: 8px;
     align-items: stretch;
   }
+  .intake-mobile-setup__lang {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+  .intake-mobile-setup__lang .lang-switch--menu {
+    justify-content: flex-end;
+  }
   .intake-mobile-setup--compact .app-date-field__btn,
   .intake-mobile-setup--compact .supplier-picker__trigger {
     line-height: 1.25;
@@ -3736,6 +3743,13 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     grid-template-columns: minmax(158px, 50%) minmax(0, 1fr);
     gap: 8px;
     align-items: stretch;
+  }
+  .intake-mobile-setup__lang {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+  .intake-mobile-setup__lang .lang-switch--menu {
+    justify-content: flex-end;
   }
   .intake-mobile-setup--compact .app-date-field__btn,
   .intake-mobile-setup--compact .supplier-picker__trigger {
