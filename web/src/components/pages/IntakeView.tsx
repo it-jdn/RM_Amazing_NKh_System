@@ -598,6 +598,11 @@ export function IntakeView() {
 
   async function checkStaleBeforeSave(onContinue: () => void) {
     if (!suppSel || !intakeDate) return;
+    // ใบใหม่: ไม่เทียบกับทั้งวัน/ร้าน (มิฉะนั้นจะเจอ stale ทุกครั้งที่ร้านนั้นมีใบอื่นอยู่แล้ว)
+    if (!activeSlipId) {
+      onContinue();
+      return;
+    }
     try {
       const meta = await fetchSlipMeta();
       if (meta.exists && isServerSlipNewer(meta.maxSavedAt, slipSnapshotAt)) {
@@ -679,6 +684,8 @@ export function IntakeView() {
       return;
     }
     setSaving(true);
+    const creatingNewSlip = !activeSlipId;
+    const shopCode = suppSel;
     try {
       const r = await apiPost<{ success: boolean; message: string; replaced?: boolean; slipId?: string }>(
         "/api/transactions",
@@ -694,13 +701,21 @@ export function IntakeView() {
       const nav = pendingNav;
       setPendingNav(null);
       setShowUnsavedNav(false);
+      setSlipListRefresh((k) => k + 1);
+      await reload();
+
+      if (creatingNewSlip && r.slipId) {
+        setSuppSel(shopCode);
+        setActiveSlipId(r.slipId);
+        setActiveSlipNo(null);
+        return;
+      }
+
       if (nav) {
         applyNavigation(nav);
       } else {
         applyNavigation({ kind: "supp", value: "" });
       }
-      setSlipListRefresh((k) => k + 1);
-      await reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Error");
     } finally {
