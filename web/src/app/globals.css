@@ -5406,16 +5406,13 @@ input.intake-touch-input,
 }
 .intake-business-date-hint {
   margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--surface-2, #f1f5f9);
-  border: 1px solid var(--border, #e2e8f0);
 }
 .intake-business-date-hint__text {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.45;
-  color: var(--muted, #64748b);
+  color: var(--brand-red);
+  font-weight: 500;
 }
 .intake-business-date-hint__actions {
   display: flex;
