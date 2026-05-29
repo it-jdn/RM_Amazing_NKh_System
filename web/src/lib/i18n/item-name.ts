@@ -30,6 +30,43 @@ function normalizeNamedItem(item: NamedItem): NamedItem {
   return item;
 }
 
+export function hasAnyItemName(item: NamedItem): boolean {
+  const n = normalizeNamedItem(item);
+  return Boolean(n.nameTH?.trim() || n.nameEN?.trim() || n.nameKR?.trim());
+}
+
+/**
+ * DB column item_name_th is NOT NULL — when only EN/KR is filled, store primary there too.
+ */
+export function normalizeItemNamesForSave(
+  input: NamedItem
+): { nameTH: string; nameEN: string; nameKR: string; primary: string } | null {
+  const n = normalizeNamedItem(input);
+  const th = n.nameTH?.trim() || "";
+  const en = n.nameEN?.trim() || "";
+  const kr = n.nameKR?.trim() || "";
+  const primary = th || en || kr;
+  if (!primary) return null;
+  return {
+    nameTH: th || primary,
+    nameEN: en,
+    nameKR: kr,
+    primary,
+  };
+}
+
+export function itemNamesOverlapForDuplicate(a: NamedItem, b: NamedItem): boolean {
+  const keys = (item: NamedItem) => {
+    const x = normalizeNamedItem(item);
+    return [x.nameTH, x.nameEN, x.nameKR]
+      .map((s) => (s ?? "").trim().toLowerCase())
+      .filter(Boolean);
+  };
+  const left = keys(a);
+  const right = keys(b);
+  return left.some((k) => right.includes(k));
+}
+
 export function itemDisplayName(item: NamedItem, locale: Locale): string {
   const n = normalizeNamedItem(item);
   const th = n.nameTH?.trim() || "";

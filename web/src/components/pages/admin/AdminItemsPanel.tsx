@@ -35,6 +35,7 @@ import {
   buildItemShopCodesMap,
   itemLinkedShopNames,
 } from "@/lib/domain/item-linked-shops";
+import { hasAnyItemName, itemDisplayName } from "@/lib/i18n/item-name";
 import { unitDisplayName } from "@/lib/i18n/unit-display-name";
 import { AdminItemStandardUnitsEditor } from "@/components/admin/AdminItemStandardUnitsEditor";
 import {
@@ -382,8 +383,8 @@ export function AdminItemsPanel() {
   }, [refreshAfterSaveCode, items, itemPurchaseStandards]);
 
   async function submitForm(): Promise<string | false> {
-    if (!formNameTH.trim()) {
-      toast(t("admin.fillRequired"));
+    if (!hasAnyItemName({ nameTH: formNameTH, nameEN: formNameEN, nameKR: formNameKR })) {
+      toast(t("admin.items.nameAnyRequired"));
       return false;
     }
     if (!formCategoryCode) {
@@ -711,7 +712,7 @@ export function AdminItemsPanel() {
                       <td className="admin-shop-table__code" data-label={t("admin.items.code")}>
                         {i.code}
                       </td>
-                      <td data-label={t("admin.items.nameTh")}>{i.nameTH}</td>
+                      <td data-label={t("admin.items.nameTh")}>{itemDisplayName(i, locale)}</td>
                       <td
                         className="admin-shop-table__sub"
                         data-label={t("admin.items.categoryCol")}
@@ -874,6 +875,7 @@ export function AdminItemsPanel() {
                 <input type="text" value={formNameKR} onChange={(e) => setFormNameKR(e.target.value)} />
               </AdminFormField>
             </div>
+            <p className="admin-items-names-hint">{t("admin.items.namesHint")}</p>
           </AdminFormSection>
 
           {!isEdit ? (
@@ -1097,6 +1099,7 @@ export function AdminItemsPanel() {
                         />
                       </AdminFormField>
                     </div>
+                    <p className="admin-items-names-hint">{t("admin.items.namesHint")}</p>
                   </AdminFormSection>
 
                   {!isEdit ? (

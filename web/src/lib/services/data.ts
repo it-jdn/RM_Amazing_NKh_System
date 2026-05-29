@@ -13,6 +13,10 @@ import {
   recordMappingVersion,
 } from "@/lib/services/catalog-history";
 import { FALLBACK_ITEM_CATEGORIES, isItemCategoryCode } from "@/lib/catalog/item-categories";
+import {
+  itemNamesOverlapForDuplicate,
+  normalizeItemNamesForSave,
+} from "@/lib/i18n/item-name";
 import { unitPrimaryName } from "@/lib/i18n/unit-display-name";
 import { formatPostgresError } from "@/lib/db/postgres-error";
 import { itemsTableHasCategoryCode } from "@/lib/db/schema-support";
@@ -917,8 +921,15 @@ export async function saveItemMaster(data: {
   changedBy?: string;
 }) {
   const supabase = createAdminClient();
-  const nameTH = data.itemNameTH.trim();
-  if (!nameTH) return { ok: false, message: "❌ กรุณากรอกชื่อสินค้า (ไทย)" };
+  const names = normalizeItemNamesForSave({
+    nameTH: data.itemNameTH,
+    nameEN: data.itemNameEN,
+    nameKR: data.itemNameKR,
+  });
+  if (!names) {
+    return { ok: false, message: "❌ กรุณากรอกชื่อสินค้าอย่างน้อย 1 ภาษา (ไทย / English / 한국어)" };
+  }
+  const { nameTH, nameEN, nameKR, primary: primaryName } = names;
 
   const categoryCode = isItemCategoryCode(String(data.categoryCode || ""))
     ? (String(data.categoryCode) as ItemCategoryCode)
@@ -962,23 +973,29 @@ export async function saveItemMaster(data: {
     .trim()
     .toUpperCase();
 
+  const incomingNames = { nameTH, nameEN, nameKR };
   const dup = (items || []).find(
     (i) =>
-      normName(i.item_name_th) === normName(nameTH) &&
-      String(i.item_code) !== currentCode
+      String(i.item_code) !== currentCode &&
+      itemNamesOverlapForDuplicate(incomingNames, {
+        nameTH: String(i.item_name_th || ""),
+        nameEN: String(i.item_name_en || ""),
+        nameKR: String(i.item_name_kr || ""),
+      })
   );
   if (dup) {
+    const dupLabel = String(dup.item_name_th || dup.item_name_en || dup.item_name_kr || dup.item_code);
     return {
       ok: false,
-      message: `❌ ชื่อซ้ำกับสินค้า "${dup.item_name_th}" (${dup.item_code})`,
+      message: `❌ ชื่อซ้ำกับสินค้า "${dupLabel}" (${dup.item_code})`,
     };
   }
 
   const hasCategoryCol = await itemsTableHasCategoryCode(supabase);
   const itemPatch = {
     item_name_th: nameTH,
-    item_name_en: (data.itemNameEN || "").trim(),
-    item_name_kr: (data.itemNameKR || "").trim(),
+    item_name_en: nameEN,
+    item_name_kr: nameKR,
     main_unit: unitsResolved.mainUnit,
     sub_unit: unitsResolved.subUnit,
     main_unit_code: unitsResolved.mainUnitCode,
@@ -1015,8 +1032,8 @@ export async function saveItemMaster(data: {
         newCode,
         {
           itemNameTH: nameTH,
-          itemNameEN: data.itemNameEN || "",
-          itemNameKR: data.itemNameKR || "",
+          itemNameEN: nameEN,
+          itemNameKR: nameKR,
           mainUnit: unitsResolved.mainUnit,
           subUnit: unitsResolved.subUnit,
           mainUnitCode: unitsResolved.mainUnitCode,
@@ -1040,7 +1057,7 @@ export async function saveItemMaster(data: {
 
     return {
       ok: true,
-      message: `✅ บันทึกสินค้า "${nameTH}" สำเร็จ (${newCode})`,
+      message: `✅ บันทึกสินค้า "${primaryName}" สำเร็จ (${newCode})`,
       itemCode: newCode,
     };
   }
@@ -1068,8 +1085,8 @@ export async function saveItemMaster(data: {
       itemCode,
       {
         itemNameTH: nameTH,
-        itemNameEN: data.itemNameEN || "",
-        itemNameKR: data.itemNameKR || "",
+        itemNameEN: nameEN,
+        itemNameKR: nameKR,
         mainUnit: unitsResolved.mainUnit,
         subUnit: unitsResolved.subUnit,
         mainUnitCode: unitsResolved.mainUnitCode,
@@ -1091,7 +1108,7 @@ export async function saveItemMaster(data: {
   );
   if (!stdEnsure.ok) return stdEnsure;
 
-  return { ok: true, message: `✅ เพิ่มสินค้า "${nameTH}" สำเร็จ (${itemCode})`, itemCode };
+  return { ok: true, message: `✅ เพิ่มสินค้า "${primaryName}" สำเร็จ (${itemCode})`, itemCode };
 }
 
 export async function deleteItem(itemCode: string) {
