@@ -25,7 +25,7 @@ import fs from "fs";
 import path from "path";
 import * as XLSX from "xlsx";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { toDateStr } from "../src/lib/domain/transactions";
+import { normalizeTxnDateISO, toDateStr } from "../src/lib/domain/transactions";
 import { loadDeployEnv, requireSupabaseEnv } from "./load-deploy-env";
 
 loadDeployEnv();
@@ -67,14 +67,17 @@ function str(v: unknown): string {
 
 function parseDate(v: unknown): string {
   if (v instanceof Date && !isNaN(v.getTime())) {
-    return v.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+    return normalizeTxnDateISO(
+      v.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" })
+    );
   }
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
     if (d) {
       const mm = String(d.m).padStart(2, "0");
       const dd = String(d.d).padStart(2, "0");
-      return `${d.y}-${mm}-${dd}`;
+      const y = d.y >= 2400 && d.y <= 2800 ? d.y - 543 : d.y;
+      return normalizeTxnDateISO(`${y}-${mm}-${dd}`);
     }
   }
   return toDateStr(v);

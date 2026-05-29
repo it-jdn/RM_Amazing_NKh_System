@@ -175,15 +175,32 @@ export async function generateItemCode(
   return "RM" + String(next).padStart(5, "0");
 }
 
+/** ISO date with Buddhist year in DB/import (e.g. 2569-05-29) → CE (2026-05-29). */
+export function normalizeTxnDateISO(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.slice(0, 10));
+  if (!m) return iso.slice(0, 10);
+  const y = parseInt(m[1], 10);
+  if (y >= 2400 && y <= 2800) return `${y - 543}-${m[2]}-${m[3]}`;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
 export function toDateStr(val: unknown): string {
   if (!val) return "";
   if (val instanceof Date) {
-    return val.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+    return normalizeTxnDateISO(
+      val.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" })
+    );
   }
   const s = String(val).trim();
   const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dm) return `${dm[3]}-${dm[2].padStart(2, "0")}-${dm[1].padStart(2, "0")}`;
-  return s.substring(0, 10);
+  if (dm) {
+    const y = parseInt(dm[3], 10);
+    const ceYear = y >= 2400 && y <= 2800 ? y - 543 : y;
+    return normalizeTxnDateISO(
+      `${ceYear}-${dm[2].padStart(2, "0")}-${dm[1].padStart(2, "0")}`
+    );
+  }
+  return normalizeTxnDateISO(s);
 }
 
 /**

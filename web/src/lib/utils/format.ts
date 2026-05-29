@@ -26,19 +26,20 @@ export function parseISODateLocal(dateStr: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Standard app date: day + short month + 2-digit year (e.g. 17 พ.ค. 69) */
+/** Standard app date: day + short month + year (ค.ศ. / CE — e.g. 17 พ.ค. 2026) */
 export function formatAppDate(dateStr: string, locale: Locale): string {
   const d = parseISODateLocal(dateStr);
   if (!d) return dateStr;
   const day = d.getDate();
   const mo = d.getMonth();
+  const year = d.getFullYear();
   if (locale === "th") {
-    return `${day} ${MO_TH[mo]} ${String(d.getFullYear() + 543).slice(-2)}`;
+    return `${day} ${MO_TH[mo]} ${year}`;
   }
   if (locale === "kr") {
-    return `${day} ${MO_KR[mo]} ${String(d.getFullYear()).slice(-2)}`;
+    return `${day} ${MO_KR[mo]} ${year}`;
   }
-  return `${day} ${MO_EN[mo]} ${String(d.getFullYear()).slice(-2)}`;
+  return `${day} ${MO_EN[mo]} ${year}`;
 }
 
 export function getAppDayOfWeekShort(dayIndex: number, locale: Locale): string {
@@ -78,7 +79,7 @@ export function formatAppMonthYear(yyyy: string, mm: string, locale: Locale): st
   const y = parseInt(yyyy, 10);
   const m = parseInt(mm, 10) - 1;
   if (Number.isNaN(y) || Number.isNaN(m) || m < 0 || m > 11) return `${yyyy}-${mm}`;
-  if (locale === "th") return `${MO_FULL_TH[m]} ${y + 543}`;
+  if (locale === "th") return `${MO_FULL_TH[m]} ${y}`;
   if (locale === "kr") return `${y}년 ${m + 1}월`;
   return `${MO_FULL_EN[m]} ${y}`;
 }
@@ -171,7 +172,7 @@ export function thisWeekRangeISO(referenceISO?: string): DateRangeISO {
   return { from, to };
 }
 
-/** ช่วงวันที่แบบย่อเมื่ออยู่เดือนเดียวกัน (เช่น 23–30 พ.ค. 69) */
+/** ช่วงวันที่แบบย่อเมื่ออยู่เดือนเดียวกัน (เช่น 23–30 พ.ค. 2026) */
 export function formatAppDateRange(from: string, to: string, locale: Locale): string {
   const df = parseISODateLocal(from);
   const dt = parseISODateLocal(to);
@@ -181,12 +182,12 @@ export function formatAppDateRange(from: string, to: string, locale: Locale): st
   if (df.getFullYear() === dt.getFullYear() && df.getMonth() === dt.getMonth()) {
     const mo = df.getMonth();
     if (locale === "th") {
-      return `${df.getDate()}–${dt.getDate()} ${MO_TH[mo]} ${String(df.getFullYear() + 543).slice(-2)}`;
+      return `${df.getDate()}–${dt.getDate()} ${MO_TH[mo]} ${df.getFullYear()}`;
     }
     if (locale === "kr") {
-      return `${df.getDate()}–${dt.getDate()} ${MO_KR[mo]} ${String(df.getFullYear()).slice(-2)}`;
+      return `${df.getDate()}–${dt.getDate()} ${MO_KR[mo]} ${df.getFullYear()}`;
     }
-    return `${df.getDate()}–${dt.getDate()} ${MO_EN[mo]} ${String(df.getFullYear()).slice(-2)}`;
+    return `${df.getDate()}–${dt.getDate()} ${MO_EN[mo]} ${df.getFullYear()}`;
   }
   return `${formatAppDate(from, locale)} – ${formatAppDate(to, locale)}`;
 }
