@@ -5404,25 +5404,6 @@ input.intake-touch-input,
   font-weight: 600;
   color: var(--brand-dark);
 }
-.intake-business-date-hint {
-  margin-top: 8px;
-}
-.intake-business-date-hint__text {
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  color: var(--brand-red);
-  font-weight: 500;
-}
-.intake-business-date-hint__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-.intake-mobile-only .intake-business-date-hint {
-  margin-top: 10px;
-}
 .intake-day-overview {
   display: flex;
   flex-direction: column;

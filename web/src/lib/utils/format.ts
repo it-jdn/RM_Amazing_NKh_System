@@ -127,11 +127,6 @@ export function userDisplayTimeZone(): string {
   }
 }
 
-/** Calendar date on the user's device (browser timezone). */
-export function browserCalendarTodayISO(): string {
-  return calendarDateInTimezone(new Date(), userDisplayTimeZone());
-}
-
 /** @deprecated use todayBangkokISO for business dates */
 export function todayISO() {
   return todayBangkokISO();

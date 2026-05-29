@@ -49,7 +49,6 @@ import { useModalLayer } from "@/hooks/useModalLayer";
 import { useIntakeNavGuardOptional } from "@/context/IntakeNavGuardContext";
 import { RECEIVING_PATH } from "@/lib/auth/paths";
 import { unitConversionMessageParams } from "@/lib/domain/intake-unit-conversion";
-import { IntakeBusinessDateHint } from "@/components/intake/IntakeBusinessDateHint";
 import { fmt, todayBangkokISO } from "@/lib/utils/format";
 import {
   displayNumericField,
@@ -833,10 +832,6 @@ export function IntakeView() {
               placeholder={t("intake.date")}
               aria-label={t("intake.date")}
             />
-            <IntakeBusinessDateHint
-              intakeDate={intakeDate}
-              onSelectDate={(v) => requestNavigate({ kind: "date", value: v })}
-            />
           </div>
           <div className="intake-supplier-field">
             <label className="lbl">{t("intake.supplier")}</label>
@@ -863,10 +858,6 @@ export function IntakeView() {
           suppSel={suppSel}
           setSuppSel={(v) => requestNavigate({ kind: "supp", value: v })}
           suppliers={activeSuppliers}
-        />
-        <IntakeBusinessDateHint
-          intakeDate={intakeDate}
-          onSelectDate={(v) => requestNavigate({ kind: "date", value: v })}
         />
       </div>
 
