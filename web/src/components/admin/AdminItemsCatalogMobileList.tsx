@@ -1,6 +1,6 @@
 "use client";
 
-import { IconEdit, IconStoreLink } from "@/components/icons/AppIcons";
+import { IconEdit, IconStoreLink, IconTrash } from "@/components/icons/AppIcons";
 import { ItemShopChips } from "@/components/admin/AdminItemsCatalogTableUi";
 import { useLocale } from "@/context/LocaleContext";
 import {
@@ -28,11 +28,15 @@ type Props = {
   linkedShopNames: (code: string) => string[];
   noShopsLabel: string;
   selectedCode: string | null;
+  /** สินค้าที่เปิดแผงผูกร้านอยู่ — ปุ่มโซ่แสดงสถานะกดค้าง */
+  activeLinkCode?: string | null;
   sortKey: ItemsCatalogSortKey;
   sortDir: "asc" | "desc";
   onSort: (column: ItemsCatalogSortKey) => void;
   onEdit: (item: Item) => void;
   onLink?: (item: Item) => void;
+  onDelete?: (item: Item) => void;
+  deletingCode?: string | null;
   variant?: "items" | "products";
 };
 
@@ -43,11 +47,14 @@ export function AdminItemsCatalogMobileList({
   linkedShopNames,
   noShopsLabel,
   selectedCode,
+  activeLinkCode = null,
   sortKey,
   sortDir,
   onSort,
   onEdit,
   onLink,
+  onDelete,
+  deletingCode = null,
   variant = "items",
 }: Props) {
   const { locale, t } = useLocale();
@@ -113,12 +120,30 @@ export function AdminItemsCatalogMobileList({
                         {onLink ? (
                           <button
                             type="button"
-                            className="btn-icon-action btn-icon-action--compact"
+                            className={`btn-icon-action btn-icon-action--compact${
+                              activeLinkCode === item.code ? " btn-icon-action--link-active" : ""
+                            }`}
                             onClick={() => onLink(item)}
                             title={t("admin.items.linkShops")}
                             aria-label={`${t("admin.items.linkShops")}: ${item.nameTH}`}
                           >
                             <IconStoreLink size={18} />
+                          </button>
+                        ) : null}
+                        {onDelete ? (
+                          <button
+                            type="button"
+                            className="btn-icon-action btn-icon-action--compact btn-icon-action--danger"
+                            onClick={() => onDelete(item)}
+                            disabled={deletingCode === item.code}
+                            title={t("admin.items.delete")}
+                            aria-label={`${t("admin.items.delete")}: ${item.nameTH}`}
+                          >
+                            {deletingCode === item.code ? (
+                              <span aria-hidden>…</span>
+                            ) : (
+                              <IconTrash size={18} />
+                            )}
                           </button>
                         ) : null}
                       </>

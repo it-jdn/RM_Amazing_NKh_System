@@ -42,11 +42,12 @@ import {
   AdminItemShopLinkPanel,
   type AdminItemShopLinkPanelHandle,
 } from "@/components/pages/admin/AdminItemShopLinkPanel";
-import { IconEdit, IconStoreLink } from "@/components/icons/AppIcons";
+import { IconEdit, IconStoreLink, IconTrash } from "@/components/icons/AppIcons";
 import { AdminCardTitle } from "@/components/pages/admin/admin-shared";
 import { useCompactAdminLayout } from "@/hooks/useCompactAdminLayout";
 import {
   defaultStandardRow,
+  emptyStandardRow,
   initStandardRowsForEdit,
   standardPayloadFromRows,
   validateStandardRows,
@@ -90,7 +91,7 @@ export function AdminItemsPanel() {
   const [formConvertRate, setFormConvertRate] = useState("1");
   const [formCategoryCode, setFormCategoryCode] = useState<ItemCategoryCode | "">("");
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [deletingCode, setDeletingCode] = useState<string | null>(null);
   const [formBaseline, setFormBaseline] = useState("");
   const [standardRows, setStandardRows] = useState<StandardUnitRow[]>([]);
   const [refreshAfterSaveCode, setRefreshAfterSaveCode] = useState<string | null>(null);
@@ -124,7 +125,7 @@ export function AdminItemsPanel() {
         formSubUnitCode,
         formConvertRate,
         formCategoryCode,
-        standardRows: isEdit ? standardRows : null,
+        standardRows,
       }),
     [
       editingCode,
@@ -137,7 +138,6 @@ export function AdminItemsPanel() {
       formConvertRate,
       formCategoryCode,
       standardRows,
-      isEdit,
     ]
   );
   const dirty = formSnapshot !== formBaseline;
@@ -171,6 +171,11 @@ export function AdminItemsPanel() {
   const linkedShopNames = useCallback(
     (itemCode: string) => itemLinkedShopNames(itemCode, shopCodesByItem, suppliers, locale),
     [shopCodesByItem, suppliers, locale]
+  );
+
+  const itemHasLinkedShops = useCallback(
+    (itemCode: string) => (shopCodesByItem.get(itemCode)?.length ?? 0) > 0,
+    [shopCodesByItem]
   );
 
   const filteredItems = useMemo(
@@ -224,9 +229,7 @@ export function AdminItemsPanel() {
     setLinkSheetOpen(false);
   }
 
-  function resetForm() {
-    setFocusedItemCode(null);
-    focusScrollPendingRef.current = null;
+  function resetFormFields() {
     setEditingCode(null);
     setFormCode("");
     setFormNameTH("");
@@ -238,7 +241,21 @@ export function AdminItemsPanel() {
     setFormCategoryCode("");
     setStandardRows([]);
     setAddSheetOpen(false);
+  }
+
+  function resetForm() {
+    setFocusedItemCode(null);
+    focusScrollPendingRef.current = null;
+    resetFormFields();
     clearLinkPanel();
+  }
+
+  function openLinkAfterCreate(code: string) {
+    resetFormFields();
+    setFocusedItemCode(code);
+    setLinkCode(code);
+    setLinkDirty(false);
+    setLinkSheetOpen(true);
   }
 
   function closeFormSheet() {
@@ -259,7 +276,7 @@ export function AdminItemsPanel() {
     setFormSubUnitCode("");
     setFormConvertRate("1");
     setFormCategoryCode("");
-    setStandardRows([]);
+    setStandardRows([emptyStandardRow(true)]);
     if (compactLayout) setAddSheetOpen(true);
   }
 
@@ -392,13 +409,13 @@ export function AdminItemsPanel() {
       return false;
     }
     const categoryCode = formCategoryCode as ItemCategoryCode;
-    if (isEdit) {
-      const stdErr = validateStandardRows(standardRows);
-      if (stdErr) {
-        toast(stdErr);
-        return false;
-      }
-    } else if (!formMainUnitCode || !formSubUnitCode) {
+    const stdErr = validateStandardRows(standardRows);
+    if (stdErr) {
+      toast(stdErr);
+      return false;
+    }
+    const defaultStd = defaultStandardRow(standardRows);
+    if (!defaultStd?.mainUnitCode || !defaultStd?.subUnitCode) {
       toast(t("admin.items.unitsRequired"));
       return false;
     }
@@ -415,23 +432,14 @@ export function AdminItemsPanel() {
 
     setSaving(true);
     try {
-      const defaultStd = defaultStandardRow(standardRows);
       const payload = {
         itemCode: isAdmin ? newCode || undefined : undefined,
         itemNameTH: formNameTH,
         itemNameEN: formNameEN,
         itemNameKR: formNameKR,
-        mainUnitCode: isEdit
-          ? defaultStd?.mainUnitCode || formMainUnitCode
-          : formMainUnitCode,
-        subUnitCode: isEdit
-          ? defaultStd?.subUnitCode || formSubUnitCode
-          : formSubUnitCode,
-        convertRate: isEdit
-          ? defaultStd
-            ? parseFloat(defaultStd.convertRate) || 1
-            : formConvertRate
-          : formConvertRate,
+        mainUnitCode: defaultStd.mainUnitCode,
+        subUnitCode: defaultStd.subUnitCode,
+        convertRate: parseFloat(defaultStd.convertRate) || 1,
         categoryCode,
       };
       const r =
@@ -455,20 +463,7 @@ export function AdminItemsPanel() {
             ? r.itemCode
             : "";
 
-      const standardsPayload =
-        standardRows.length > 0
-          ? standardPayloadFromRows(standardRows)
-          : !isEdit && formMainUnitCode && formSubUnitCode
-            ? [
-                {
-                  mainUnitCode: formMainUnitCode,
-                  subUnitCode: formSubUnitCode,
-                  convertRate: parseFloat(formConvertRate) || 1,
-                  isDefault: true,
-                  sortOrder: 0,
-                },
-              ]
-            : [];
+      const standardsPayload = standardPayloadFromRows(standardRows);
 
       if (savedCode && standardsPayload.length) {
         const stdRes = await apiPatch<{ success?: boolean; message: string }>(
@@ -501,8 +496,7 @@ export function AdminItemsPanel() {
       setRefreshAfterSaveCode(formCode.trim().toUpperCase() || editingCode);
       return;
     }
-    resetForm();
-    setFocusedItemCode(saved);
+    openLinkAfterCreate(saved);
   }
 
   const anyDirty = dirty || linkDirty;
@@ -555,29 +549,45 @@ export function AdminItemsPanel() {
     clearLinkPanel();
   }
 
-  async function deleteItemRow() {
-    if (!editingCode || !isAdmin) return;
-    const name = formNameTH.trim() || editingCode;
+  async function deleteItemByCode(code: string, displayName: string) {
+    if (!isAdmin) return;
+    if (itemHasLinkedShops(code)) {
+      toast(t("admin.items.deleteBlockedLinked"));
+      return;
+    }
     const msg = t("admin.items.deleteConfirm")
-      .replace("{name}", name)
-      .replace("{code}", editingCode);
+      .replace("{name}", displayName)
+      .replace("{code}", code);
     if (!window.confirm(msg)) return;
 
-    setDeleting(true);
+    setDeletingCode(code);
     try {
       const r = await apiDelete<{ message: string }>(
-        `/api/items/${encodeURIComponent(editingCode)}`
+        `/api/items/${encodeURIComponent(code)}`
       );
       toast(r.message);
       if (apiSucceeded(r)) {
-        resetForm();
+        if (editingCode === code) resetForm();
+        else if (linkCode === code) clearLinkPanel();
+        setFocusedItemCode(null);
         await reload();
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : "❌ เกิดข้อผิดพลาด");
     } finally {
-      setDeleting(false);
+      setDeletingCode(null);
     }
+  }
+
+  async function deleteItemRow() {
+    if (!editingCode) return;
+    await deleteItemByCode(editingCode, formNameTH.trim() || editingCode);
+  }
+
+  function tryDeleteItem(i: Item) {
+    guardAction(() => {
+      void deleteItemByCode(i.code, itemDisplayName(i, locale));
+    }, anyDirty);
   }
 
   const formTitle = isEdit ? t("admin.items.editTitle") : t("admin.items.addTitle");
@@ -638,11 +648,14 @@ export function AdminItemsPanel() {
               linkedShopNames={linkedShopNames}
               noShopsLabel={noShopsLabel}
               selectedCode={editingCode ?? linkCode ?? focusedItemCode}
+              activeLinkCode={linkCode}
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={handleSort}
               onEdit={tryStartEdit}
               onLink={tryStartLink}
+              onDelete={isAdmin ? tryDeleteItem : undefined}
+              deletingCode={deletingCode}
               variant="items"
             />
           ) : (
@@ -753,13 +766,31 @@ export function AdminItemsPanel() {
                           </button>
                           <button
                             type="button"
-                            className="btn-icon-action btn-icon-action--compact"
+                            className={`btn-icon-action btn-icon-action--compact${
+                              linkCode === i.code ? " btn-icon-action--link-active" : ""
+                            }`}
                             onClick={() => tryStartLink(i)}
                             title={t("admin.items.linkShops")}
                             aria-label={`${t("admin.items.linkShops")}: ${i.nameTH}`}
                           >
                             <IconStoreLink size={16} />
                           </button>
+                          {isAdmin ? (
+                            <button
+                              type="button"
+                              className="btn-icon-action btn-icon-action--compact btn-icon-action--danger"
+                              onClick={() => tryDeleteItem(i)}
+                              disabled={deletingCode === i.code}
+                              title={t("admin.items.delete")}
+                              aria-label={`${t("admin.items.delete")}: ${i.nameTH}`}
+                            >
+                              {deletingCode === i.code ? (
+                                <span aria-hidden>…</span>
+                              ) : (
+                                <IconTrash size={16} />
+                              )}
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -809,7 +840,7 @@ export function AdminItemsPanel() {
               showDelete={isAdmin && isEdit}
               deleteLabel={t("admin.items.delete")}
               onDelete={deleteItemRow}
-              deleting={deleting}
+              deleting={deletingCode === editingCode}
             />
           }
         >
@@ -878,61 +909,13 @@ export function AdminItemsPanel() {
             <p className="admin-items-names-hint">{t("admin.items.namesHint")}</p>
           </AdminFormSection>
 
-          {!isEdit ? (
-            <AdminFormSection title={t("admin.items.sectionUnitsShort")}>
-              <div className="admin-items-form-units">
-                <AdminFormField label={t("admin.link.mainUnit")}>
-                  <select
-                    value={formMainUnitCode}
-                    onChange={(e) => setFormMainUnitCode(e.target.value)}
-                    disabled={!unitsReady}
-                  >
-                    <option value="">{t("admin.link.select")}</option>
-                    {sortedUnits.map((u) => (
-                      <option key={u.unitCode} value={u.unitCode}>
-                        {unitDisplayName(u, locale)}
-                      </option>
-                    ))}
-                  </select>
-                </AdminFormField>
-                <AdminFormField label={t("admin.link.subUnit")}>
-                  <select
-                    value={formSubUnitCode}
-                    onChange={(e) => setFormSubUnitCode(e.target.value)}
-                    disabled={!unitsReady}
-                  >
-                    <option value="">{t("admin.link.select")}</option>
-                    {sortedUnits.map((u) => (
-                      <option key={u.unitCode} value={u.unitCode}>
-                        {unitDisplayName(u, locale)}
-                      </option>
-                    ))}
-                  </select>
-                </AdminFormField>
-                <AdminFormField
-                  label={t("admin.link.convert")}
-                  className="admin-items-form-units__convert"
-                >
-                  <input
-                    type="number"
-                    min="0.0001"
-                    step="any"
-                    value={formConvertRate}
-                    onChange={(e) => setFormConvertRate(e.target.value)}
-                    disabled={!unitsReady}
-                  />
-                </AdminFormField>
-              </div>
-            </AdminFormSection>
-          ) : (
-            <AdminFormSection title={t("admin.items.standardUnitsSection")}>
-              <AdminItemStandardUnitsEditor
-                rows={standardRows}
-                onChange={setStandardRows}
-                units={units}
-              />
-            </AdminFormSection>
-          )}
+          <AdminFormSection title={t("admin.items.standardUnitsSection")}>
+            <AdminItemStandardUnitsEditor
+              rows={standardRows}
+              onChange={setStandardRows}
+              units={units}
+            />
+          </AdminFormSection>
         </AdminSideForm>
         )}
       </div>
@@ -1025,7 +1008,7 @@ export function AdminItemsPanel() {
                       showDelete={isAdmin && isEdit}
                       deleteLabel={t("admin.items.delete")}
                       onDelete={deleteItemRow}
-                      deleting={deleting}
+                      deleting={deletingCode === editingCode}
                     />
                   }
                 >
@@ -1102,61 +1085,13 @@ export function AdminItemsPanel() {
                     <p className="admin-items-names-hint">{t("admin.items.namesHint")}</p>
                   </AdminFormSection>
 
-                  {!isEdit ? (
-                    <AdminFormSection title={t("admin.items.sectionUnitsShort")}>
-                      <div className="admin-items-form-units">
-                        <AdminFormField label={t("admin.link.mainUnit")}>
-                          <select
-                            value={formMainUnitCode}
-                            onChange={(e) => setFormMainUnitCode(e.target.value)}
-                            disabled={!unitsReady}
-                          >
-                            <option value="">{t("admin.link.select")}</option>
-                            {sortedUnits.map((u) => (
-                              <option key={u.unitCode} value={u.unitCode}>
-                                {unitDisplayName(u, locale)}
-                              </option>
-                            ))}
-                          </select>
-                        </AdminFormField>
-                        <AdminFormField label={t("admin.link.subUnit")}>
-                          <select
-                            value={formSubUnitCode}
-                            onChange={(e) => setFormSubUnitCode(e.target.value)}
-                            disabled={!unitsReady}
-                          >
-                            <option value="">{t("admin.link.select")}</option>
-                            {sortedUnits.map((u) => (
-                              <option key={u.unitCode} value={u.unitCode}>
-                                {unitDisplayName(u, locale)}
-                              </option>
-                            ))}
-                          </select>
-                        </AdminFormField>
-                        <AdminFormField
-                          label={t("admin.link.convert")}
-                          className="admin-items-form-units__convert"
-                        >
-                          <input
-                            type="number"
-                            min="0.0001"
-                            step="any"
-                            value={formConvertRate}
-                            onChange={(e) => setFormConvertRate(e.target.value)}
-                            disabled={!unitsReady}
-                          />
-                        </AdminFormField>
-                      </div>
-                    </AdminFormSection>
-                  ) : (
-                    <AdminFormSection title={t("admin.items.standardUnitsSection")}>
-                      <AdminItemStandardUnitsEditor
-                        rows={standardRows}
-                        onChange={setStandardRows}
-                        units={units}
-                      />
-                    </AdminFormSection>
-                  )}
+                  <AdminFormSection title={t("admin.items.standardUnitsSection")}>
+                    <AdminItemStandardUnitsEditor
+                      rows={standardRows}
+                      onChange={setStandardRows}
+                      units={units}
+                    />
+                  </AdminFormSection>
                 </AdminSideForm>
               </div>
             </div>,

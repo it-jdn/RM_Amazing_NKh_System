@@ -107,7 +107,9 @@ const messages = {
     "admin.items.panelEmpty": "เลือกสินค้าจากตาราง แล้วกด「แก้ไข」หรือ「ผูกร้านค้า」",
     "admin.items.delete": "ลบสินค้า",
     "admin.items.deleteConfirm":
-      "ลบสินค้า \"{name}\" ({code}) ถาวร?\n\nลบได้เฉพาะสินค้าที่ไม่มีประวัติรับสินค้า",
+      "ลบสินค้า \"{name}\" ({code}) ถาวร?\n\nลบได้เฉพาะสินค้าที่ไม่มีประวัติรับสินค้า และยังไม่ได้ผูกกับร้านค้า",
+    "admin.items.deleteBlockedLinked":
+      "❌ ไม่สามารถลบได้ — สินค้านี้ยังผูกกับร้านค้าอยู่ กรุณาไปที่「ผูกร้านค้า」แล้วยกเลิกการผูกก่อน",
     "admin.items.category": "หมวดหมู่",
     "admin.items.categoryCol": "หมวด",
     "admin.items.categoryRequired": "กรุณาเลือกหมวดหมู่",
@@ -720,7 +722,9 @@ const messages = {
     "admin.items.panelEmpty": "Select a product, then choose Edit or Link shops",
     "admin.items.delete": "Delete product",
     "admin.items.deleteConfirm":
-      "Permanently delete \"{name}\" ({code})?\n\nOnly products with no intake history can be deleted.",
+      "Permanently delete \"{name}\" ({code})?\n\nOnly products with no intake history and no linked shops can be deleted.",
+    "admin.items.deleteBlockedLinked":
+      "Cannot delete — this product is still linked to shops. Open Link shops and remove all links first.",
     "admin.items.category": "Category",
     "admin.items.categoryCol": "Category",
     "admin.items.categoryRequired": "Please select a category",
@@ -1333,7 +1337,9 @@ const messages = {
     "admin.items.panelEmpty": "목록에서 상품을 선택한 뒤 수정 또는 매장 연결",
     "admin.items.delete": "상품 삭제",
     "admin.items.deleteConfirm":
-      "\"{name}\" ({code}) 상품을 영구 삭제할까요?\n\n입고 이력이 없는 상품만 삭제할 수 있습니다.",
+      "\"{name}\" ({code}) 상품을 영구 삭제할까요?\n\n입고 이력이 없고 매장 연결이 없는 상품만 삭제할 수 있습니다.",
+    "admin.items.deleteBlockedLinked":
+      "삭제할 수 없습니다 — 매장에 연결된 상품입니다. 매장 연결에서 연결을 모두 해제한 뒤 삭제하세요.",
     "admin.items.category": "카테고리",
     "admin.items.categoryCol": "카테고리",
     "admin.items.categoryRequired": "카테고리를 선택하세요",

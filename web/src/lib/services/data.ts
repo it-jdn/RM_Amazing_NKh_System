@@ -1135,6 +1135,18 @@ export async function deleteItem(itemCode: string) {
     };
   }
 
+  const { count: mapCount, error: mapErr } = await supabase
+    .from("supplier_item_mapping")
+    .select("*", { count: "exact", head: true })
+    .eq("item_code", code);
+  if (mapErr) throw mapErr;
+  if ((mapCount ?? 0) > 0) {
+    return {
+      ok: false,
+      message: `❌ ไม่สามารถลบได้ — สินค้านี้ยังผูกกับร้านค้าอยู่ กรุณาไปที่「ผูกร้านค้า」แล้วยกเลิกการผูกก่อน`,
+    };
+  }
+
   const { error } = await supabase.from("items").delete().eq("item_code", code);
   if (error) throw error;
 
