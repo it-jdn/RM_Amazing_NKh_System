@@ -87,12 +87,11 @@ export function buildDayOverviewFromSlips(
   const sorted = sortSuppliersForPicker(activeSuppliers);
   const activeCodes = new Set(sorted.map((s) => s.code));
 
-  const enriched: SlipDayRow[] = slips
-    .filter((s) => activeCodes.has(s.suppCode))
-    .map((s) => ({
-      ...s,
-      catalogItemCount: catalogItemCountForShop(s.suppCode, items, mapping, purchaseUnits),
-    }));
+  // แสดงทุกใบในวันนั้น รวมร้านที่ปิดใช้งานแล้ว (มิฉะนั้นข้อมูลที่บันทึกไว้จะหายจากสรุปวัน)
+  const enriched: SlipDayRow[] = slips.map((s) => ({
+    ...s,
+    catalogItemCount: catalogItemCountForShop(s.suppCode, items, mapping, purchaseUnits),
+  }));
 
   const dayTotal = enriched.reduce((sum, s) => sum + s.totalPrice, 0);
   const shopsWithSlips = new Set(enriched.map((s) => s.suppCode));

@@ -178,7 +178,7 @@ export async function generateItemCode(
 export function toDateStr(val: unknown): string {
   if (!val) return "";
   if (val instanceof Date) {
-    return val.toISOString().slice(0, 10);
+    return val.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
   }
   const s = String(val).trim();
   const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);

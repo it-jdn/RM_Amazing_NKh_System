@@ -68,6 +68,14 @@ export function IntakeDayOverview({
     void loadDay();
   }, [loadDay]);
 
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadDay();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [loadDay]);
+
   const overview = useMemo(
     () => buildDayOverviewFromSlips(slips, suppliers, items, mapping, purchaseUnits),
     [slips, suppliers, items, mapping, purchaseUnits]
@@ -254,15 +262,27 @@ function SavedSlipSection({
                                 <span className="intake-day-slip-list__time">
                                   {formatAppDateTime(row.createdAt, locale)}
                                 </span>
-                                {row.createdByName ? (
+                                {row.createdByName || row.updatedByName ? (
                                   <>
                                     <span className="intake-day-slip-list__sep" aria-hidden>
                                       ·
                                     </span>
-                                    <span className="intake-day-slip-list__by">{row.createdByName}</span>
+                                    <span className="intake-day-slip-list__by">
+                                      {row.updatedByName &&
+                                      row.createdByName &&
+                                      row.updatedByName !== row.createdByName
+                                        ? t("intake.dayOverview.recordedByPair", {
+                                            created: row.createdByName,
+                                            updated: row.updatedByName,
+                                          })
+                                        : row.updatedByName || row.createdByName}
+                                    </span>
                                   </>
                                 ) : null}
-                                {edited ? (
+                                {edited &&
+                                row.updatedByName &&
+                                row.createdByName &&
+                                row.updatedByName === row.createdByName ? (
                                   <span className="intake-day-slip-list__edited-inline">
                                     {t("intake.slipList.editedBadge")}
                                   </span>

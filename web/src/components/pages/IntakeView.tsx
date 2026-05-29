@@ -49,7 +49,7 @@ import { useModalLayer } from "@/hooks/useModalLayer";
 import { useIntakeNavGuardOptional } from "@/context/IntakeNavGuardContext";
 import { RECEIVING_PATH } from "@/lib/auth/paths";
 import { unitConversionMessageParams } from "@/lib/domain/intake-unit-conversion";
-import { fmt, todayISO } from "@/lib/utils/format";
+import { fmt, todayBangkokISO } from "@/lib/utils/format";
 import {
   displayNumericField,
   loadedNumericField,
@@ -91,7 +91,7 @@ export function IntakeView() {
   );
   const { locale, t } = useLocale();
   const toast = useToast();
-  const [intakeDate, setIntakeDate] = useState(todayISO());
+  const [intakeDate, setIntakeDate] = useState(todayBangkokISO);
   const [suppSel, setSuppSel] = useState("");
   const [activeSlipId, setActiveSlipId] = useState("");
   const [activeSlipNo, setActiveSlipNo] = useState<number | null>(null);
@@ -849,9 +849,9 @@ export function IntakeView() {
       {!suppSel ? (
         <>
           <IntakeDayOverview
-          key={slipListRefresh}
+          key={`${slipListRefresh}-${intakeDate}`}
           intakeDate={intakeDate}
-          suppliers={activeSuppliers}
+          suppliers={suppliers}
           items={items}
           mapping={mapping}
           purchaseUnits={purchaseUnits}

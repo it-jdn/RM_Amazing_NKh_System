@@ -411,6 +411,7 @@ const messages = {
     "intake.dayOverview.thSlip": "ใบรับสินค้า",
     "intake.dayOverview.thLines": "รายการ",
     "intake.dayOverview.thMeta": "เวลา · ผู้บันทึก",
+    "intake.dayOverview.recordedByPair": "{created} · บันทึกล่าสุด {updated}",
     "intake.dayOverview.thAmount": "มูลค่า (₩)",
     "intake.dayOverview.thStatus": "สถานะ",
     "intake.dayOverview.summarySlips":
@@ -1015,6 +1016,7 @@ const messages = {
     "intake.dayOverview.thSlip": "Receipt",
     "intake.dayOverview.thLines": "Lines",
     "intake.dayOverview.thMeta": "Time · Recorded by",
+    "intake.dayOverview.recordedByPair": "{created} · last saved by {updated}",
     "intake.dayOverview.thAmount": "Amount (₩)",
     "intake.dayOverview.thStatus": "Status",
     "intake.dayOverview.summarySlips":
@@ -1618,6 +1620,7 @@ const messages = {
     "intake.dayOverview.thSlip": "입고 전표",
     "intake.dayOverview.thLines": "건수",
     "intake.dayOverview.thMeta": "시간 · 기록자",
+    "intake.dayOverview.recordedByPair": "{created} · 최종 {updated}",
     "intake.dayOverview.thAmount": "금액 (₩)",
     "intake.dayOverview.thStatus": "상태",
     "intake.dayOverview.summarySlips":
