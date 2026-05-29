@@ -118,13 +118,18 @@ export function calendarDateInTimezone(date: Date, timeZone: string): string {
   return date.toLocaleDateString("sv-SE", { timeZone });
 }
 
+/** IANA timezone for displaying timestamps (browser / device). */
+export function userDisplayTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || BUSINESS_TIMEZONE;
+  } catch {
+    return BUSINESS_TIMEZONE;
+  }
+}
+
 /** Calendar date on the user's device (browser timezone). */
 export function browserCalendarTodayISO(): string {
-  try {
-    return calendarDateInTimezone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
-  } catch {
-    return calendarDateInTimezone(new Date(), BUSINESS_TIMEZONE);
-  }
+  return calendarDateInTimezone(new Date(), userDisplayTimeZone());
 }
 
 /** @deprecated use todayBangkokISO for business dates */
@@ -216,14 +221,15 @@ function parseTimestampForDisplay(input: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** แสดงวันเวลาบันทึกจาก saved_at */
+/** แสดงวันเวลาบันทึกจาก saved_at — ตาม timezone เครื่องผู้ใช้ (ไม่ใช่เวลาไทยคงที่) */
 export function formatAppDateTime(savedAt: string, locale: Locale): string {
   if (!savedAt) return "";
   const d = parseTimestampForDisplay(savedAt);
   if (!d) return savedAt;
-  const datePart = d.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+  const tz = userDisplayTimeZone();
+  const datePart = d.toLocaleDateString("sv-SE", { timeZone: tz });
   const timePart = d.toLocaleTimeString(locale === "kr" ? "ko-KR" : locale === "en" ? "en-GB" : "th-TH", {
-    timeZone: "Asia/Bangkok",
+    timeZone: tz,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
