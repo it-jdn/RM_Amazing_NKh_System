@@ -37,7 +37,20 @@ export function sortSlipsOldestFirst<T extends { createdAt: string }>(slips: T[]
   return [...slips].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-/** Group day slips by shop; slip numbers match per-shop tabs (1 = oldest). */
+/** Latest activity on a slip (edit time if edited, else created). */
+export function slipLastActivityAt(slip: { createdAt: string; updatedAt?: string }): string {
+  if (slip.updatedAt && slip.updatedAt !== slip.createdAt) return slip.updatedAt;
+  return slip.createdAt;
+}
+
+/** Newest activity first (for day overview table). */
+export function sortSlipsNewestFirst<T extends { createdAt: string; updatedAt?: string }>(
+  slips: T[]
+): T[] {
+  return [...slips].sort((a, b) => slipLastActivityAt(b).localeCompare(slipLastActivityAt(a)));
+}
+
+/** Group day slips by shop; overview lists newest slips and shops first. */
 export function groupSlipsByShop(slips: SlipDayRow[]): ShopSlipGroup[] {
   const byShop = new Map<string, SlipDayRow[]>();
   for (const s of slips) {
@@ -47,22 +60,25 @@ export function groupSlipsByShop(slips: SlipDayRow[]): ShopSlipGroup[] {
   }
 
   const groups: ShopSlipGroup[] = [];
-  const seen = new Set<string>();
-  for (const s of slips) {
-    if (seen.has(s.suppCode)) continue;
-    seen.add(s.suppCode);
-    const shopSlips = sortSlipsOldestFirst(byShop.get(s.suppCode)!);
+  for (const shopSlips of byShop.values()) {
+    const oldestFirst = sortSlipsOldestFirst(shopSlips);
+    const slipNoById = new Map(oldestFirst.map((row, idx) => [row.id, idx + 1]));
+    const displaySlips = sortSlipsNewestFirst(shopSlips).map((row) => ({
+      ...row,
+      slipNo: slipNoById.get(row.id) ?? 1,
+    }));
     groups.push({
-      suppCode: s.suppCode,
-      suppName: s.suppName,
+      suppCode: shopSlips[0]!.suppCode,
+      suppName: shopSlips[0]!.suppName,
       shopTotal: shopSlips.reduce((sum, r) => sum + r.totalPrice, 0),
-      slips: shopSlips.map((row, idx) => ({
-        ...row,
-        slipNo: idx + 1,
-      })),
+      slips: displaySlips,
     });
   }
-  return groups;
+
+  return groups.sort(
+    (a, b) =>
+      slipLastActivityAt(b.slips[0]!).localeCompare(slipLastActivityAt(a.slips[0]!))
+  );
 }
 
 export function catalogItemCountForShop(
@@ -103,7 +119,7 @@ export function buildDayOverviewFromSlips(
     const lineCount = shopSlips.reduce((n, s) => n + s.lineCount, 0);
     const productCount = shopSlips.reduce((n, s) => n + s.productCount, 0);
     const totalPrice = shopSlips.reduce((n, s) => n + s.totalPrice, 0);
-    const latest = shopSlips[0];
+    const latest = sortSlipsNewestFirst(shopSlips)[0];
     saved.push({
       suppCode: supp.code,
       suppName: latest?.suppName || supp.nameTH,

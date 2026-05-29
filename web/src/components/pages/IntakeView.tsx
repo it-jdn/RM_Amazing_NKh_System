@@ -683,8 +683,6 @@ export function IntakeView() {
       return;
     }
     setSaving(true);
-    const creatingNewSlip = !activeSlipId;
-    const shopCode = suppSel;
     try {
       const r = await apiPost<{ success: boolean; message: string; replaced?: boolean; slipId?: string }>(
         "/api/transactions",
@@ -702,13 +700,6 @@ export function IntakeView() {
       setShowUnsavedNav(false);
       setSlipListRefresh((k) => k + 1);
       await reload();
-
-      if (creatingNewSlip && r.slipId) {
-        setSuppSel(shopCode);
-        setActiveSlipId(r.slipId);
-        setActiveSlipNo(null);
-        return;
-      }
 
       if (nav) {
         applyNavigation(nav);
