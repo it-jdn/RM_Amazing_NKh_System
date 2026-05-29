@@ -40,6 +40,19 @@ export function itemDisplayName(item: NamedItem, locale: Locale): string {
   return th || en || kr;
 }
 
+/** Sort catalog items by display name for dropdowns (locale-aware). */
+export function sortItemsByDisplayName<T extends NamedItem & { code: string }>(
+  list: readonly T[],
+  locale: Locale
+): T[] {
+  return [...list].sort((a, b) =>
+    itemDisplayName(a, locale).localeCompare(itemDisplayName(b, locale), locale, {
+      sensitivity: "base",
+      numeric: true,
+    })
+  );
+}
+
 export function itemDisplayNameByCode<T extends NamedItem & { code: string }>(
   code: string,
   items: readonly T[],

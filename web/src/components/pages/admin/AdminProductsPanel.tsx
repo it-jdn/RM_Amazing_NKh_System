@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAppData } from "@/context/AppDataContext";
 import { AdminCatalogFilter } from "@/components/admin/AdminCatalogFilter";
+import { AdminItemsCatalogMobileList } from "@/components/admin/AdminItemsCatalogMobileList";
 import { AdminItemsCatalogSortTh, ItemShopChips } from "@/components/admin/AdminItemsCatalogTableUi";
+import { useCompactAdminLayout } from "@/hooks/useCompactAdminLayout";
 import { apiPost } from "@/lib/api/client";
 import { apiSucceeded } from "@/lib/api/success";
 import { useToast } from "@/components/Toast";
@@ -50,6 +52,7 @@ export function AdminProductsPanel() {
   } = useAppData();
   const itemCategories = categoriesFromApi.length ? categoriesFromApi : FALLBACK_ITEM_CATEGORIES;
   const { locale, t } = useLocale();
+  const compactLayout = useCompactAdminLayout();
   const toast = useToast();
   const searchParams = useSearchParams();
 
@@ -333,9 +336,23 @@ export function AdminProductsPanel() {
             searchLabel={t("admin.items.searchLabel")}
             searchPlaceholder={t("admin.items.searchPlaceholder")}
           />
-          {displayedItems.length ? (
+          {displayedItems.length ? compactLayout ? (
+            <AdminItemsCatalogMobileList
+              items={displayedItems}
+              itemCategories={itemCategories}
+              units={units}
+              linkedShopNames={linkedShopNames}
+              noShopsLabel={noShopsLabel}
+              selectedCode={editCode}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={handleSort}
+              onEdit={(item) => tryLoadProduct(item.code)}
+              variant="products"
+            />
+          ) : (
             <div className="admin-shop-table-wrap">
-              <table className="admin-shop-table admin-shop-table--cards admin-items-table">
+              <table className="admin-shop-table admin-items-table">
                 <thead>
                   <tr>
                     <th className="admin-shop-table__order-h">{t("admin.table.rowCol")}</th>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,10 +26,10 @@ import { apiGet } from "@/lib/api/client";
 import { useToast } from "@/components/Toast";
 import { fmt, formatAppDate, histDatePresetRange } from "@/lib/utils/format";
 import { downloadExcelTable } from "@/lib/reports/export-excel";
-import { ReportPriceCompare } from "@/components/pages/ReportPriceCompare";
 import { ReportChartsFold } from "@/components/reports/ReportChartsFold";
 import { ReportFilters } from "@/components/reports/ReportFilters";
 import { ReportHeatmap } from "@/components/reports/ReportHeatmap";
+import { ReportItemCumulativeChart } from "@/components/reports/ReportItemCumulativeChart";
 import { ReportKpiCard, ReportKpiGrid } from "@/components/reports/ReportKpiGrid";
 import { ReportTableSection } from "@/components/reports/ReportTableSection";
 import { ReportTablePager, useReportTablePaging } from "@/components/reports/ReportTablePager";
@@ -144,7 +144,7 @@ export function ReportView() {
   const [rItem, setRItem] = useState("");
   const [rCategory, setRCategory] = useState("");
   const [data, setData] = useState<ReportData | null>(null);
-  const [showCompare, setShowCompare] = useState(false);
+  const [chartRows, setChartRows] = useState<ReportData["rows"]>([]);
   const [loading, setLoading] = useState(false);
   const [datePreset, setDatePreset] = useState("thisMonth");
 
@@ -177,25 +177,42 @@ export function ReportView() {
 
   const excelRange = rFrom && rTo ? `${rFrom}_${rTo}` : "all";
 
+  const categoryTableTotals = useMemo(() => {
+    if (!data?.byCategory.length) return null;
+    return data.byCategory.reduce(
+      (acc, row) => ({
+        distinctItems: acc.distinctItems + row.distinctItems,
+        count: acc.count + row.count,
+        totalPrice: acc.totalPrice + row.totalPrice,
+      }),
+      { distinctItems: 0, count: 0, totalPrice: 0 }
+    );
+  }, [data?.byCategory]);
+
   const loadReport = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (rFrom) params.set("dateFrom", rFrom);
-      if (rTo) params.set("dateTo", rTo);
-      if (rSupp) params.set("suppCode", rSupp);
-      if (rItem) params.set("itemCode", rItem);
-      if (rCategory) params.set("categoryCode", rCategory);
-      params.set("page", "1");
-      params.set("pageSize", "100000");
+      const base = new URLSearchParams();
+      if (rFrom) base.set("dateFrom", rFrom);
+      if (rTo) base.set("dateTo", rTo);
+      if (rSupp) base.set("suppCode", rSupp);
+      if (rCategory) base.set("categoryCode", rCategory);
+      base.set("page", "1");
+      base.set("pageSize", "100000");
 
-      const d = await apiGet<ReportData>(`/api/reports?${params}`);
+      const params = new URLSearchParams(base);
+      if (rItem) params.set("itemCode", rItem);
+
+      const [d, chartD] = await Promise.all([
+        apiGet<ReportData>(`/api/reports?${params}`),
+        apiGet<ReportData>(`/api/reports?${base}`),
+      ]);
       if (!d.success) {
         toast(t("report.loadError"));
         return;
       }
       setData(d);
-      setShowCompare(true);
+      setChartRows(chartD.success ? chartD.rows : []);
     } catch (e) {
       toast(e instanceof Error ? e.message : t("report.loadError"));
     } finally {
@@ -566,6 +583,15 @@ export function ReportView() {
           </div>
 
           <ReportHeatmap cells={data.weeklyHeatmap} title={t("report.heatmap")} />
+
+          <ReportItemCumulativeChart
+            rows={chartRows}
+            items={items}
+            categoryCode={rCategory}
+            dateFrom={rFrom}
+            dateTo={rTo}
+            datePreset={datePreset}
+          />
           </ReportChartsFold>
 
           <ReportTableSection
@@ -620,6 +646,24 @@ export function ReportView() {
                     </tr>
                   )}
                 </tbody>
+                {categoryTableTotals ? (
+                  <tfoot>
+                    <tr className="dtbl-foot">
+                      <td className="row-num" data-label={t("admin.table.rowCol")} />
+                      <td data-label={t("report.category")}>
+                        <b>{t("intake.slipDoc.totalShort")}</b>
+                      </td>
+                      <td data-label={t("report.categoryItems")}>
+                        {categoryTableTotals.distinctItems}
+                      </td>
+                      <td data-label={t("report.categoryTrans")}>{categoryTableTotals.count}</td>
+                      <td data-label={t("report.share")}>100.0%</td>
+                      <td className="gval" data-label={t("report.value")}>
+                        ₩{fmt(categoryTableTotals.totalPrice)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                ) : null}
               </table>
             </div>
           </ReportTableSection>
@@ -740,16 +784,6 @@ export function ReportView() {
               </table>
             </div>
           </ReportTableSection>
-
-          <ReportPriceCompare
-            dateFrom={rFrom}
-            dateTo={rTo}
-            suppCode={rSupp}
-            itemCode={rItem}
-            active={showCompare}
-            suppliers={suppliers}
-            items={items}
-          />
         </>
       )}
     </div>

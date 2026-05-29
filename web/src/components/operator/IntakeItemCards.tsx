@@ -5,7 +5,7 @@ import { IntakePurchaseUnitSuffix } from "@/components/intake/IntakePurchaseUnit
 import { useLocale } from "@/context/LocaleContext";
 import { unitConversionMessageParams } from "@/lib/domain/intake-unit-conversion";
 import { itemDisplayName } from "@/lib/i18n/item-name";
-import type { Item, ItemPurchaseUnit } from "@/lib/types";
+import type { Item, ItemPurchaseUnit, UnitOption } from "@/lib/types";
 import { displayNumericField } from "@/lib/utils/numeric-input";
 
 type CurItem = Item & {
@@ -19,6 +19,7 @@ type RowVals = Record<string, { qty: string; total: string }>;
 
 type Props = {
   items: CurItem[];
+  units: UnitOption[];
   search: string;
   setSearch: (s: string) => void;
   rowVals: RowVals;
@@ -35,6 +36,7 @@ function isFilled(v: { qty: string; total: string }) {
 
 export function IntakeItemCards({
   items,
+  units,
   search,
   setSearch,
   rowVals,
@@ -129,6 +131,7 @@ export function IntakeItemCards({
                     <IntakePurchaseUnitSuffix
                       options={it.purchaseOptions}
                       valueMainUnitCode={it.mainUnitCode}
+                      units={units}
                       onChange={(code) => onPurchaseUnitChange(it.code, code)}
                       disabled={readOnly}
                     />

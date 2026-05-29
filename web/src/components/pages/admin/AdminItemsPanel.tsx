@@ -17,6 +17,7 @@ import { apiDelete, apiPatch, apiPost } from "@/lib/api/client";
 import { apiSucceeded } from "@/lib/api/success";
 import { useToast } from "@/components/Toast";
 import { useLocale } from "@/context/LocaleContext";
+import { AdminItemsCatalogMobileList } from "@/components/admin/AdminItemsCatalogMobileList";
 import { AdminItemsCatalogSortTh, ItemShopChips } from "@/components/admin/AdminItemsCatalogTableUi";
 import {
   FALLBACK_ITEM_CATEGORIES,
@@ -593,9 +594,24 @@ export function AdminItemsPanel() {
             searchLabel={t("admin.items.searchLabel")}
             searchPlaceholder={t("admin.items.searchPlaceholder")}
           />
-          {displayedItems.length ? (
+          {displayedItems.length ? compactLayout ? (
+            <AdminItemsCatalogMobileList
+              items={displayedItems}
+              itemCategories={itemCategories}
+              units={units}
+              linkedShopNames={linkedShopNames}
+              noShopsLabel={noShopsLabel}
+              selectedCode={editingCode ?? linkCode}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={handleSort}
+              onEdit={tryStartEdit}
+              onLink={tryStartLink}
+              variant="items"
+            />
+          ) : (
             <div className="admin-shop-table-wrap">
-              <table className="admin-shop-table admin-shop-table--cards admin-items-table">
+              <table className="admin-shop-table admin-items-table">
                 <thead>
                   <tr>
                     <th className="admin-shop-table__order-h">{t("admin.table.rowColShort")}</th>

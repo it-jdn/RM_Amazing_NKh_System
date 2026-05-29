@@ -43,8 +43,8 @@ import { IntakeResetFormModal } from "@/components/intake/IntakeResetFormModal";
 import { IntakeUnsavedNavigateModal } from "@/components/intake/IntakeUnsavedNavigateModal";
 import { UnitSelectFields } from "@/components/pages/admin/UnitSelectFields";
 import { AppDateField } from "@/components/ui/AppDateField";
-import { unitDisplayName } from "@/lib/i18n/unit-display-name";
-import type { UnitPairHint } from "@/lib/types";
+import { purchaseUnitOptionLabel, unitDisplayName } from "@/lib/i18n/unit-display-name";
+import type { UnitOption, UnitPairHint } from "@/lib/types";
 import { useModalLayer } from "@/hooks/useModalLayer";
 import { useIntakeNavGuardOptional } from "@/context/IntakeNavGuardContext";
 import { RECEIVING_PATH } from "@/lib/auth/paths";
@@ -897,6 +897,7 @@ export function IntakeView() {
           <div className="intake-mobile-only intake-cards-section">
             <IntakeItemCards
               items={displaySortedItems}
+              units={units}
               search={search}
               setSearch={setSearch}
               rowVals={rowVals}
@@ -911,6 +912,7 @@ export function IntakeView() {
           <div className="intake-desktop-only">
             <IntakeTable
               items={displaySortedItems}
+              units={units}
               sort={intakeSort}
               onSortColumn={toggleIntakeSort}
               search={search}
@@ -1135,6 +1137,7 @@ export function IntakeView() {
 
 function IntakeTable({
   items,
+  units,
   sort,
   onSortColumn,
   search,
@@ -1146,6 +1149,7 @@ function IntakeTable({
   readOnly = false,
 }: {
   items: CurItem[];
+  units: UnitOption[];
   sort: IntakeItemSortState;
   onSortColumn: (column: IntakeItemSortColumn) => void;
   search: string;
@@ -1264,12 +1268,17 @@ function IntakeTable({
                       <IntakePurchaseUnitSelect
                         options={it.purchaseOptions}
                         valueMainUnitCode={it.mainUnitCode}
+                        units={units}
                         onChange={(code) => onPurchaseUnitChange(it.code, code)}
                         className="itbl__purchase-unit"
                         disabled={readOnly}
                       />
                     ) : (
-                      <span className="badge badge-blue">{it.unit}</span>
+                      <span className="badge badge-blue">
+                        {it.purchaseOptions[0]
+                          ? purchaseUnitOptionLabel(it.purchaseOptions[0], units, locale)
+                          : it.unit}
+                      </span>
                     )}
                   </td>
                   <td className="itbl__total">

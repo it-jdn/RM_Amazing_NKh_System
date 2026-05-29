@@ -6,6 +6,7 @@ import {
   FALLBACK_ITEM_CATEGORIES,
   itemCategoryDisplayName,
 } from "@/lib/catalog/item-categories";
+import { itemDisplayName, sortItemsByDisplayName } from "@/lib/i18n/item-name";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { AppDateField } from "@/components/ui/AppDateField";
@@ -83,9 +84,11 @@ export function ReportFilters({
   const displayTo = datesDisabled && dataDateRange?.dateTo ? dataDateRange.dateTo : dateTo;
 
   const itemOptions = useMemo(() => {
-    if (!categoryCode) return items;
-    return items.filter((i) => i.categoryCode === categoryCode);
-  }, [items, categoryCode]);
+    const list = categoryCode
+      ? items.filter((i) => i.categoryCode === categoryCode)
+      : items;
+    return sortItemsByDisplayName(list, locale);
+  }, [items, categoryCode, locale]);
 
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
@@ -340,7 +343,7 @@ export function ReportFilters({
                 <option value="">{t("report.all")}</option>
                 {itemOptions.map((i) => (
                   <option key={i.code} value={i.code}>
-                    {i.nameTH}
+                    {itemDisplayName(i, locale)}
                   </option>
                 ))}
               </select>

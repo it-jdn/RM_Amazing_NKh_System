@@ -2,13 +2,14 @@
 
 import { useMemo } from "react";
 import { useLocale } from "@/context/LocaleContext";
-import { purchaseUnitMainLabel } from "@/lib/domain/purchase-units";
-import type { ItemPurchaseUnit } from "@/lib/types";
+import { purchaseUnitOptionLabel } from "@/lib/i18n/unit-display-name";
+import type { ItemPurchaseUnit, UnitOption } from "@/lib/types";
 
 type Props = {
   options: ItemPurchaseUnit[];
   valueMainUnitCode: string;
   onChange: (mainUnitCode: string) => void;
+  units: UnitOption[];
   className?: string;
   disabled?: boolean;
 };
@@ -26,6 +27,7 @@ type SuffixProps = {
   options: ItemPurchaseUnit[];
   valueMainUnitCode: string;
   onChange: (mainUnitCode: string) => void;
+  units: UnitOption[];
   disabled?: boolean;
 };
 
@@ -34,13 +36,14 @@ export function IntakePurchaseUnitSuffix({
   options,
   valueMainUnitCode,
   onChange,
+  units,
   disabled = false,
 }: SuffixProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const sorted = useMemo(() => sortPurchaseOptions(options), [options]);
   const selected =
     sorted.find((o) => o.mainUnitCode === valueMainUnitCode) ?? sorted[0];
-  const label = selected ? purchaseUnitMainLabel(selected) : "—";
+  const label = selected ? purchaseUnitOptionLabel(selected, units, locale) : "—";
 
   if (sorted.length <= 1) {
     return <span className="intake-field-block__suffix">{label}</span>;
@@ -72,10 +75,11 @@ export function IntakePurchaseUnitSelect({
   options,
   valueMainUnitCode,
   onChange,
+  units,
   className,
   disabled = false,
 }: Props) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
 
   const sorted = useMemo(() => sortPurchaseOptions(options), [options]);
 
@@ -83,7 +87,7 @@ export function IntakePurchaseUnitSelect({
     sorted.find((o) => o.mainUnitCode === valueMainUnitCode) ?? sorted[0];
 
   if (sorted.length <= 1) {
-    const label = selected ? purchaseUnitMainLabel(selected) : "—";
+    const label = selected ? purchaseUnitOptionLabel(selected, units, locale) : "—";
     return (
       <span className={className ? `intake-purchase-unit-static ${className}` : "intake-purchase-unit-static"}>
         {label}
@@ -101,7 +105,7 @@ export function IntakePurchaseUnitSelect({
     >
       {sorted.map((o) => (
         <option key={o.mainUnitCode} value={o.mainUnitCode}>
-          {purchaseUnitMainLabel(o)}
+          {purchaseUnitOptionLabel(o, units, locale)}
         </option>
       ))}
     </select>

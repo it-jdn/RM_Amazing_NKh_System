@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiGet, apiPatch } from "@/lib/api/client";
 import { useToast } from "@/components/Toast";
 import { useLocale } from "@/context/LocaleContext";
@@ -8,20 +9,31 @@ import type { AppUserPublic } from "@/lib/users/db";
 import type { AppRole } from "@/lib/types";
 
 type MeResponse = { user: AppUserPublic };
+type MePatchResponse = { message: string; user?: AppUserPublic };
 
 export function ProfileView() {
   const { t } = useLocale();
   const toast = useToast();
+  const router = useRouter();
   const [user, setUser] = useState<AppUserPublic | null>(null);
   const [loading, setLoading] = useState(true);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [savingPin, setSavingPin] = useState(false);
 
   useEffect(() => {
     apiGet<MeResponse>("/api/users/me")
-      .then((data) => setUser(data.user))
+      .then((data) => {
+        setUser(data.user);
+        setFirstName(data.user.firstName);
+        setLastName(data.user.lastName);
+        setEmail(data.user.email);
+      })
       .catch((e) => toast(e instanceof Error ? e.message : "Error"))
       .finally(() => setLoading(false));
   }, [toast]);
@@ -32,11 +44,35 @@ export function ProfileView() {
     return t("role.admin");
   }
 
+  async function saveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const r = await apiPatch<MePatchResponse>("/api/users/me", {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+      });
+      toast(r.message);
+      if (r.user) {
+        setUser(r.user);
+        setFirstName(r.user.firstName);
+        setLastName(r.user.lastName);
+        setEmail(r.user.email);
+      }
+      router.refresh();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Error");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
   async function savePin(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
+    setSavingPin(true);
     try {
-      const r = await apiPatch<{ message: string }>("/api/users/me", {
+      const r = await apiPatch<MePatchResponse>("/api/users/me", {
         currentPin,
         newPin,
         confirmPin,
@@ -48,7 +84,7 @@ export function ProfileView() {
     } catch (err) {
       toast(err instanceof Error ? err.message : "Error");
     } finally {
-      setSaving(false);
+      setSavingPin(false);
     }
   }
 
@@ -64,27 +100,64 @@ export function ProfileView() {
     <div className="wrap profile-page">
       <h1 className="page-title">{t("profile.title")}</h1>
 
-      <div className="card">
+      <form className="card" onSubmit={saveProfile}>
         <div className="card-title">
           <span className="dot dot-blue" />
           <span>{t("profile.infoTitle")}</span>
         </div>
-        <dl className="profile-dl">
+        <div className="form-row c2">
           <div>
-            <dt>{t("profile.name")}</dt>
-            <dd>{user.displayName}</dd>
+            <label className="lbl" htmlFor="profile-first-name">
+              {t("admin.users.firstName")}
+            </label>
+            <input
+              id="profile-first-name"
+              type="text"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
           </div>
           <div>
-            <dt>{t("admin.users.email")}</dt>
-            <dd>{user.email || "—"}</dd>
+            <label className="lbl" htmlFor="profile-last-name">
+              {t("admin.users.lastName")}
+            </label>
+            <input
+              id="profile-last-name"
+              type="text"
+              autoComplete="family-name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
           </div>
+        </div>
+        <div className="form-row">
+          <div>
+            <label className="lbl" htmlFor="profile-email">
+              {t("admin.users.email")}
+            </label>
+            <input
+              id="profile-email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+        <dl className="profile-dl profile-dl--readonly">
           <div>
             <dt>{t("admin.users.role")}</dt>
             <dd>{roleLabel(user.role)}</dd>
           </div>
         </dl>
         <p className="hint">{t("profile.infoHint")}</p>
-      </div>
+        <button type="submit" className="btn btn-primary" disabled={savingProfile}>
+          {savingProfile ? t("profile.saving") : t("profile.saveProfile")}
+        </button>
+      </form>
 
       <form className="card" onSubmit={savePin}>
         <div className="card-title">
@@ -126,8 +199,8 @@ export function ProfileView() {
             />
           </div>
         </div>
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? t("profile.saving") : t("profile.savePin")}
+        <button type="submit" className="btn btn-primary" disabled={savingPin}>
+          {savingPin ? t("profile.saving") : t("profile.savePin")}
         </button>
       </form>
     </div>
