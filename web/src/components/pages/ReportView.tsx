@@ -28,7 +28,6 @@ import { fmt, formatAppDate, histDatePresetRange } from "@/lib/utils/format";
 import { downloadExcelTable } from "@/lib/reports/export-excel";
 import { ReportChartsFold } from "@/components/reports/ReportChartsFold";
 import { ReportFilters } from "@/components/reports/ReportFilters";
-import { ReportHeatmap } from "@/components/reports/ReportHeatmap";
 import { ReportItemCumulativeChart } from "@/components/reports/ReportItemCumulativeChart";
 import { ReportKpiCard, ReportKpiGrid } from "@/components/reports/ReportKpiGrid";
 import { ReportTableSection } from "@/components/reports/ReportTableSection";
@@ -98,12 +97,6 @@ interface ReportData {
   topItemsByValue: ReportData["byItem"];
   topItemsByQty: ReportData["byItem"];
   priceVarianceByMonth: { month: string; avgVariancePct: number; sampleCount: number }[];
-  weeklyHeatmap: {
-    dayOfWeek: number;
-    weekStart: string;
-    totalPrice: number;
-    count: number;
-  }[];
   rows: {
     no?: number;
     date: string;
@@ -581,8 +574,6 @@ export function ReportView() {
               </div>
             )}
           </div>
-
-          <ReportHeatmap cells={data.weeklyHeatmap} title={t("report.heatmap")} />
 
           <ReportItemCumulativeChart
             rows={chartRows}

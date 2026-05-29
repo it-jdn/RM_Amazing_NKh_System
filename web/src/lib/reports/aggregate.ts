@@ -4,6 +4,7 @@ import {
   isItemCategoryCode,
 } from "@/lib/catalog/item-categories";
 import { toDateStr } from "@/lib/domain/transactions";
+import { weekStartSunday } from "@/lib/utils/format";
 
 export type ReportTxnRow = {
   txn_date: string;
@@ -91,14 +92,6 @@ export type ReportAggregates = {
 
 function parseNum(v: unknown) {
   return parseFloat(String(v)) || 0;
-}
-
-function weekStartMonday(isoDate: string): string {
-  const d = new Date(isoDate + "T12:00:00");
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
 }
 
 export function aggregateReportRows(
@@ -204,7 +197,7 @@ export function aggregateReportRows(
         monthVariance[month].n++;
       }
       const dow = new Date(d + "T12:00:00").getDay();
-      const ws = weekStartMonday(d);
+      const ws = weekStartSunday(d);
       const hk = `${ws}|${dow}`;
       if (!heatmap[hk]) heatmap[hk] = { dayOfWeek: dow, weekStart: ws, totalPrice: 0, count: 0 };
       heatmap[hk].totalPrice += price;

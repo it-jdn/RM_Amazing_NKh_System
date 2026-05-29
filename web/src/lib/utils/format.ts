@@ -114,6 +114,66 @@ export function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Calendar date in Asia/Bangkok (YYYY-MM-DD). */
+export function todayBangkokISO() {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+}
+
+function toISOStringDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function addCalendarDaysISO(iso: string, days: number): string {
+  const d = parseISODateLocal(iso);
+  if (!d) return iso;
+  d.setDate(d.getDate() + days);
+  return toISOStringDate(d);
+}
+
+/** วันอาทิตย์ที่เริ่มสัปดาห์ปฏิทิม (อา.–ส.) */
+export function weekStartSunday(isoDate: string): string {
+  const d = parseISODateLocal(isoDate);
+  if (!d) return isoDate;
+  return addCalendarDaysISO(isoDate, -d.getDay());
+}
+
+/**
+ * สัปดาห์นี้ (Bangkok): ช่วง 8 วัน อาทิตย์–อาทิตย์ (รวมปลายทาง)
+ * - วันนี้เป็นอาทิตย์: วันนี้ → อาทิตย์ถัดไป
+ * - วันอื่น: ย้อนไป (dow+1) วันจากวันนี้ แล้ว +7 วัน (เช่น พ. 27 → 23–30 พ.ค.)
+ */
+export function thisWeekRangeISO(referenceISO?: string): DateRangeISO {
+  const today = referenceISO || todayBangkokISO();
+  const d = parseISODateLocal(today);
+  if (!d) return { from: today, to: today };
+  const dow = d.getDay();
+  const startOffset = dow === 0 ? 0 : dow + 1;
+  const from = addCalendarDaysISO(today, -startOffset);
+  const to = addCalendarDaysISO(from, 7);
+  return { from, to };
+}
+
+/** ช่วงวันที่แบบย่อเมื่ออยู่เดือนเดียวกัน (เช่น 23–30 พ.ค. 69) */
+export function formatAppDateRange(from: string, to: string, locale: Locale): string {
+  const df = parseISODateLocal(from);
+  const dt = parseISODateLocal(to);
+  if (!df || !dt) {
+    return `${formatAppDate(from, locale)} – ${formatAppDate(to, locale)}`;
+  }
+  if (df.getFullYear() === dt.getFullYear() && df.getMonth() === dt.getMonth()) {
+    const mo = df.getMonth();
+    if (locale === "th") {
+      return `${df.getDate()}–${dt.getDate()} ${MO_TH[mo]} ${String(df.getFullYear() + 543).slice(-2)}`;
+    }
+    if (locale === "kr") {
+      return `${df.getDate()}–${dt.getDate()} ${MO_KR[mo]} ${String(df.getFullYear()).slice(-2)}`;
+    }
+    return `${df.getDate()}–${dt.getDate()} ${MO_EN[mo]} ${String(df.getFullYear()).slice(-2)}`;
+  }
+  return `${formatAppDate(from, locale)} – ${formatAppDate(to, locale)}`;
+}
+
 /** วันแรกของเดือนปัจจุบัน (Asia/Bangkok) */
 export function monthStartISO() {
   const parts = new Date().toLocaleString("en-CA", { timeZone: "Asia/Bangkok" }).split(",")[0];
@@ -179,6 +239,8 @@ export function histDatePresetRange(preset: string): DateRangeISO {
     }
     case "last7":
       return { from: daysAgoISO(6), to: today };
+    case "thisWeek":
+      return thisWeekRangeISO();
     case "last30":
       return { from: daysAgoISO(29), to: today };
     case "thisMonth":

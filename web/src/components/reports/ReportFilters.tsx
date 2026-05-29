@@ -11,13 +11,13 @@ import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { IconChevronDown, IconPrint } from "@/components/icons/AppIcons";
-import { formatAppDate, histDatePresetRange } from "@/lib/utils/format";
+import { formatAppDate, formatAppDateRange, histDatePresetRange } from "@/lib/utils/format";
 import type { Item, ItemCategory, Supplier } from "@/lib/types";
 
 const REPORT_PRESETS = [
   { id: "all", key: "hist.preset.all" },
   { id: "today", key: "report.presetToday" },
-  { id: "last7", key: "report.preset7" },
+  { id: "thisWeek", key: "report.presetWeek" },
   { id: "last30", key: "report.preset30" },
   { id: "thisMonth", key: "report.presetMonth" },
   { id: "lastMonth", key: "report.presetLastMonth" },
@@ -26,7 +26,7 @@ const REPORT_PRESETS = [
 const PRESET_LABEL: Record<string, MessageKey> = {
   all: "hist.preset.all",
   today: "report.presetToday",
-  last7: "report.preset7",
+  thisWeek: "report.presetWeek",
   last30: "report.preset30",
   thisMonth: "report.presetMonth",
   lastMonth: "report.presetLastMonth",
@@ -101,6 +101,8 @@ export function ReportFilters({
       } else {
         parts.push(t("hist.preset.all"));
       }
+    } else if (datePreset === "thisWeek" && displayFrom && displayTo) {
+      parts.push(formatAppDateRange(displayFrom, displayTo, locale));
     } else if (datePreset !== "custom" && PRESET_LABEL[datePreset]) {
       parts.push(t(PRESET_LABEL[datePreset]));
     } else if (displayFrom || displayTo) {

@@ -10436,11 +10436,16 @@ input.intake-touch-input,
   opacity: 0.5;
   cursor: not-allowed;
 }
+.report-heatmap__hint {
+  margin: 0 0 10px;
+}
 .report-heatmap-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .report-heatmap {
   width: 100%;
+  min-width: 36rem;
   border-collapse: collapse;
   font-size: 0.78rem;
 }
@@ -10449,14 +10454,48 @@ input.intake-touch-input,
   padding: 6px 8px;
   border: 1px solid var(--border, #e2e8f0);
   text-align: center;
-  white-space: nowrap;
+  vertical-align: middle;
 }
+.report-heatmap__corner,
 .report-heatmap__week {
   text-align: left;
   font-weight: 600;
+  white-space: nowrap;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface, #fff);
+  box-shadow: 2px 0 4px rgba(15, 23, 42, 0.04);
+}
+.report-heatmap__dow-h {
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--muted, #64748b);
 }
 .report-heatmap__cell {
-  min-width: 72px;
+  min-width: 4.5rem;
+}
+.report-heatmap__cell--out {
+  opacity: 0.35;
+  background: var(--surface-2, #f8fafc) !important;
+}
+.report-heatmap__cell-inner,
+.report-heatmap__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.25;
+}
+.report-heatmap__cell-date {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+}
+.report-heatmap__cell-val {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 @media print {
