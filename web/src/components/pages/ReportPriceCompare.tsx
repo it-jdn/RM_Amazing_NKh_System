@@ -60,7 +60,7 @@ export function ReportPriceCompare(props: {
 
   useEffect(() => {
     if (!props.active) return;
-    setLoaded(false);
+    let cancelled = false;
     const params = new URLSearchParams();
     if (props.dateFrom) params.set("dateFrom", props.dateFrom);
     if (props.dateTo) params.set("dateTo", props.dateTo);
@@ -73,13 +73,20 @@ export function ReportPriceCompare(props: {
       intakePoints: IntakePoint[];
     }>(`/api/reports/price-history?${params}`)
       .then((d) => {
+        if (cancelled) return;
         if (d.success) {
           setPriceHistory(d.priceHistory);
           setIntakePoints(d.intakePoints);
         }
         setLoaded(true);
       })
-      .catch(() => setLoaded(true));
+      .catch(() => {
+        if (!cancelled) setLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [props.active, props.dateFrom, props.dateTo, props.suppCode, props.itemCode]);
 
   const priceChart = useMemo(() => {
@@ -158,9 +165,9 @@ export function ReportPriceCompare(props: {
                   <th>{t("report.dateFrom")}</th>
                   <th>{t("report.shop")}</th>
                   <th>{t("report.item")}</th>
-                  <th>ประเภท</th>
-                  <th>แหล่ง</th>
-                  <th>ราคา/หน่วย (₩)</th>
+                  <th>{t("report.priceKind")}</th>
+                  <th>{t("report.priceSource")}</th>
+                  <th>{t("report.value")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -197,7 +204,7 @@ export function ReportPriceCompare(props: {
                 <tr>
                   <th>{t("report.dateFrom")}</th>
                   <th>{t("report.item")}</th>
-                  <th>หน่วย</th>
+                  <th>{t("report.unit")}</th>
                   <th>{t("report.standard")}</th>
                   <th>{t("report.intake")}</th>
                   <th>{t("report.value")}</th>

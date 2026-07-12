@@ -10,13 +10,14 @@ import { itemDisplayName, sortItemsByDisplayName } from "@/lib/i18n/item-name";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { AppDateField } from "@/components/ui/AppDateField";
-import { IconChevronDown, IconPrint } from "@/components/icons/AppIcons";
+import { IconChevronDown, IconPrint, IconRefresh } from "@/components/icons/AppIcons";
 import { formatAppDate, formatAppDateRange, histDatePresetRange } from "@/lib/utils/format";
 import type { Item, ItemCategory, Supplier } from "@/lib/types";
 
 const REPORT_PRESETS = [
   { id: "all", key: "hist.preset.all" },
   { id: "today", key: "report.presetToday" },
+  { id: "last7", key: "report.preset7" },
   { id: "thisWeek", key: "report.presetWeek" },
   { id: "last30", key: "report.preset30" },
   { id: "thisMonth", key: "report.presetMonth" },
@@ -26,6 +27,7 @@ const REPORT_PRESETS = [
 const PRESET_LABEL: Record<string, MessageKey> = {
   all: "hist.preset.all",
   today: "report.presetToday",
+  last7: "report.preset7",
   thisWeek: "report.presetWeek",
   last30: "report.preset30",
   thisMonth: "report.presetMonth",
@@ -45,6 +47,8 @@ type Props = {
   onCategoryCode: (v: string) => void;
   onItemCode: (v: string) => void;
   onDatePreset: (v: string) => void;
+  onReset: () => void;
+  onExportCsv?: () => void;
   suppliers: Supplier[];
   items: Item[];
   itemCategories: ItemCategory[];
@@ -67,6 +71,8 @@ export function ReportFilters({
   onCategoryCode,
   onItemCode,
   onDatePreset,
+  onReset,
+  onExportCsv,
   suppliers,
   items,
   itemCategories,
@@ -101,7 +107,11 @@ export function ReportFilters({
       } else {
         parts.push(t("hist.preset.all"));
       }
-    } else if (datePreset === "thisWeek" && displayFrom && displayTo) {
+    } else if (
+      (datePreset === "thisWeek" || datePreset === "last7") &&
+      displayFrom &&
+      displayTo
+    ) {
       parts.push(formatAppDateRange(displayFrom, displayTo, locale));
     } else if (datePreset !== "custom" && PRESET_LABEL[datePreset]) {
       parts.push(t(PRESET_LABEL[datePreset]));
@@ -121,7 +131,7 @@ export function ReportFilters({
     }
     if (itemCode) {
       const item = items.find((i) => i.code === itemCode);
-      parts.push(item?.nameTH || itemCode);
+      parts.push(item ? itemDisplayName(item, locale) : itemCode);
     }
 
     return parts.join(" · ");
@@ -221,6 +231,26 @@ export function ReportFilters({
             <span className="report-filters__loading" aria-live="polite">
               {t("report.loading")}
             </span>
+          ) : null}
+          <button
+            type="button"
+            className="filter-clear hist-filters__tool hist-filters__tool--icon report-filters__reset"
+            onClick={onReset}
+            aria-label={t("report.resetFilters")}
+            title={t("report.resetFilters")}
+          >
+            <span className="hist-filters__tool-text">{t("hist.reset")}</span>
+            <IconRefresh size={16} className="hist-filters__tool-icon-svg" aria-hidden />
+          </button>
+          {hasData && onExportCsv ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs report-filters__csv-btn"
+              onClick={onExportCsv}
+              disabled={loading}
+            >
+              {t("report.exportCsv")}
+            </button>
           ) : null}
         </div>
         {loading ? (
@@ -350,6 +380,28 @@ export function ReportFilters({
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="report-filters__mobile-tools">
+            <button
+              type="button"
+              className="filter-clear hist-filters__tool hist-filters__tool--icon"
+              onClick={onReset}
+              aria-label={t("report.resetFilters")}
+            >
+              <span className="hist-filters__tool-text">{t("hist.reset")}</span>
+              <IconRefresh size={16} aria-hidden />
+            </button>
+            {hasData && onExportCsv ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={onExportCsv}
+                disabled={loading}
+              >
+                {t("report.exportCsv")}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
