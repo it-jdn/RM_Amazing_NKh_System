@@ -1725,7 +1725,11 @@ export async function getReportData(filters: ReportFilters) {
   const aggregates = aggregateReportRows(filtered, itemCategoryMap, categories);
 
   const page = Math.max(1, parseInt(String(filters.page || 1), 10) || 1);
-  const pageSize = Math.min(200, Math.max(10, parseInt(String(filters.pageSize || 50), 10) || 50));
+  // Rows are already loaded in memory for aggregates; allow large pages for detail/export/charts.
+  const pageSize = Math.min(
+    100_000,
+    Math.max(10, parseInt(String(filters.pageSize || 50), 10) || 50)
+  );
   const sortedRows = [...filtered].sort((a, b) => {
     const da = toDateStr(a.txn_date);
     const db = toDateStr(b.txn_date);

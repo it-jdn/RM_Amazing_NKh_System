@@ -20,11 +20,12 @@ import {
   FALLBACK_ITEM_CATEGORIES,
   itemCategoryDisplayName,
 } from "@/lib/catalog/item-categories";
-import { itemDisplayNameByCode } from "@/lib/i18n/item-name";
+import { itemDisplayName, itemDisplayNameByCode } from "@/lib/i18n/item-name";
 import { supplierDisplayName, supplierDisplayNameByCode } from "@/lib/i18n/supplier-name";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { apiGet } from "@/lib/api/client";
 import { useToast } from "@/components/Toast";
-import { fmt, formatAppDate, histDatePresetRange } from "@/lib/utils/format";
+import { fmt, formatAppDate, formatAppDateRange, histDatePresetRange } from "@/lib/utils/format";
 import { downloadExcelTable } from "@/lib/reports/export-excel";
 import { ReportChartsFold } from "@/components/reports/ReportChartsFold";
 import { ReportFilters } from "@/components/reports/ReportFilters";
@@ -32,6 +33,7 @@ import { ReportItemCumulativeChart } from "@/components/reports/ReportItemCumula
 import { ReportKpiCard, ReportKpiGrid } from "@/components/reports/ReportKpiGrid";
 import { ReportTableSection } from "@/components/reports/ReportTableSection";
 import { ReportTablePager, useReportTablePaging } from "@/components/reports/ReportTablePager";
+import { ReportPriceCompare } from "@/components/pages/ReportPriceCompare";
 
 ChartJS.register(
   CategoryScale,
@@ -115,6 +117,15 @@ function wonTicks(v: string | number) {
   return "₩" + fmt(Number(v));
 }
 
+function formatVsPrev(
+  pct: number | null | undefined,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string
+) {
+  if (pct == null || Number.isNaN(pct)) return undefined;
+  const sign = pct > 0 ? "+" : "";
+  return t("report.vsPrevPct", { pct: `${sign}${pct.toFixed(1)}` });
+}
+
 const CATEGORY_CHART_COLORS = [
   "rgba(255,66,26,.75)",
   "rgba(26,107,181,.75)",
@@ -139,6 +150,7 @@ export function ReportView() {
   const [data, setData] = useState<ReportData | null>(null);
   const [chartRows, setChartRows] = useState<ReportData["rows"]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [datePreset, setDatePreset] = useState("thisMonth");
 
   const categoryPaging = useReportTablePaging(data?.byCategory.length ?? 0);
@@ -170,6 +182,43 @@ export function ReportView() {
 
   const excelRange = rFrom && rTo ? `${rFrom}_${rTo}` : "all";
 
+  const printSummary = useMemo(() => {
+    const parts: string[] = [];
+    const rangeFrom = data?.dataDateRange?.dateFrom;
+    const rangeTo = data?.dataDateRange?.dateTo;
+    if (datePreset === "all" && rangeFrom && rangeTo) {
+      parts.push(`${formatAppDate(rangeFrom, locale)} – ${formatAppDate(rangeTo, locale)}`);
+    } else if (rFrom && rTo) {
+      parts.push(formatAppDateRange(rFrom, rTo, locale));
+    }
+    if (rSupp) {
+      const shop = suppliers.find((s) => s.code === rSupp);
+      parts.push(shop ? supplierDisplayName(shop, locale) : rSupp);
+    }
+    if (rCategory) {
+      const cat = itemCategories.find((c) => c.code === rCategory);
+      parts.push(cat ? itemCategoryDisplayName(cat, locale) : rCategory);
+    }
+    if (rItem) {
+      const item = items.find((i) => i.code === rItem);
+      parts.push(item ? itemDisplayName(item, locale) : rItem);
+    }
+    return parts.join(" · ");
+  }, [
+    data?.dataDateRange?.dateFrom,
+    data?.dataDateRange?.dateTo,
+    datePreset,
+    itemCategories,
+    items,
+    locale,
+    rCategory,
+    rFrom,
+    rItem,
+    rSupp,
+    rTo,
+    suppliers,
+  ]);
+
   const categoryTableTotals = useMemo(() => {
     if (!data?.byCategory.length) return null;
     return data.byCategory.reduce(
@@ -180,38 +229,48 @@ export function ReportView() {
       }),
       { distinctItems: 0, count: 0, totalPrice: 0 }
     );
-  }, [data?.byCategory]);
+  }, [data]);
+
+  const buildParams = useCallback(
+    (includeItem: boolean) => {
+      const params = new URLSearchParams();
+      if (rFrom) params.set("dateFrom", rFrom);
+      if (rTo) params.set("dateTo", rTo);
+      if (rSupp) params.set("suppCode", rSupp);
+      if (rCategory) params.set("categoryCode", rCategory);
+      if (includeItem && rItem) params.set("itemCode", rItem);
+      params.set("page", "1");
+      params.set("pageSize", "100000");
+      return params;
+    },
+    [rFrom, rTo, rSupp, rCategory, rItem]
+  );
 
   const loadReport = useCallback(async () => {
     setLoading(true);
     try {
-      const base = new URLSearchParams();
-      if (rFrom) base.set("dateFrom", rFrom);
-      if (rTo) base.set("dateTo", rTo);
-      if (rSupp) base.set("suppCode", rSupp);
-      if (rCategory) base.set("categoryCode", rCategory);
-      base.set("page", "1");
-      base.set("pageSize", "100000");
+      const filteredParams = buildParams(true);
+      const chartParams = buildParams(false);
 
-      const params = new URLSearchParams(base);
-      if (rItem) params.set("itemCode", rItem);
+      const filteredPromise = apiGet<ReportData>(`/api/reports?${filteredParams}`);
+      const chartPromise = rItem
+        ? apiGet<ReportData>(`/api/reports?${chartParams}`)
+        : null;
 
-      const [d, chartD] = await Promise.all([
-        apiGet<ReportData>(`/api/reports?${params}`),
-        apiGet<ReportData>(`/api/reports?${base}`),
-      ]);
+      const [d, chartD] = await Promise.all([filteredPromise, chartPromise]);
       if (!d.success) {
         toast(t("report.loadError"));
         return;
       }
       setData(d);
-      setChartRows(chartD.success ? chartD.rows : []);
+      setChartRows(chartD?.success ? chartD.rows : d.rows);
     } catch (e) {
       toast(e instanceof Error ? e.message : t("report.loadError"));
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
-  }, [rFrom, rTo, rSupp, rItem, rCategory, t, toast]);
+  }, [buildParams, rItem, t, toast]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -220,8 +279,36 @@ export function ReportView() {
     return () => window.clearTimeout(timer);
   }, [loadReport]);
 
+  function resetFilters() {
+    const range = histDatePresetRange("thisMonth");
+    setDatePreset("thisMonth");
+    setRFrom(range.from);
+    setRTo(range.to);
+    setRSupp("");
+    setRCategory("");
+    setRItem("");
+  }
+
   function printReport() {
     window.print();
+  }
+
+  async function exportCsv() {
+    try {
+      const params = buildParams(true);
+      params.set("format", "csv");
+      const res = await fetch(`/api/reports?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error(t("report.loadError"));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `report-${excelRange}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : t("report.loadError"));
+    }
   }
 
   function exportCategoryExcel() {
@@ -433,13 +520,51 @@ export function ReportView() {
       }
     : null;
 
+  const topQtyBar = data?.topItemsByQty.length
+    ? {
+        labels: data.topItemsByQty.map((x) => itemName(x.itemCode, x.itemName)),
+        datasets: [
+          {
+            data: data.topItemsByQty.map((x) => x.qty),
+            backgroundColor: "rgba(76,140,74,.45)",
+            borderColor: "rgba(76,140,74,.85)",
+            borderWidth: 1.5,
+            borderRadius: 4,
+          },
+        ],
+      }
+    : null;
+
+  const varianceLine = data?.priceVarianceByMonth.length
+    ? {
+        labels: data.priceVarianceByMonth.map((x) => x.month),
+        datasets: [
+          {
+            label: t("report.varianceMonth"),
+            data: data.priceVarianceByMonth.map((x) => x.avgVariancePct),
+            borderColor: "rgba(120,90,180,.95)",
+            backgroundColor: "rgba(120,90,180,.12)",
+            fill: true,
+            tension: 0.25,
+          },
+        ],
+      }
+    : null;
+
   const chartOpts = {
     responsive: true,
     plugins: { legend: { display: true, position: "top" as const } },
   };
 
+  const hasRows = !!data && data.summary.totalTrans > 0;
+
   return (
     <div className="wrap report-page">
+      <div className="report-print-header" aria-hidden>
+        <h1>{t("report.title")}</h1>
+        {printSummary ? <p>{printSummary}</p> : null}
+      </div>
+
       <ReportFilters
         dateFrom={rFrom}
         dateTo={rTo}
@@ -453,28 +578,59 @@ export function ReportView() {
         onCategoryCode={setRCategory}
         onItemCode={setRItem}
         onDatePreset={setDatePreset}
+        onReset={resetFilters}
+        onExportCsv={exportCsv}
         suppliers={suppliers}
         items={items}
         itemCategories={itemCategories}
         loading={loading}
-        hasData={!!data}
+        hasData={!!data && hasRows}
         dataDateRange={data?.dataDateRange ?? null}
         onPrint={printReport}
       />
 
-      {data && (
+      {loading && !data ? (
+        <p className="report-status" role="status">
+          {t("report.loading")}
+        </p>
+      ) : null}
+
+      {hasLoaded && data && !hasRows ? (
+        <div className="card report-empty" role="status">
+          <p className="report-empty__title">{t("report.noData")}</p>
+          <p className="report-empty__hint">{t("report.emptyHint")}</p>
+        </div>
+      ) : null}
+
+      {data && hasRows && (
         <>
           <ReportKpiGrid>
             <ReportKpiCard
               highlight
               label={t("report.totalCost")}
               value={`₩${fmt(data.summary.totalCost)}`}
+              sub={formatVsPrev(data.previousPeriod?.changePct.totalCost, t)}
+            />
+            <ReportKpiCard
+              label={t("report.totalTrans")}
+              value={String(data.summary.totalTrans)}
+              sub={formatVsPrev(data.previousPeriod?.changePct.totalTrans, t)}
             />
             <ReportKpiCard label={t("report.avgDaily")} value={`₩${fmt(data.summary.avgDailyCost)}`} />
             <ReportKpiCard
               label={t("report.distinctItems")}
               value={String(data.summary.distinctItems)}
             />
+            <ReportKpiCard
+              label={t("report.distinctShops")}
+              value={String(data.summary.distinctSuppliers)}
+            />
+            {data.summary.avgPriceVariancePct != null ? (
+              <ReportKpiCard
+                label={t("report.priceVariance")}
+                value={`${data.summary.avgPriceVariancePct > 0 ? "+" : ""}${data.summary.avgPriceVariancePct.toFixed(1)}%`}
+              />
+            ) : null}
           </ReportKpiGrid>
 
           <p className="admin-hint report-unit-note">{t("report.unitNote")}</p>
@@ -575,6 +731,49 @@ export function ReportView() {
             )}
           </div>
 
+          <div className="report-charts-grid">
+            {topQtyBar && (
+              <div className="card">
+                <div className="card-title">
+                  <span className="dot dot-green" />
+                  <span>{t("report.topQty")}</span>
+                </div>
+                <Bar
+                  data={topQtyBar}
+                  options={{
+                    indexAxis: "y" as const,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                      x: { ticks: { callback: (v) => fmt(Number(v)) } },
+                    },
+                  }}
+                />
+              </div>
+            )}
+            {varianceLine && (
+              <div className="card">
+                <div className="card-title">
+                  <span className="dot dot-purple" />
+                  <span>{t("report.varianceMonth")}</span>
+                </div>
+                <Line
+                  data={varianceLine}
+                  options={{
+                    ...chartOpts,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                      y: {
+                        ticks: {
+                          callback: (v) => `${Number(v).toFixed(0)}%`,
+                        },
+                      },
+                    },
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
           <ReportItemCumulativeChart
             rows={chartRows}
             items={items}
@@ -584,6 +783,19 @@ export function ReportView() {
             datePreset={datePreset}
           />
           </ReportChartsFold>
+
+          {rItem ? (
+            <ReportPriceCompare
+              key={`${rFrom}|${rTo}|${rSupp}|${rItem}`}
+              dateFrom={rFrom}
+              dateTo={rTo}
+              suppCode={rSupp}
+              itemCode={rItem}
+              active
+              suppliers={suppliers}
+              items={items}
+            />
+          ) : null}
 
           <ReportTableSection
             title={t("report.byCategory")}
