@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
   Filler,
+  type ScriptableContext,
 } from "chart.js";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
 import { useAppData } from "@/context/AppDataContext";
@@ -149,6 +150,19 @@ function SortTh<T extends string>({
 
 function wonTicks(v: string | number) {
   return "₩" + fmt(Number(v));
+}
+
+function verticalGradient(
+  context: ScriptableContext<"line">,
+  colorTop: string,
+  colorBottom: string
+) {
+  const { ctx, chartArea } = context.chart;
+  if (!chartArea) return colorBottom;
+  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  gradient.addColorStop(0, colorTop);
+  gradient.addColorStop(1, colorBottom);
+  return gradient;
 }
 
 const CUMULATIVE_LABEL_MAX_COUNT = 10;
@@ -441,9 +455,22 @@ export function ReportView() {
             label: t("report.dailyTrend"),
             data: data.byDate.map((x) => x.totalPrice),
             borderColor: "rgba(26,107,181,.95)",
-            backgroundColor: "rgba(26,107,181,.12)",
+            backgroundColor: (ctx: ScriptableContext<"line">) =>
+              verticalGradient(ctx, "rgba(26,107,181,.32)", "rgba(26,107,181,.02)"),
             fill: true,
-            tension: 0.25,
+            tension: 0.45,
+            borderWidth: 2.5,
+            borderCapStyle: "round" as const,
+            borderJoinStyle: "round" as const,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointHitRadius: 14,
+            pointBackgroundColor: "#fff",
+            pointBorderColor: "rgba(26,107,181,.95)",
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: "#fff",
+            pointHoverBorderColor: "rgba(26,107,181,.95)",
+            pointHoverBorderWidth: 2.5,
             yAxisID: "y",
           },
           ...(rItem
@@ -454,7 +481,9 @@ export function ReportView() {
                   borderColor: "rgba(232,66,26,.9)",
                   backgroundColor: "transparent",
                   borderDash: [4, 4],
-                  tension: 0.25,
+                  tension: 0.45,
+                  pointRadius: 3,
+                  pointHoverRadius: 6,
                   yAxisID: "y1",
                 },
               ]
@@ -686,17 +715,43 @@ export function ReportView() {
                 <Line
                   data={dailyLineData}
                   options={{
-                    ...chartOpts,
+                    responsive: true,
+                    interaction: { mode: "index" as const, intersect: false },
+                    plugins: {
+                      legend: rItem ? { display: true, position: "top" as const } : { display: false },
+                      tooltip: {
+                        backgroundColor: "rgba(15,30,60,.92)",
+                        titleColor: "#fff",
+                        bodyColor: "#fff",
+                        padding: 10,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                          label(ctx: { dataset: { yAxisID?: string }; parsed: { y: number | null } }) {
+                            const y = ctx.parsed.y ?? 0;
+                            return ctx.dataset.yAxisID === "y1" ? fmt(y) : wonTicks(y);
+                          },
+                        },
+                      },
+                    },
                     scales: {
+                      x: {
+                        grid: { display: false },
+                        border: { display: false },
+                        ticks: { color: "#5a6a99" },
+                      },
                       y: {
                         position: "left",
-                        ticks: { callback: wonTicks },
+                        grid: { color: "rgba(15,23,42,.06)" },
+                        border: { display: false },
+                        ticks: { callback: wonTicks, color: "#5a6a99" },
                       },
                       ...(rItem
                         ? {
                             y1: {
                               position: "right",
                               grid: { drawOnChartArea: false },
+                              border: { display: false },
                               ticks: { callback: (v) => fmt(Number(v)) },
                             },
                           }

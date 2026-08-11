@@ -1704,16 +1704,25 @@ async function loadReportTxnRows(
 
   const allowedItemCodes = buildCategoryFilter(filters.categoryCode, itemCategoryMap);
 
-  let query = supabase.from("transactions").select("*");
-  if (filters.dateFrom) query = query.gte("txn_date", filters.dateFrom);
-  if (filters.dateTo) query = query.lte("txn_date", filters.dateTo);
-  if (filters.suppCode) query = query.eq("supp_code", filters.suppCode);
-  if (filters.itemCode) query = query.eq("item_code", filters.itemCode);
+  const PAGE_SIZE = 1000;
+  const allRows: ReportTxnRow[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    let query = supabase.from("transactions").select("*");
+    if (filters.dateFrom) query = query.gte("txn_date", filters.dateFrom);
+    if (filters.dateTo) query = query.lte("txn_date", filters.dateTo);
+    if (filters.suppCode) query = query.eq("supp_code", filters.suppCode);
+    if (filters.itemCode) query = query.eq("item_code", filters.itemCode);
 
-  const { data, error } = await query.order("txn_date", { ascending: true });
-  if (error) throw error;
+    const { data, error } = await query
+      .order("txn_date", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
 
-  const filtered = filterRowsByCategory((data || []) as ReportTxnRow[], allowedItemCodes);
+    allRows.push(...((data || []) as ReportTxnRow[]));
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+
+  const filtered = filterRowsByCategory(allRows, allowedItemCodes);
   return { filtered, itemCategoryMap };
 }
 
