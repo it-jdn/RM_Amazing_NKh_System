@@ -41,6 +41,8 @@ export type ReportByDate = {
 export type ReportByItem = {
   itemCode: string;
   itemName: string;
+  categoryCode: ItemCategoryCode;
+  categoryNameTH: string;
   qty: number;
   totalPrice: number;
   count: number;
@@ -109,7 +111,15 @@ export function aggregateReportRows(
 
   const byItemMap: Record<
     string,
-    { itemCode: string; itemName: string; qty: number; totalPrice: number; count: number }
+    {
+      itemCode: string;
+      itemName: string;
+      categoryCode: ItemCategoryCode;
+      categoryNameTH: string;
+      qty: number;
+      totalPrice: number;
+      count: number;
+    }
   > = {};
   const byDateMap: Record<string, ReportByDate> = {};
   const bySuppMap: Record<
@@ -143,10 +153,14 @@ export function aggregateReportRows(
     }
 
     const itemCode = String(t.item_code);
+    const cat = itemCategoryMap.get(itemCode) || DEFAULT_ITEM_CATEGORY;
     if (!byItemMap[itemCode]) {
+      const meta = categoryMeta.get(cat);
       byItemMap[itemCode] = {
         itemCode,
         itemName: String(t.item_name_th),
+        categoryCode: cat,
+        categoryNameTH: meta?.nameTH || cat,
         qty: 0,
         totalPrice: 0,
         count: 0,
@@ -174,7 +188,6 @@ export function aggregateReportRows(
     bySuppMap[sc].totalPrice += price;
     bySuppMap[sc].count++;
 
-    const cat = itemCategoryMap.get(itemCode) || DEFAULT_ITEM_CATEGORY;
     if (!byCategoryMap[cat]) {
       const meta = categoryMeta.get(cat);
       byCategoryMap[cat] = {

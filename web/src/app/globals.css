@@ -10168,9 +10168,42 @@ input.intake-touch-input,
   margin: 0 0 16px;
   font-size: 12px;
 }
+.report-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 30, 60, 0.35);
+  backdrop-filter: blur(1px);
+}
+.report-loading-overlay__box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px;
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(41, 121, 255, 0.18);
+}
+.report-loading-overlay__spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid #e2e8f0;
+  border-top-color: #1a6bb5;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: intake-spin 0.75s linear infinite;
+}
+.report-loading-overlay__text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+}
 .report-charts-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -10186,9 +10219,42 @@ input.intake-touch-input,
 .report-category-chart-wrap canvas {
   max-height: 240px;
 }
+.report-category-chart-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.report-category-chart-title__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.report-chart-type-toggle {
+  display: inline-flex;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.report-chart-type-toggle__btn {
+  padding: 4px 10px;
+  border: none;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.report-chart-type-toggle__btn + .report-chart-type-toggle__btn {
+  border-left: 1.5px solid var(--border);
+}
+.report-chart-type-toggle__btn.active {
+  background: var(--bllt);
+  color: var(--brand-blue);
+}
 @media (min-width: 1025px) {
   .report-charts-grid--3 {
-    grid-template-columns: 1fr 1fr 1fr;
     align-items: start;
   }
   .report-category-chart-wrap canvas {

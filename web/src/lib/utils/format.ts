@@ -274,6 +274,10 @@ export function histDatePresetRange(preset: string): DateRangeISO {
       return { from: monthStartISO(), to: today };
     case "lastMonth":
       return lastMonthRangeISO();
+    case "last2Months":
+      return { from: monthsAgoBangkok(2), to: today };
+    case "last3Months":
+      return { from: monthsAgoBangkok(3), to: today };
     case "all":
       return { from: "", to: "" };
     default:
@@ -290,6 +294,13 @@ function lastMonthRangeISO(): DateRangeISO {
   const first = new Date(d.getFullYear(), d.getMonth() - 1, 1);
   const last = new Date(d.getFullYear(), d.getMonth(), 0);
   return { from: toISOStringDate(first), to: toISOStringDate(last) };
+}
+
+function monthsAgoBangkok(months: number): string {
+  const base = parseISODateLocal(todayBangkokISO());
+  if (!base) return todayBangkokISO();
+  base.setMonth(base.getMonth() - months);
+  return toISOStringDate(base);
 }
 
 export const HIST_DATE_PRESETS: { id: string; label: string }[] = [

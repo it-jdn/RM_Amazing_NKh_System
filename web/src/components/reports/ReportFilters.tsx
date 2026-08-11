@@ -21,6 +21,8 @@ const REPORT_PRESETS = [
   { id: "last30", key: "report.preset30" },
   { id: "thisMonth", key: "report.presetMonth" },
   { id: "lastMonth", key: "report.presetLastMonth" },
+  { id: "last2Months", key: "report.preset2Months" },
+  { id: "last3Months", key: "report.preset3Months" },
 ] as const;
 
 const PRESET_LABEL: Record<string, MessageKey> = {
@@ -30,6 +32,8 @@ const PRESET_LABEL: Record<string, MessageKey> = {
   last30: "report.preset30",
   thisMonth: "report.presetMonth",
   lastMonth: "report.presetLastMonth",
+  last2Months: "report.preset2Months",
+  last3Months: "report.preset3Months",
 };
 
 type Props = {

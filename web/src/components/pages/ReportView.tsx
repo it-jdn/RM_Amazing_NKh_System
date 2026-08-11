@@ -80,6 +80,8 @@ interface ReportData {
   byItem: {
     itemCode: string;
     itemName: string;
+    categoryCode: string;
+    categoryNameTH: string;
     qty: number;
     count: number;
     totalPrice: number;
@@ -111,9 +113,70 @@ interface ReportData {
   pagination: { page: number; pageSize: number; totalRows: number; totalPages: number };
 }
 
+type ItemSortKey = "category" | "qty" | "count" | "sharePct" | "totalPrice";
+type DetailSortKey = "date" | "shop" | "item" | "qty" | "totalPrice";
+
+function SortTh<T extends string>({
+  label,
+  column,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  label: string;
+  column: T;
+  sortKey: T;
+  sortDir: "asc" | "desc";
+  onSort: (column: T) => void;
+}) {
+  const active = sortKey === column;
+  return (
+    <th>
+      <button
+        type="button"
+        className={`admin-table-sort${active ? ` admin-table-sort--active admin-table-sort--${sortDir}` : ""}`}
+        onClick={() => onSort(column)}
+        aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <span>{label}</span>
+        <span className="admin-table-sort__icon" aria-hidden>
+          {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 function wonTicks(v: string | number) {
   return "₩" + fmt(Number(v));
 }
+
+const CUMULATIVE_LABEL_MAX_COUNT = 10;
+
+const cumulativeValueLabelPlugin = {
+  id: "cumulativeValueLabel",
+  afterDatasetsDraw(chart: ChartJS) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((dataset, i) => {
+      const meta = chart.getDatasetMeta(i);
+      if (meta.hidden) return;
+      const lastIndex = meta.data.length - 1;
+      const step = Math.max(1, Math.ceil(meta.data.length / CUMULATIVE_LABEL_MAX_COUNT));
+      meta.data.forEach((point, index) => {
+        if (index % step !== 0 && index !== lastIndex) return;
+        const value = dataset.data[index];
+        if (value == null) return;
+        ctx.save();
+        ctx.font = "600 10px system-ui, sans-serif";
+        ctx.fillStyle = "#2e7d32";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(wonTicks(Number(value)), point.x, point.y - 6);
+        ctx.restore();
+      });
+    });
+  },
+};
 
 const CATEGORY_CHART_COLORS = [
   "rgba(255,66,26,.75)",
@@ -140,6 +203,7 @@ export function ReportView() {
   const [chartRows, setChartRows] = useState<ReportData["rows"]>([]);
   const [loading, setLoading] = useState(false);
   const [datePreset, setDatePreset] = useState("thisMonth");
+  const [categoryChartType, setCategoryChartType] = useState<"doughnut" | "bar">("doughnut");
 
   const categoryPaging = useReportTablePaging(data?.byCategory.length ?? 0);
   const itemPaging = useReportTablePaging(data?.byItem.length ?? 0);
@@ -181,6 +245,79 @@ export function ReportView() {
       { distinctItems: 0, count: 0, totalPrice: 0 }
     );
   }, [data?.byCategory]);
+
+  const [itemSortKey, setItemSortKey] = useState<ItemSortKey>("totalPrice");
+  const [itemSortDir, setItemSortDir] = useState<"asc" | "desc">("desc");
+
+  const handleItemSort = useCallback(
+    (column: ItemSortKey) => {
+      if (itemSortKey === column) {
+        setItemSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      } else {
+        setItemSortKey(column);
+        setItemSortDir("asc");
+      }
+      itemPaging.setPage(1);
+    },
+    [itemSortKey, itemPaging]
+  );
+
+  const sortedByItem = useMemo(() => {
+    if (!data?.byItem.length) return [];
+    const dir = itemSortDir === "asc" ? 1 : -1;
+    return [...data.byItem].sort((a, b) => {
+      if (itemSortKey === "category") {
+        return categoryLabel(a.categoryCode, a.categoryNameTH).localeCompare(
+          categoryLabel(b.categoryCode, b.categoryNameTH),
+          locale
+        ) * dir;
+      }
+      return (a[itemSortKey] - b[itemSortKey]) * dir;
+    });
+  }, [data?.byItem, itemSortKey, itemSortDir, categoryLabel, locale]);
+
+  const [detailSortKey, setDetailSortKey] = useState<DetailSortKey>("date");
+  const [detailSortDir, setDetailSortDir] = useState<"asc" | "desc">("desc");
+
+  const handleDetailSort = useCallback(
+    (column: DetailSortKey) => {
+      if (detailSortKey === column) {
+        setDetailSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      } else {
+        setDetailSortKey(column);
+        setDetailSortDir("asc");
+      }
+      detailPaging.setPage(1);
+    },
+    [detailSortKey, detailPaging]
+  );
+
+  const sortedDetailRows = useMemo(() => {
+    if (!data?.rows.length) return [];
+    const dir = detailSortDir === "asc" ? 1 : -1;
+    return [...data.rows].sort((a, b) => {
+      switch (detailSortKey) {
+        case "date":
+          return a.date.localeCompare(b.date) * dir;
+        case "shop":
+          return shopName(a.suppCode, a.suppName).localeCompare(
+            shopName(b.suppCode, b.suppName),
+            locale
+          ) * dir;
+        case "item":
+          return itemName(a.itemCode, a.itemNameTH).localeCompare(
+            itemName(b.itemCode, b.itemNameTH),
+            locale
+          ) * dir;
+        case "qty":
+          return (a.qty - b.qty) * dir;
+        case "totalPrice":
+          return (a.totalPrice - b.totalPrice) * dir;
+        default:
+          return 0;
+      }
+    });
+  }, [data?.rows, detailSortKey, detailSortDir, shopName, itemName, locale]);
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -255,11 +392,21 @@ export function ReportView() {
     downloadExcelTable(
       `report-by-item-${excelRange}.xlsx`,
       t("report.byItem"),
-      [rowCol, t("report.itemCode"), t("report.item"), t("report.qty"), t("report.lines"), t("report.share"), t("report.value")],
-      data.byItem.map((x, i) => [
+      [
+        rowCol,
+        t("report.itemCode"),
+        t("report.item"),
+        t("report.category"),
+        t("report.qty"),
+        t("report.lines"),
+        t("report.share"),
+        t("report.value"),
+      ],
+      sortedByItem.map((x, i) => [
         i + 1,
         x.itemCode,
         itemName(x.itemCode, x.itemName),
+        categoryLabel(x.categoryCode, x.categoryNameTH),
         x.qty,
         x.count,
         `${x.sharePct.toFixed(1)}%`,
@@ -275,7 +422,7 @@ export function ReportView() {
       `report-intake-detail-${excelRange}.xlsx`,
       t("report.latest"),
       [rowCol, t("intake.date"), t("report.shop"), t("report.item"), t("report.qty"), t("report.value")],
-      data.rows.map((r, i) => [
+      sortedDetailRows.map((r, i) => [
         i + 1,
         r.date,
         shopName(r.suppCode, r.suppName),
@@ -400,6 +547,47 @@ export function ReportView() {
       }
     : null;
 
+  const categoryBarData = data?.byCategory.length
+    ? {
+        labels: data.byCategory.map((row) => categoryLabel(row.categoryCode, row.categoryNameTH)),
+        datasets: [
+          {
+            data: data.byCategory.map((x) => x.totalPrice),
+            backgroundColor: data.byCategory.map(
+              (_, i) => CATEGORY_CHART_COLORS[i % CATEGORY_CHART_COLORS.length]!
+            ),
+            borderRadius: 4,
+          },
+        ],
+      }
+    : null;
+
+  const categoryBarOptions = data?.byCategory.length
+    ? {
+        indexAxis: "y" as const,
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label(ctx: { dataIndex: number }) {
+                const row = data.byCategory[ctx.dataIndex];
+                if (!row) return "";
+                return [
+                  `${t("report.value")}: ₩${fmt(row.totalPrice)}`,
+                  `${t("report.share")}: ${row.sharePct.toFixed(1)}%`,
+                  `${t("report.categoryTrans")}: ${row.count}`,
+                ];
+              },
+            },
+          },
+        },
+        scales: { x: { ticks: { callback: wonTicks } } },
+      }
+    : null;
+
+  const showCategoryChartCard: boolean = false;
+
   const suppBarData = data?.bySupp.length
     ? {
         labels: data.bySupp.map((s) => {
@@ -441,6 +629,14 @@ export function ReportView() {
 
   return (
     <div className="wrap report-page">
+      {loading && (
+        <div className="report-loading-overlay" role="status" aria-live="polite" aria-busy="true">
+          <div className="report-loading-overlay__box">
+            <span className="report-loading-overlay__spinner" aria-hidden />
+            <span className="report-loading-overlay__text">{t("report.loading")}</span>
+          </div>
+        </div>
+      )}
       <ReportFilters
         dateFrom={rFrom}
         dateTo={rTo}
@@ -467,7 +663,6 @@ export function ReportView() {
         <>
           <ReportKpiGrid>
             <ReportKpiCard
-              highlight
               label={t("report.totalCost")}
               value={`₩${fmt(data.summary.totalCost)}`}
             />
@@ -520,8 +715,10 @@ export function ReportView() {
               {cumulativeLineData && (
                 <Line
                   data={cumulativeLineData}
+                  plugins={[cumulativeValueLabelPlugin]}
                   options={{
                     ...chartOpts,
+                    layout: { padding: { top: 20 } },
                     plugins: { legend: { display: false } },
                     scales: { y: { ticks: { callback: wonTicks } } },
                   }}
@@ -531,14 +728,40 @@ export function ReportView() {
           </div>
 
           <div className="report-charts-grid report-charts-grid--3">
-            {categoryDoughnut && categoryChartOptions && (
+            {/* ซ่อนไว้ก่อน: การ์ดสรุปตามหมวดหมู่ (โดนัท/แท่ง) — ขยายพื้นที่ให้มูลค่าตามร้าน และ Top 10 มูลค่าแทน */}
+            {showCategoryChartCard && categoryDoughnut && categoryChartOptions && (
               <div className="card report-category-chart-card">
-                <div className="card-title">
-                  <span className="dot dot-orange" />
-                  <span>{t("report.byCategory")}</span>
+                <div className="card-title report-category-chart-title">
+                  <span className="report-category-chart-title__label">
+                    <span className="dot dot-orange" />
+                    <span>{t("report.byCategory")}</span>
+                  </span>
+                  <div className="report-chart-type-toggle" role="group" aria-label={t("report.chartType")}>
+                    <button
+                      type="button"
+                      className={`report-chart-type-toggle__btn${categoryChartType === "doughnut" ? " active" : ""}`}
+                      onClick={() => setCategoryChartType("doughnut")}
+                      aria-pressed={categoryChartType === "doughnut"}
+                    >
+                      {t("report.chartTypeDoughnut")}
+                    </button>
+                    <button
+                      type="button"
+                      className={`report-chart-type-toggle__btn${categoryChartType === "bar" ? " active" : ""}`}
+                      onClick={() => setCategoryChartType("bar")}
+                      aria-pressed={categoryChartType === "bar"}
+                    >
+                      {t("report.chartTypeBar")}
+                    </button>
+                  </div>
                 </div>
                 <div className="report-category-chart-wrap">
-                  <Doughnut data={categoryDoughnut} options={categoryChartOptions} />
+                  {categoryChartType === "doughnut" ? (
+                    <Doughnut data={categoryDoughnut} options={categoryChartOptions} />
+                  ) : (
+                    categoryBarData &&
+                    categoryBarOptions && <Bar data={categoryBarData} options={categoryBarOptions} />
+                  )}
                 </div>
               </div>
             )}
@@ -576,14 +799,17 @@ export function ReportView() {
             )}
           </div>
 
-          <ReportItemCumulativeChart
-            rows={chartRows}
-            items={items}
-            categoryCode={rCategory}
-            dateFrom={rFrom}
-            dateTo={rTo}
-            datePreset={datePreset}
-          />
+          {/* ซ่อนไว้ก่อน: ต้นทุนสะสมตามสินค้า */}
+          {false && (
+            <ReportItemCumulativeChart
+              rows={chartRows}
+              items={items}
+              categoryCode={rCategory}
+              dateFrom={rFrom}
+              dateTo={rTo}
+              datePreset={datePreset}
+            />
+          )}
           </ReportChartsFold>
 
           <ReportTableSection
@@ -683,15 +909,46 @@ export function ReportView() {
                     <th>{t("admin.table.rowCol")}</th>
                     <th>{t("report.itemCode")}</th>
                     <th>{t("report.item")}</th>
-                    <th>{t("report.qty")}</th>
-                    <th>{t("report.lines")}</th>
-                    <th>{t("report.share")}</th>
-                    <th>{t("report.value")}</th>
+                    <SortTh
+                      label={t("report.category")}
+                      column="category"
+                      sortKey={itemSortKey}
+                      sortDir={itemSortDir}
+                      onSort={handleItemSort}
+                    />
+                    <SortTh
+                      label={t("report.qty")}
+                      column="qty"
+                      sortKey={itemSortKey}
+                      sortDir={itemSortDir}
+                      onSort={handleItemSort}
+                    />
+                    <SortTh
+                      label={t("report.lines")}
+                      column="count"
+                      sortKey={itemSortKey}
+                      sortDir={itemSortDir}
+                      onSort={handleItemSort}
+                    />
+                    <SortTh
+                      label={t("report.share")}
+                      column="sharePct"
+                      sortKey={itemSortKey}
+                      sortDir={itemSortDir}
+                      onSort={handleItemSort}
+                    />
+                    <SortTh
+                      label={t("report.value")}
+                      column="totalPrice"
+                      sortKey={itemSortKey}
+                      sortDir={itemSortDir}
+                      onSort={handleItemSort}
+                    />
                   </tr>
                 </thead>
                 <tbody>
-                  {data.byItem.length ? (
-                    data.byItem
+                  {sortedByItem.length ? (
+                    sortedByItem
                       .slice(itemPaging.offset, itemPaging.offset + itemPaging.limit)
                       .map((x, i) => (
                       <tr key={x.itemCode}>
@@ -699,6 +956,9 @@ export function ReportView() {
                         <td data-label={t("report.itemCode")}>{x.itemCode}</td>
                         <td data-label={t("report.item")}>
                           <b>{itemName(x.itemCode, x.itemName)}</b>
+                        </td>
+                        <td data-label={t("report.category")}>
+                          {categoryLabel(x.categoryCode, x.categoryNameTH)}
                         </td>
                         <td className="gval" data-label={t("report.qty")}>{fmt(x.qty)}</td>
                         <td data-label={t("report.lines")}>{x.count}</td>
@@ -708,7 +968,7 @@ export function ReportView() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="empty">
+                      <td colSpan={8} className="empty">
                         {t("report.noData")}
                       </td>
                     </tr>
@@ -739,16 +999,46 @@ export function ReportView() {
                 <thead>
                   <tr>
                     <th>{t("admin.table.rowCol")}</th>
-                    <th>{t("intake.date")}</th>
-                    <th>{t("report.shop")}</th>
-                    <th>{t("report.item")}</th>
-                    <th>{t("report.qty")}</th>
-                    <th>{t("report.value")}</th>
+                    <SortTh
+                      label={t("intake.date")}
+                      column="date"
+                      sortKey={detailSortKey}
+                      sortDir={detailSortDir}
+                      onSort={handleDetailSort}
+                    />
+                    <SortTh
+                      label={t("report.shop")}
+                      column="shop"
+                      sortKey={detailSortKey}
+                      sortDir={detailSortDir}
+                      onSort={handleDetailSort}
+                    />
+                    <SortTh
+                      label={t("report.item")}
+                      column="item"
+                      sortKey={detailSortKey}
+                      sortDir={detailSortDir}
+                      onSort={handleDetailSort}
+                    />
+                    <SortTh
+                      label={t("report.qty")}
+                      column="qty"
+                      sortKey={detailSortKey}
+                      sortDir={detailSortDir}
+                      onSort={handleDetailSort}
+                    />
+                    <SortTh
+                      label={t("report.value")}
+                      column="totalPrice"
+                      sortKey={detailSortKey}
+                      sortDir={detailSortDir}
+                      onSort={handleDetailSort}
+                    />
                   </tr>
                 </thead>
                 <tbody>
-                  {data.rows.length ? (
-                    data.rows
+                  {sortedDetailRows.length ? (
+                    sortedDetailRows
                       .slice(detailPaging.offset, detailPaging.offset + detailPaging.limit)
                       .map((r, i) => (
                       <tr key={`${r.date}-${r.suppCode}-${r.itemNameTH}-${detailPaging.offset + i}`}>
