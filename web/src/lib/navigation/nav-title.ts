@@ -9,6 +9,7 @@ import {
 const MAIN_ROUTES: { prefix: string; labelKey: MessageKey }[] = [
   { prefix: RECEIVING_PATH, labelKey: "nav.intake" },
   { prefix: "/history", labelKey: "nav.history" },
+  { prefix: "/report/item-price", labelKey: "nav.report.itemPrice" },
   { prefix: "/report", labelKey: "nav.report" },
   { prefix: "/profile", labelKey: "nav.profile" },
 ];

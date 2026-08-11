@@ -9,7 +9,6 @@ import type { ComponentType } from "react";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { useLocale } from "@/context/LocaleContext";
 import {
-  IconChartBar,
   IconClipboardList,
   IconInbox,
   IconLogOut,
@@ -24,6 +23,8 @@ import {
   adminUsersNavItemForRole,
   type AdminNavItem,
 } from "@/lib/navigation/admin-nav";
+import { reportNavItemsForRole } from "@/lib/navigation/report-nav";
+import type { ReportNavItem } from "@/lib/navigation/report-nav";
 import type { AppRole } from "@/lib/types";
 
 type MenuIcon = ComponentType<{ size?: number; className?: string }>;
@@ -31,20 +32,24 @@ type MenuIcon = ComponentType<{ size?: number; className?: string }>;
 const MAIN_LINKS: { href: string; labelKey: MessageKey; Icon: MenuIcon; roles: AppRole[] }[] = [
   { href: "/receiving", labelKey: "nav.intake", Icon: IconInbox, roles: ["operator", "admin", "manager"] },
   { href: "/history", labelKey: "nav.history", Icon: IconClipboardList, roles: ["operator", "admin", "manager"] },
-  { href: "/report", labelKey: "nav.report", Icon: IconChartBar, roles: ["manager", "admin"] },
   { href: "/profile", labelKey: "nav.profile", Icon: IconUser, roles: ["operator", "admin", "manager"] },
 ];
 
 const SETTINGS_ROLES: AppRole[] = ["admin", "manager"];
+const REPORT_ROLES: AppRole[] = ["admin", "manager"];
 
 function pathActive(pathname: string, href: string) {
-  if (href === "/receiving" || href === "/history" || href === "/report") {
+  if (href === "/receiving" || href === "/history") {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
   return pathname === href;
 }
 
 function settingsItemActive(pathname: string, item: AdminNavItem) {
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+function reportItemActive(pathname: string, item: ReportNavItem) {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
@@ -74,6 +79,8 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
   const showSettings = SETTINGS_ROLES.includes(role);
   const catalogItems = showSettings ? adminCatalogNavItemsForRole(role) : [];
   const usersItem = showSettings ? adminUsersNavItemForRole(role) : null;
+  const showReports = REPORT_ROLES.includes(role);
+  const reportItems = showReports ? reportNavItemsForRole(role) : [];
 
   useEffect(() => setMounted(true), []);
 
@@ -196,6 +203,35 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
               );
             })}
           </nav>
+
+          {showReports ? (
+            <div className="operator-menu__section">
+              <span className="operator-menu__section-lbl">{t("nav.report")}</span>
+              <div className="operator-menu__subnav">
+                {reportItems.map((item) => {
+                  const active = reportItemActive(pathname, item);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`operator-menu__sublink ${active ? "active" : ""}`}
+                      onClick={(e) => {
+                        if (!active) {
+                          e.preventDefault();
+                          close();
+                          navigate(item.href);
+                          return;
+                        }
+                        close();
+                      }}
+                    >
+                      {t(item.labelKey)}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           {showSettings ? (
             <div className="operator-menu__section">

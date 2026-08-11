@@ -5,6 +5,7 @@ import { useLocale } from "@/context/LocaleContext";
 
 type Props = {
   title: string;
+  dateRangeLabel?: string;
   dot?: "orange" | "blue" | "green" | "purple";
   onExportExcel?: () => void;
   exportDisabled?: boolean;
@@ -13,6 +14,7 @@ type Props = {
 
 export function ReportTableSection({
   title,
+  dateRangeLabel,
   dot = "orange",
   onExportExcel,
   exportDisabled,
@@ -23,7 +25,10 @@ export function ReportTableSection({
     <div className="card report-table-section">
       <div className="card-title report-table-section__head">
         <span className={`dot dot-${dot}`} />
-        <span className="report-table-section__title">{title}</span>
+        <span className="report-table-section__title">
+          {title}
+          {dateRangeLabel ? <span className="report-title-range"> {dateRangeLabel}</span> : null}
+        </span>
         {onExportExcel ? (
           <button
             type="button"

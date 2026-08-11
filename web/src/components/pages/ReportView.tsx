@@ -25,7 +25,7 @@ import { itemDisplayNameByCode } from "@/lib/i18n/item-name";
 import { supplierDisplayName, supplierDisplayNameByCode } from "@/lib/i18n/supplier-name";
 import { apiGet } from "@/lib/api/client";
 import { useToast } from "@/components/Toast";
-import { fmt, formatAppDate, histDatePresetRange } from "@/lib/utils/format";
+import { fmt, formatAppDate, formatAppDateRange, histDatePresetRange } from "@/lib/utils/format";
 import { downloadExcelTable } from "@/lib/reports/export-excel";
 import { ReportChartsFold } from "@/components/reports/ReportChartsFold";
 import { ReportFilters } from "@/components/reports/ReportFilters";
@@ -247,6 +247,13 @@ export function ReportView() {
   );
 
   const excelRange = rFrom && rTo ? `${rFrom}_${rTo}` : "all";
+
+  const reportRangeLabel = useMemo(() => {
+    const from = rFrom || data?.dataDateRange?.dateFrom;
+    const to = rTo || data?.dataDateRange?.dateTo;
+    if (!from || !to) return "";
+    return `(${formatAppDateRange(from, to, locale)})`;
+  }, [rFrom, rTo, data?.dataDateRange, locale]);
 
   const categoryTableTotals = useMemo(() => {
     if (!data?.byCategory.length) return null;
@@ -710,6 +717,7 @@ export function ReportView() {
               <div className="card-title">
                 <span className="dot dot-purple" />
                 <span>{t("report.dailyTrend")}</span>
+                {reportRangeLabel && <span className="report-title-range"> {reportRangeLabel}</span>}
               </div>
               {dailyLineData && (
                 <Line
@@ -766,6 +774,7 @@ export function ReportView() {
               <div className="card-title">
                 <span className="dot dot-green" />
                 <span>{t("report.cumulative")}</span>
+                {reportRangeLabel && <span className="report-title-range"> {reportRangeLabel}</span>}
               </div>
               {cumulativeLineData && (
                 <Line
@@ -790,6 +799,7 @@ export function ReportView() {
                   <span className="report-category-chart-title__label">
                     <span className="dot dot-orange" />
                     <span>{t("report.byCategory")}</span>
+                    {reportRangeLabel && <span className="report-title-range"> {reportRangeLabel}</span>}
                   </span>
                   <div className="report-chart-type-toggle" role="group" aria-label={t("report.chartType")}>
                     <button
@@ -825,6 +835,7 @@ export function ReportView() {
                 <div className="card-title">
                   <span className="dot dot-blue" />
                   <span>{t("report.byShop")}</span>
+                  {reportRangeLabel && <span className="report-title-range"> {reportRangeLabel}</span>}
                 </div>
                 <Bar
                   data={suppBarData}
@@ -841,6 +852,7 @@ export function ReportView() {
                 <div className="card-title">
                   <span className="dot dot-orange" />
                   <span>{t("report.topValue")}</span>
+                  {reportRangeLabel && <span className="report-title-range"> {reportRangeLabel}</span>}
                 </div>
                 <Bar
                   data={topValueBar}
@@ -869,6 +881,7 @@ export function ReportView() {
 
           <ReportTableSection
             title={t("report.byCategory")}
+            dateRangeLabel={reportRangeLabel}
             dot="orange"
             onExportExcel={exportCategoryExcel}
             exportDisabled={!data.byCategory.length}
@@ -943,6 +956,7 @@ export function ReportView() {
 
           <ReportTableSection
             title={t("report.byItem")}
+            dateRangeLabel={reportRangeLabel}
             dot="blue"
             onExportExcel={exportItemExcel}
             exportDisabled={!data.byItem.length}
@@ -1035,6 +1049,7 @@ export function ReportView() {
 
           <ReportTableSection
             title={t("report.latest")}
+            dateRangeLabel={reportRangeLabel}
             dot="green"
             onExportExcel={exportDetailExcel}
             exportDisabled={!data.rows.length}

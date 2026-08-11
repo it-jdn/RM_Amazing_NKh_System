@@ -11,6 +11,7 @@ import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { useDrawerNav } from "@/hooks/useDrawerNav";
 import { getCurrentNavTitleKey } from "@/lib/navigation/nav-title";
 import { AppMobileMenu } from "@/components/nav/AppMobileMenu";
+import { NavReportsMenu } from "@/components/nav/NavReportsMenu";
 import { NavSettingsMenu } from "@/components/nav/NavSettingsMenu";
 import { NavUserMenu } from "@/components/nav/NavUserMenu";
 import { useGuardedNavigation } from "@/hooks/useGuardedNavigation";
@@ -18,8 +19,9 @@ import { useGuardedNavigation } from "@/hooks/useGuardedNavigation";
 const TABS: { href: string; labelKey: MessageKey; roles: AppRole[] }[] = [
   { href: "/receiving", labelKey: "nav.intake", roles: ["operator", "admin", "manager"] },
   { href: "/history", labelKey: "nav.history", roles: ["operator", "admin", "manager"] },
-  { href: "/report", labelKey: "nav.report", roles: ["manager", "admin"] },
 ];
+
+const REPORT_MENU_ROLES: AppRole[] = ["manager", "admin"];
 
 const SETTINGS_ROLES: AppRole[] = ["admin", "manager"];
 
@@ -40,7 +42,7 @@ export function AppNav({
   const showSettings = SETTINGS_ROLES.includes(role);
 
   function tabActive(href: string) {
-    if (href === "/receiving" || href === "/history" || href === "/report") {
+    if (href === "/receiving" || href === "/history") {
       return pathname === href || pathname.startsWith(`${href}/`);
     }
     return pathname === href;
@@ -94,6 +96,7 @@ export function AppNav({
               {t(tab.labelKey)}
             </Link>
           ))}
+          {REPORT_MENU_ROLES.includes(role) ? <NavReportsMenu role={role} /> : null}
           {showSettings ? <NavSettingsMenu role={role} /> : null}
         </div>
         <div className="nav-user">
