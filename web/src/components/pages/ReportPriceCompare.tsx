@@ -37,12 +37,53 @@ interface IntakePoint {
   suppName?: string;
   itemCode: string;
   itemNameTH: string;
+  qty: number;
   mainUnit: string;
   subUnit: string;
   convertRate: number;
   unitPrice: number;
   standardPriceAtSave: number | null;
   totalPrice: number;
+}
+
+const QTY_GROUP_COLORS = [
+  "rgba(26,107,181,.95)",
+  "rgba(232,66,26,.95)",
+  "rgba(76,140,74,.95)",
+  "rgba(200,150,50,.95)",
+  "rgba(140,120,90,.95)",
+  "rgba(220,100,140,.95)",
+  "rgba(60,160,160,.95)",
+];
+
+/** Cluster intake points into groups of similar order quantity so the price trend within each group is comparable. */
+function groupPointsByQty(points: IntakePoint[]): { label: string; points: IntakePoint[] }[] {
+  if (!points.length) return [];
+  const sorted = [...points].sort((a, b) => a.qty - b.qty);
+  const groups: IntakePoint[][] = [];
+  let current: IntakePoint[] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const prevQty = sorted[i - 1].qty;
+    const curQty = sorted[i].qty;
+    const ratio = prevQty > 0 ? curQty / prevQty : Infinity;
+    const startsNewGroup = ratio > 1.4 && curQty - prevQty > Math.max(prevQty * 0.4, 0.5);
+    if (startsNewGroup) {
+      groups.push(current);
+      current = [sorted[i]];
+    } else {
+      current.push(sorted[i]);
+    }
+  }
+  groups.push(current);
+
+  return groups.map((g) => {
+    const qtys = g.map((p) => p.qty);
+    const min = Math.min(...qtys);
+    const max = Math.max(...qtys);
+    const unit = g[0]?.mainUnit || "";
+    const label = min === max ? `${fmt(min)} ${unit}` : `${fmt(min)}–${fmt(max)} ${unit}`;
+    return { label, points: [...g].sort((a, b) => a.date.localeCompare(b.date)) };
+  });
 }
 
 type DetailRow = {
@@ -137,31 +178,31 @@ export function ReportPriceCompare(props: {
       .catch(() => setLoaded(true));
   }, [selectedItem, props.dateFrom, props.dateTo, props.suppCode]);
 
+  const qtyGroups = useMemo(() => groupPointsByQty(intakePoints), [intakePoints]);
+
   const priceChart = useMemo(() => {
-    const points = [...intakePoints].sort((a, b) => a.date.localeCompare(b.date));
-    if (!points.length) return null;
+    if (!intakePoints.length) return null;
+    const allDates = Array.from(new Set(intakePoints.map((p) => p.date))).sort();
+    const labels = allDates.map((d) => formatAppDate(d, locale));
+
+    const groupDatasets = qtyGroups.map((g, i) => {
+      const byDate = new Map(g.points.map((p) => [p.date, p.unitPrice]));
+      return {
+        label: `${t("report.intake")} (${g.label})`,
+        data: allDates.map((d) => byDate.get(d) ?? null),
+        borderColor: QTY_GROUP_COLORS[i % QTY_GROUP_COLORS.length],
+        backgroundColor: "transparent",
+        pointRadius: 4,
+        tension: 0.2,
+        spanGaps: true,
+      };
+    });
+
     return {
-      labels: points.map((p) => formatAppDate(p.date, locale)),
-      datasets: [
-        {
-          label: t("report.intake"),
-          data: points.map((p) => p.unitPrice),
-          borderColor: "rgba(26,107,181,.95)",
-          backgroundColor: "rgba(26,107,181,.2)",
-          pointRadius: 4,
-          tension: 0.2,
-        },
-        {
-          label: t("report.standard"),
-          data: points.map((p) => p.standardPriceAtSave ?? null),
-          borderColor: "rgba(120,90,180,.85)",
-          borderDash: [6, 4],
-          pointRadius: 2,
-          tension: 0.1,
-        },
-      ],
+      labels,
+      datasets: groupDatasets,
     };
-  }, [intakePoints, locale, t]);
+  }, [intakePoints, qtyGroups, locale, t]);
 
   function shopLabel(code: string) {
     const s = props.suppliers.find((x) => x.code === code);
@@ -185,6 +226,8 @@ export function ReportPriceCompare(props: {
 
   const atSelected = !!selectedItem;
   const showList = open && filteredItems.length > 0;
+  // ซ่อนไว้ก่อน: ตารางประวัติราคามาตรฐาน / รับล่าสุด
+  const showPriceHistoryTable: boolean = false;
 
   return (
     <div className="card report-price-compare">
@@ -308,7 +351,7 @@ export function ReportPriceCompare(props: {
         </>
       )}
 
-      {atSelected && loaded && priceHistory.length > 0 && (
+      {showPriceHistoryTable && atSelected && loaded && priceHistory.length > 0 && (
         <>
           <p className="lbl" style={{ margin: "16px 0 8px" }}>
             {t("report.priceHistory")}

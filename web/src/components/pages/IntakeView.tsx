@@ -929,6 +929,7 @@ export function IntakeView() {
               setSearch={setSearch}
               rowVals={rowVals}
               setRow={setRow}
+              calcUp={calcUp}
               onPurchaseUnitChange={setPurchaseUnitForItem}
               onOpenModal={() => setShowModal(true)}
               readOnly={readOnly}
@@ -1154,6 +1155,7 @@ function IntakeTable({
   setSearch,
   rowVals,
   setRow,
+  calcUp,
   onPurchaseUnitChange,
   onOpenModal,
   readOnly = false,
@@ -1166,6 +1168,7 @@ function IntakeTable({
   setSearch: (s: string) => void;
   rowVals: IntakeRowVals;
   setRow: (rowKey: string, field: "qty" | "total", val: string) => void;
+  calcUp: (rowKey: string, cr: number) => string;
   onPurchaseUnitChange: (itemCode: string, mainUnitCode: string) => void;
   onOpenModal: () => void;
   readOnly?: boolean;
@@ -1305,9 +1308,9 @@ function IntakeTable({
                       disabled={readOnly}
                       readOnly={readOnly}
                     />
-                    {it.refPrice > 0 ? (
+                    {filled ? (
                       <span className="intake-ref-price intake-ref-price--inline">
-                        {t("intake.refPrice", { price: fmt(it.refPrice), unit: unitMain })}
+                        {t("intake.unitPrice")}: {calcUp(it.rowKey, it.convertRate)}
                       </span>
                     ) : null}
                   </td>
