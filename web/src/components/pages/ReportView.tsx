@@ -255,9 +255,10 @@ export function ReportView() {
     downloadExcelTable(
       `report-by-item-${excelRange}.xlsx`,
       t("report.byItem"),
-      [rowCol, t("report.item"), t("report.qty"), t("report.lines"), t("report.share"), t("report.value")],
+      [rowCol, t("report.itemCode"), t("report.item"), t("report.qty"), t("report.lines"), t("report.share"), t("report.value")],
       data.byItem.map((x, i) => [
         i + 1,
+        x.itemCode,
         itemName(x.itemCode, x.itemName),
         x.qty,
         x.count,
@@ -680,6 +681,7 @@ export function ReportView() {
                 <thead>
                   <tr>
                     <th>{t("admin.table.rowCol")}</th>
+                    <th>{t("report.itemCode")}</th>
                     <th>{t("report.item")}</th>
                     <th>{t("report.qty")}</th>
                     <th>{t("report.lines")}</th>
@@ -694,6 +696,7 @@ export function ReportView() {
                       .map((x, i) => (
                       <tr key={x.itemCode}>
                         <td className="row-num" data-label={t("admin.table.rowCol")}>{itemPaging.offset + i + 1}</td>
+                        <td data-label={t("report.itemCode")}>{x.itemCode}</td>
                         <td data-label={t("report.item")}>
                           <b>{itemName(x.itemCode, x.itemName)}</b>
                         </td>
@@ -705,7 +708,7 @@ export function ReportView() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="empty">
+                      <td colSpan={7} className="empty">
                         {t("report.noData")}
                       </td>
                     </tr>
