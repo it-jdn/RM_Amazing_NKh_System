@@ -2,6 +2,8 @@
 
 คู่มือนี้สอดคล้องกับแผน **Production → Staging ทดสอบ → Production** — ไม่ restore staging ทับ production ใช้ **append** เท่านั้น
 
+โครงสร้างระบบและสูตรรายงาน: [`system.md`](system.md)
+
 ## สรุปขั้นตอน
 
 | ลำดับ | งาน | คำสั่ง / ไฟล์ |

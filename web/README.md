@@ -7,7 +7,7 @@ Next.js + Supabase migration of the Google Apps Script inventory intake system.
 ## Setup
 
 1. Create a [Supabase](https://supabase.com) project (region: Northeast Asia recommended).
-2. Run SQL migrations **`001` through `013`** in order from [`supabase/migrations/`](supabase/migrations/) (see root README for the list).
+2. Run SQL migrations **`001` through `017`** in order from [`supabase/migrations/`](supabase/migrations/) (see [`docs/system.md`](../docs/system.md) and root README).
 3. Copy `.env.example` to `.env.local` and fill in credentials from **Project Settings → API**:
 
 | Variable | Source |
@@ -60,7 +60,7 @@ If you see `ERR_CONNECTION_REFUSED`, ensure `npm run dev` is running from **`web
 
 ### 1. Supabase production
 
-1. สร้างโปรเจกต์ Supabase ใหม่ (แยกจาก dev) → รัน migration `001`–`013` ใน SQL Editor  
+1. สร้างโปรเจกต์ Supabase ใหม่ (แยกจาก dev) → รัน migration `001`–`017` ใน SQL Editor  
    หรือใส่ `DATABASE_URL` แล้วรัน `DEPLOY_ENV=production npm run db:migrate`
 2. คัดลอก `web/.env.production.example` → `web/.env.production.local` แล้วใส่ keys + `SESSION_SECRET` ใหม่ (`openssl rand -base64 32`)
 3. เติมข้อมูลครั้งแรก:
@@ -96,22 +96,24 @@ cd web && DEPLOY_ENV=production npm run deploy:print-vercel-env
 ### 4. หลัง deploy
 
 - เปลี่ยน PIN เริ่มต้น (1111/2222/3333) ที่ `/admin/users`
-- ทดสอบ `/login` → `/receiving` → บันทึก → `/history` → `/report` (manager)
+- ทดสอบ `/login` → `/receiving` (ทุก role) → บันทึก → `/history` → `/report` และ `/report/item-price` (manager/admin)
 
 ## Project structure
 
-โครงสร้าง repo เต็ม: [`../README.md`](../README.md) — สรุปสั้นใน `web/`:
+โครงสร้าง repo เต็ม: [`../README.md`](../README.md) · Business Logic: [`../docs/system.md`](../docs/system.md)
 
 ```
 src/
-├── app/(app)/receiving|history|report|admin/…
+├── app/(app)/receiving|history|report|report/item-price|admin/…
 ├── app/api/transactions/slips/…
+├── app/api/reports/  (+ price-history)
 ├── components/pages|intake|history|operator|admin|reports/
 ├── lib/services/data.ts, intake-slips.ts
-├── lib/domain/history-slip-edit.ts, …
+├── lib/domain/history-slip-edit.ts, intake-day-overview.ts, intake-display-units.ts
+├── lib/reports/aggregate.ts
 └── lib/history/print-history-slip-document.ts
 scripts/                         # seed, import, db:migrate, deploy:*
-supabase/migrations/             # 001 … 013
+supabase/migrations/             # 001 … 017
 supabase/manual-fixes/           # SQL แก้ข้อมูล (รันมือ)
 ```
 
@@ -124,6 +126,7 @@ Legacy files and CSVs: [`../Backup/`](../Backup/).
 1. Login เป็น **operator** (PIN `1111`) → ไป `/receiving`
 2. เลือกวันที่ + ร้าน → การ์ดสินค้า (จอเล็ก)
 3. สินค้าหลายหน่วยซื้อเข้า → เลือกหน่วยใน dropdown
-4. กรอก qty + ราคารวม → บันทึก
+4. กรอก qty + ราคารวม → บันทึก → กลับภาพรวมรายวัน
 5. แท็บล่าง **ประวัติ** → เปิดรายละเอียดวัน+ร้าน
-6. Login **admin** → `/admin/items` ตั้งหน่วยมาตรฐาน, `/admin/products` เปิดใช้ต่อร้าน
+6. Login **admin** → `/admin/items` ตั้งหน่วยมาตรฐาน (หลายหน่วยตอนเพิ่มได้), `/admin/products` เปิดใช้ต่อร้าน
+7. Login **manager** → `/report` สรุปต้นทุน, `/report/item-price` เทียบราคา

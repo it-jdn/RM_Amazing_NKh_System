@@ -1,10 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useAppData } from "@/context/AppDataContext";
 import { useLocale } from "@/context/LocaleContext";
-import { apiGet } from "@/lib/api/client";
-import { useToast } from "@/components/Toast";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { histDatePresetRange } from "@/lib/utils/format";
@@ -21,24 +19,14 @@ const PRESETS = [
   { id: "last3Months", key: "report.preset3Months" },
 ] as const;
 
-type DetailRow = {
-  date: string;
-  itemCode: string;
-  itemNameTH: string;
-  totalPrice: number;
-};
-
 export function ReportItemPriceView() {
   const { suppliers, items } = useAppData();
   const { locale, t } = useLocale();
-  const toast = useToast();
 
   const [rFrom, setRFrom] = useState(() => histDatePresetRange("thisMonth").from);
   const [rTo, setRTo] = useState(() => histDatePresetRange("thisMonth").to);
   const [rSupp, setRSupp] = useState("");
   const [datePreset, setDatePreset] = useState("thisMonth");
-  const [rows, setRows] = useState<DetailRow[]>([]);
-  const [loading, setLoading] = useState(false);
 
   function applyPreset(id: string) {
     const { from, to } = histDatePresetRange(id);
@@ -47,43 +35,8 @@ export function ReportItemPriceView() {
     setRTo(to);
   }
 
-  const loadRows = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (rFrom) params.set("dateFrom", rFrom);
-      if (rTo) params.set("dateTo", rTo);
-      if (rSupp) params.set("suppCode", rSupp);
-      params.set("page", "1");
-      params.set("pageSize", "100000");
-
-      const d = await apiGet<{ success: boolean; rows: DetailRow[] }>(`/api/reports?${params}`);
-      if (!d.success) {
-        toast(t("report.loadError"));
-        return;
-      }
-      setRows(d.rows);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : t("report.loadError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [rFrom, rTo, rSupp, t, toast]);
-
-  useEffect(() => {
-    loadRows();
-  }, [loadRows]);
-
   return (
     <div className="wrap report-page">
-      {loading && (
-        <div className="report-loading-overlay" role="status" aria-live="polite" aria-busy="true">
-          <div className="report-loading-overlay__box">
-            <span className="report-loading-overlay__spinner" aria-hidden />
-            <span className="report-loading-overlay__text">{t("report.loading")}</span>
-          </div>
-        </div>
-      )}
       <div className="report-filters no-print">
         <div className="report-filters__top">
           <div className="report-filters__title-wrap">
@@ -165,7 +118,6 @@ export function ReportItemPriceView() {
         dateFrom={rFrom}
         dateTo={rTo}
         suppCode={rSupp}
-        rows={rows}
         suppliers={suppliers}
         items={items}
       />

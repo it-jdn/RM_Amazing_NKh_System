@@ -1,6 +1,5 @@
 "use client";
 
-import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { useLocale } from "@/context/LocaleContext";
 import { MobileDateField } from "@/components/operator/MobileDateField";
 import { MobileSupplierPicker } from "@/components/operator/MobileSupplierPicker";
@@ -34,9 +33,6 @@ export function IntakeMobileSetup({
           suppliers={suppliers}
           placeholder={t("intake.selectSupplier")}
         />
-      </div>
-      <div className="intake-mobile-setup__lang">
-        <LocaleSwitcher variant="menu" />
       </div>
     </div>
   );

@@ -3276,13 +3276,6 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     gap: 8px;
     align-items: stretch;
   }
-  .intake-mobile-setup__lang {
-    grid-column: 1 / -1;
-    justify-self: end;
-  }
-  .intake-mobile-setup__lang .lang-switch--menu {
-    justify-content: flex-end;
-  }
   .intake-mobile-setup--compact .app-date-field__btn,
   .intake-mobile-setup--compact .supplier-picker__trigger {
     line-height: 1.25;
@@ -3750,13 +3743,6 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     grid-template-columns: minmax(158px, 50%) minmax(0, 1fr);
     gap: 8px;
     align-items: stretch;
-  }
-  .intake-mobile-setup__lang {
-    grid-column: 1 / -1;
-    justify-self: end;
-  }
-  .intake-mobile-setup__lang .lang-switch--menu {
-    justify-content: flex-end;
   }
   .intake-mobile-setup--compact .app-date-field__btn,
   .intake-mobile-setup--compact .supplier-picker__trigger {
@@ -10273,6 +10259,97 @@ input.intake-touch-input,
 }
 .report-item-cumulative__hint {
   margin: 0 0 12px;
+}
+.report-price-compare__table-lbl {
+  margin: 20px 0 8px;
+}
+.report-price-compare__hint {
+  margin: 0 0 10px;
+}
+.report-price-chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 12px;
+}
+.report-price-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 6px 12px;
+  margin: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.report-price-chip:hover {
+  border-color: var(--brand-blue);
+  color: var(--brand-blue);
+}
+.report-price-chip.is-active {
+  border-color: var(--brand-blue);
+  background: var(--bllt);
+  color: var(--brand-dark);
+}
+.report-price-chip--all {
+  font-weight: 700;
+}
+.report-price-chip__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.report-price-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(220px, 55vw);
+}
+.report-price-chip__unit {
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.report-price-chip.is-active .report-price-chip__unit {
+  color: inherit;
+  opacity: 0.75;
+}
+.report-price-scale-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.report-price-combined-chart {
+  position: relative;
+  width: 100%;
+  height: min(420px, 55vh);
+  min-height: 280px;
+  margin: 0;
+}
+@media (min-width: 1025px) {
+  .report-price-combined-chart {
+    height: 440px;
+  }
+  .report-price-chip__label {
+    max-width: 260px;
+  }
 }
 .report-item-cumulative__toolbar {
   display: flex;

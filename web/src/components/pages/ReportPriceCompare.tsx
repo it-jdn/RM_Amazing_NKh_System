@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,25 +11,41 @@ import {
   Legend,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import type { ChartData, Plugin } from "chart.js";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
-import { IconX } from "@/components/icons/AppIcons";
-import { itemDisplayName, itemDisplayNameByCode } from "@/lib/i18n/item-name";
+import { itemDisplayNameByCode } from "@/lib/i18n/item-name";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
+import { pickLatestReceivedItemCodes } from "@/lib/reports/price-trend";
 import { fmt, formatAppDate } from "@/lib/utils/format";
 import type { Item, Supplier } from "@/lib/types";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend);
 
-interface PriceHistRow {
-  id: number;
-  suppCode: string;
-  itemCode: string;
-  unitPrice: number;
-  priceKind: string;
-  source: string;
-  recordedAt: string;
-}
+const pricePointLabelPlugin: Plugin<"line"> = {
+  id: "pricePointLabel",
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (meta.hidden) return;
+      const color =
+        typeof dataset.borderColor === "string" ? dataset.borderColor : "rgba(30,40,70,.85)";
+      meta.data.forEach((point, index) => {
+        const raw = dataset.data[index];
+        const value = typeof raw === "number" ? raw : null;
+        if (value == null || !Number.isFinite(value)) return;
+        ctx.save();
+        ctx.font = "600 11px var(--font-ui), system-ui, sans-serif";
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(`₩${fmt(value)}`, point.x, point.y - 8);
+        ctx.restore();
+      });
+    });
+  },
+};
 
 interface IntakePoint {
   date: string;
@@ -42,192 +58,184 @@ interface IntakePoint {
   subUnit: string;
   convertRate: number;
   unitPrice: number;
-  standardPriceAtSave: number | null;
   totalPrice: number;
 }
 
-const QTY_GROUP_COLORS = [
+const LINE_COLORS = [
   "rgba(26,107,181,.95)",
   "rgba(232,66,26,.95)",
   "rgba(76,140,74,.95)",
   "rgba(200,150,50,.95)",
   "rgba(140,120,90,.95)",
-  "rgba(220,100,140,.95)",
-  "rgba(60,160,160,.95)",
 ];
 
-/** Cluster intake points into groups of similar order quantity so the price trend within each group is comparable. */
-function groupPointsByQty(points: IntakePoint[]): { label: string; points: IntakePoint[] }[] {
-  if (!points.length) return [];
-  const sorted = [...points].sort((a, b) => a.qty - b.qty);
-  const groups: IntakePoint[][] = [];
-  let current: IntakePoint[] = [sorted[0]];
-  for (let i = 1; i < sorted.length; i++) {
-    const prevQty = sorted[i - 1].qty;
-    const curQty = sorted[i].qty;
-    const ratio = prevQty > 0 ? curQty / prevQty : Infinity;
-    const startsNewGroup = ratio > 1.4 && curQty - prevQty > Math.max(prevQty * 0.4, 0.5);
-    if (startsNewGroup) {
-      groups.push(current);
-      current = [sorted[i]];
-    } else {
-      current.push(sorted[i]);
+const LATEST_ITEM_COUNT = 5;
+
+/** Prefer the purchase unit used most often for a stable line per product. */
+function dominantUnit(points: IntakePoint[]): string {
+  const counts = new Map<string, number>();
+  for (const p of points) {
+    if (p.unitPrice <= 0) continue;
+    const u = p.mainUnit.trim() || "—";
+    counts.set(u, (counts.get(u) ?? 0) + 1);
+  }
+  let best = "—";
+  let bestN = -1;
+  for (const [u, n] of counts) {
+    if (n > bestN) {
+      best = u;
+      bestN = n;
     }
   }
-  groups.push(current);
-
-  return groups.map((g) => {
-    const qtys = g.map((p) => p.qty);
-    const min = Math.min(...qtys);
-    const max = Math.max(...qtys);
-    const unit = g[0]?.mainUnit || "";
-    const label = min === max ? `${fmt(min)} ${unit}` : `${fmt(min)}–${fmt(max)} ${unit}`;
-    return { label, points: [...g].sort((a, b) => a.date.localeCompare(b.date)) };
-  });
+  return best;
 }
 
-type DetailRow = {
-  date: string;
-  itemCode: string;
-  itemNameTH: string;
-  totalPrice: number;
-};
+function buildCombinedChart(
+  series: { code: string; title: string; unit: string; points: IntakePoint[] }[],
+  locale: "th" | "en" | "kr"
+): ChartData<"line", (number | null)[], string> | null {
+  const allDates = Array.from(
+    new Set(series.flatMap((s) => s.points.filter((p) => p.unitPrice > 0).map((p) => p.date)))
+  ).sort();
+  if (!allDates.length || !series.length) return null;
 
-type ItemWithTotal = { item: Item; total: number };
+  const datasets = series.map((s, i) => {
+    const byDate = new Map<string, number>();
+    for (const p of s.points) {
+      if (p.unitPrice <= 0) continue;
+      const u = p.mainUnit.trim() || "—";
+      if (u !== s.unit) continue;
+      byDate.set(p.date, p.unitPrice);
+    }
+    const unitSuffix = s.unit && s.unit !== "—" ? ` (${s.unit})` : "";
+    return {
+      label: `${s.title}${unitSuffix}`,
+      data: allDates.map((d) => byDate.get(d) ?? null),
+      borderColor: LINE_COLORS[i % LINE_COLORS.length],
+      backgroundColor: "transparent",
+      pointRadius: 4,
+      pointHoverRadius: 5,
+      tension: 0.25,
+      spanGaps: true,
+    };
+  });
 
-function buildItemsWithTotals(rows: DetailRow[], items: Item[]): ItemWithTotal[] {
-  const totals = new Map<string, number>();
-  const itemByCode = new Map(items.map((i) => [i.code, i]));
-  for (const r of rows) {
-    if (!itemByCode.has(r.itemCode)) continue;
-    totals.set(r.itemCode, (totals.get(r.itemCode) ?? 0) + r.totalPrice);
-  }
-  const list: ItemWithTotal[] = [];
-  for (const [code, total] of totals) {
-    const item = itemByCode.get(code);
-    if (item) list.push({ item, total });
-  }
-  list.sort((a, b) => b.total - a.total || a.item.code.localeCompare(b.item.code));
-  return list;
+  return {
+    labels: allDates.map((d) => formatAppDate(d, locale)),
+    datasets,
+  };
 }
 
 export function ReportPriceCompare(props: {
   dateFrom: string;
   dateTo: string;
   suppCode: string;
-  rows: DetailRow[];
   suppliers: Supplier[];
   items: Item[];
 }) {
   const { locale, t } = useLocale();
-  const listId = useId();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [selectedItem, setSelectedItem] = useState("");
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-
-  const [priceHistory, setPriceHistory] = useState<PriceHistRow[]>([]);
   const [intakePoints, setIntakePoints] = useState<IntakePoint[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
 
   useEffect(() => {
-    setSelectedItem("");
-    setSearch("");
-    setOpen(false);
-  }, [props.dateFrom, props.dateTo]);
-
-  const itemsInPeriod = useMemo(
-    () => buildItemsWithTotals(props.rows, props.items),
-    [props.rows, props.items]
-  );
-
-  const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return itemsInPeriod;
-    return itemsInPeriod.filter(({ item }) => {
-      const label = itemDisplayName(item, locale).toLowerCase();
-      return label.includes(q) || item.code.toLowerCase().includes(q);
-    });
-  }, [itemsInPeriod, search, locale]);
-
-  useEffect(() => {
-    if (!selectedItem) {
-      setPriceHistory([]);
-      setIntakePoints([]);
-      return;
-    }
+    let cancelled = false;
     setLoaded(false);
     const params = new URLSearchParams();
     if (props.dateFrom) params.set("dateFrom", props.dateFrom);
     if (props.dateTo) params.set("dateTo", props.dateTo);
     if (props.suppCode) params.set("suppCode", props.suppCode);
-    params.set("itemCode", selectedItem);
 
     apiGet<{
       success: boolean;
-      priceHistory: PriceHistRow[];
       intakePoints: IntakePoint[];
     }>(`/api/reports/price-history?${params}`)
       .then((d) => {
-        if (d.success) {
-          setPriceHistory(d.priceHistory);
-          setIntakePoints(d.intakePoints);
-        }
+        if (cancelled) return;
+        const points = d.success ? d.intakePoints ?? [] : [];
+        setIntakePoints(points);
+        // Default to the single latest item so the Y-axis is readable; expand via chips.
+        const latest = pickLatestReceivedItemCodes(points, LATEST_ITEM_COUNT);
+        setSelectedCodes(latest.slice(0, 1));
         setLoaded(true);
       })
-      .catch(() => setLoaded(true));
-  }, [selectedItem, props.dateFrom, props.dateTo, props.suppCode]);
+      .catch(() => {
+        if (cancelled) return;
+        setIntakePoints([]);
+        setSelectedCodes([]);
+        setLoaded(true);
+      });
 
-  const qtyGroups = useMemo(() => groupPointsByQty(intakePoints), [intakePoints]);
-
-  const priceChart = useMemo(() => {
-    if (!intakePoints.length) return null;
-    const allDates = Array.from(new Set(intakePoints.map((p) => p.date))).sort();
-    const labels = allDates.map((d) => formatAppDate(d, locale));
-
-    const groupDatasets = qtyGroups.map((g, i) => {
-      const byDate = new Map(g.points.map((p) => [p.date, p.unitPrice]));
-      return {
-        label: `${t("report.intake")} (${g.label})`,
-        data: allDates.map((d) => byDate.get(d) ?? null),
-        borderColor: QTY_GROUP_COLORS[i % QTY_GROUP_COLORS.length],
-        backgroundColor: "transparent",
-        pointRadius: 4,
-        tension: 0.2,
-        spanGaps: true,
-      };
-    });
-
-    return {
-      labels,
-      datasets: groupDatasets,
+    return () => {
+      cancelled = true;
     };
-  }, [intakePoints, qtyGroups, locale, t]);
+  }, [props.dateFrom, props.dateTo, props.suppCode]);
+
+  const latestItems = useMemo(() => {
+    const codes = pickLatestReceivedItemCodes(intakePoints, LATEST_ITEM_COUNT);
+    return codes.map((code, index) => {
+      const points = intakePoints.filter((p) => p.itemCode === code);
+      const snapshot = points.find((p) => p.itemNameTH)?.itemNameTH;
+      const title = itemDisplayNameByCode(code, props.items, locale, snapshot);
+      const unit = dominantUnit(points);
+      return { code, title, unit, points, color: LINE_COLORS[index % LINE_COLORS.length] };
+    });
+  }, [intakePoints, props.items, locale]);
+
+  const selectedSeries = useMemo(
+    () => latestItems.filter((item) => selectedCodes.includes(item.code)),
+    [latestItems, selectedCodes]
+  );
+
+  const chart = useMemo(
+    () => buildCombinedChart(selectedSeries, locale),
+    [selectedSeries, locale]
+  );
+
+  const detailRows = useMemo(() => {
+    const set = new Set(selectedCodes);
+    return [...intakePoints]
+      .filter((p) => set.has(p.itemCode))
+      .sort(
+        (a, b) =>
+          b.date.localeCompare(a.date) ||
+          a.itemCode.localeCompare(b.itemCode) ||
+          a.mainUnit.localeCompare(b.mainUnit)
+      )
+      .slice(0, 80);
+  }, [intakePoints, selectedCodes]);
+
+  const allSelected =
+    latestItems.length > 0 && latestItems.every((item) => selectedCodes.includes(item.code));
+
+  const mixedScale = useMemo(() => {
+    const values = selectedSeries.flatMap((s) =>
+      s.points.filter((p) => p.unitPrice > 0 && (p.mainUnit.trim() || "—") === s.unit).map((p) => p.unitPrice)
+    );
+    if (values.length < 2) return false;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    return min > 0 && max / min >= 8;
+  }, [selectedSeries]);
+
+  function selectAll() {
+    setSelectedCodes(latestItems.map((item) => item.code));
+  }
+
+  function toggleItem(code: string) {
+    setSelectedCodes((prev) => {
+      if (prev.includes(code)) {
+        const next = prev.filter((c) => c !== code);
+        return next.length ? next : prev;
+      }
+      return [...prev, code];
+    });
+  }
 
   function shopLabel(code: string) {
     const s = props.suppliers.find((x) => x.code === code);
     return s ? supplierDisplayName(s, locale) : code;
   }
-
-  function itemLabel(code: string, snapshot?: string) {
-    return itemDisplayNameByCode(code, props.items, locale, snapshot);
-  }
-
-  function selectItem(code: string) {
-    setSelectedItem(code);
-    setSearch("");
-    setOpen(false);
-  }
-
-  function clearSelection() {
-    setSelectedItem("");
-    setSearch("");
-  }
-
-  const atSelected = !!selectedItem;
-  const showList = open && filteredItems.length > 0;
-  // ซ่อนไว้ก่อน: ตารางประวัติราคามาตรฐาน / รับล่าสุด
-  const showPriceHistoryTable: boolean = false;
 
   return (
     <div className="card report-price-compare">
@@ -235,127 +243,100 @@ export function ReportPriceCompare(props: {
         <span className="dot dot-orange" />
         <span>{t("report.priceCompare")}</span>
       </div>
-      <p className="admin-hint report-item-cumulative__hint">{t("report.priceTrendHint")}</p>
+      <p className="admin-hint report-price-compare__hint">{t("report.priceTrendHint")}</p>
 
-      {itemsInPeriod.length ? (
-        <div className="report-item-cumulative__toolbar">
-          <div className="filter-group filter-group--grow report-item-cumulative__field">
-            <label className="lbl" htmlFor="report-price-trend-search">
-              {t("report.priceTrendPicker")}
-            </label>
-            <div
-              className={`report-item-cumulative__picker${open ? " report-item-cumulative__picker--open" : ""}`}
+      {!loaded ? (
+        <p className="empty">{t("report.loading")}</p>
+      ) : !latestItems.length ? (
+        <p className="empty">{t("report.noData")}</p>
+      ) : (
+        <>
+          <div
+            className="report-price-chips"
+            role="group"
+            aria-label={t("report.priceTrendItems")}
+          >
+            <button
+              type="button"
+              className={`report-price-chip report-price-chip--all${allSelected ? " is-active" : ""}`}
+              aria-pressed={allSelected}
+              onClick={selectAll}
             >
-              {selectedItem ? (
-                <div className="report-item-cumulative__selected">
-                  {(() => {
-                    const row = itemsInPeriod.find((x) => x.item.code === selectedItem);
-                    if (!row) return null;
-                    return (
-                      <span className="report-item-cumulative__pill">
-                        <span className="report-item-cumulative__pill-text">
-                          {itemDisplayName(row.item, locale)}
-                        </span>
-                        <button
-                          type="button"
-                          className="report-item-cumulative__pill-remove"
-                          onClick={clearSelection}
-                          aria-label={t("report.priceTrendClear")}
-                        >
-                          <IconX size={14} aria-hidden />
-                        </button>
-                      </span>
-                    );
-                  })()}
-                </div>
-              ) : null}
+              {t("report.priceTrendAll")}
+            </button>
+            {latestItems.map((item) => {
+              const on = selectedCodes.includes(item.code);
+              const unitLabel = item.unit && item.unit !== "—" ? item.unit : "";
+              return (
+                <button
+                  key={item.code}
+                  type="button"
+                  className={`report-price-chip${on ? " is-active" : ""}`}
+                  aria-pressed={on}
+                  title={unitLabel ? `${item.title} (${unitLabel})` : item.title}
+                  onClick={() => toggleItem(item.code)}
+                >
+                  <span
+                    className="report-price-chip__swatch"
+                    style={{ background: item.color }}
+                    aria-hidden
+                  />
+                  <span className="report-price-chip__label">{item.title}</span>
+                  {unitLabel ? <span className="report-price-chip__unit">({unitLabel})</span> : null}
+                </button>
+              );
+            })}
+          </div>
 
-              <input
-                ref={inputRef}
-                id="report-price-trend-search"
-                type="text"
-                className="report-item-cumulative__search-input"
-                value={search}
-                role="combobox"
-                aria-expanded={showList}
-                aria-controls={showList ? listId : undefined}
-                aria-autocomplete="list"
-                placeholder={t("report.priceTrendSearchOpen")}
-                autoComplete="off"
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setOpen(true);
-                }}
-                onFocus={() => setOpen(true)}
-                onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    setOpen(false);
-                    setSearch("");
-                  }
+          {mixedScale ? (
+            <p className="report-price-scale-hint">{t("report.priceTrendScaleHint")}</p>
+          ) : null}
+
+          {chart ? (
+            <div className="report-price-combined-chart">
+              <Line
+                data={chart}
+                plugins={[pricePointLabelPlugin]}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: { mode: "index", intersect: false },
+                  layout: { padding: { top: 18, right: 8 } },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => {
+                          const v = ctx.parsed.y;
+                          if (v == null) return `${ctx.dataset.label ?? ""}: —`;
+                          return `${ctx.dataset.label ?? ""}: ₩${fmt(v)}`;
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: { display: false },
+                      ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+                    },
+                    y: {
+                      beginAtZero: false,
+                      grace: "12%",
+                      ticks: { callback: (v) => "₩" + fmt(Number(v)) },
+                    },
+                  },
                 }}
               />
-
-              {showList ? (
-                <ul id={listId} className="report-item-cumulative__list" role="listbox">
-                  {filteredItems.map(({ item, total }) => {
-                    const checked = item.code === selectedItem;
-                    return (
-                      <li key={item.code} role="option" aria-selected={checked}>
-                        <button
-                          type="button"
-                          className={`report-item-cumulative__option${checked ? " report-item-cumulative__option--on" : ""}`}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => selectItem(item.code)}
-                        >
-                          <span className="report-item-cumulative__option-label">
-                            {itemDisplayName(item, locale)}
-                          </span>
-                          <span className="report-item-cumulative__option-value">₩{fmt(total)}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : open && search.trim() ? (
-                <p className="report-item-cumulative__list-empty">{t("report.priceTrendNoMatch")}</p>
-              ) : null}
             </div>
-          </div>
-        </div>
-      ) : (
-        <p className="empty">{t("report.noData")}</p>
-      )}
-
-      {!atSelected && itemsInPeriod.length > 0 ? (
-        <p className="empty report-item-cumulative__empty">{t("report.priceTrendSelect")}</p>
-      ) : null}
-
-      {atSelected && loaded && priceChart && (
-        <>
-          <p className="lbl" style={{ marginBottom: 8, marginTop: 16 }}>
-            {t("report.priceTrend")}
-          </p>
-          <Line
-            data={priceChart}
-            options={{
-              responsive: true,
-              plugins: { legend: { position: "top" } },
-              scales: {
-                y: {
-                  ticks: { callback: (v) => "₩" + fmt(Number(v)) },
-                },
-              },
-            }}
-          />
+          ) : (
+            <p className="empty">{t("report.noData")}</p>
+          )}
         </>
       )}
 
-      {showPriceHistoryTable && atSelected && loaded && priceHistory.length > 0 && (
+      {loaded && detailRows.length > 0 ? (
         <>
-          <p className="lbl" style={{ margin: "16px 0 8px" }}>
-            {t("report.priceHistory")}
-          </p>
+          <p className="lbl report-price-compare__table-lbl">{t("report.intakePrices")}</p>
           <div className="tbl-scroll">
             <table className="dtbl">
               <thead>
@@ -363,64 +344,24 @@ export function ReportPriceCompare(props: {
                   <th>{t("report.dateFrom")}</th>
                   <th>{t("report.shop")}</th>
                   <th>{t("report.item")}</th>
-                  <th>ประเภท</th>
-                  <th>แหล่ง</th>
-                  <th>ราคา/หน่วย (₩)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {priceHistory.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.recordedAt.slice(0, 10)}</td>
-                    <td>{shopLabel(r.suppCode)}</td>
-                    <td>{r.itemCode}</td>
-                    <td>
-                      {r.priceKind === "standard"
-                        ? t("report.standard")
-                        : t("report.lastPurchase")}
-                    </td>
-                    <td>
-                      {r.source === "manual" ? t("report.manual") : t("report.intake")}
-                    </td>
-                    <td className="gval">₩{fmt(r.unitPrice)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {atSelected && loaded && intakePoints.length > 0 && (
-        <>
-          <p className="lbl" style={{ margin: "16px 0 8px" }}>
-            {t("report.intakePrices")}
-          </p>
-          <div className="tbl-scroll">
-            <table className="dtbl">
-              <thead>
-                <tr>
-                  <th>{t("report.dateFrom")}</th>
-                  <th>{t("report.item")}</th>
-                  <th>หน่วย</th>
-                  <th>{t("report.standard")}</th>
-                  <th>{t("report.intake")}</th>
+                  <th>{t("report.qty")}</th>
+                  <th>{t("report.purchaseUnit")}</th>
+                  <th>{t("report.unitPrice")}</th>
                   <th>{t("report.value")}</th>
                 </tr>
               </thead>
               <tbody>
-                {intakePoints.slice(-100).map((p, i) => (
-                  <tr key={`${p.date}-${p.itemCode}-${i}`}>
+                {detailRows.map((p, i) => (
+                  <tr key={`${p.date}-${p.suppCode}-${p.itemCode}-${p.mainUnit}-${i}`}>
                     <td>{formatAppDate(p.date, locale)}</td>
+                    <td>{shopLabel(p.suppCode)}</td>
                     <td>
-                      <b>{itemLabel(p.itemCode, p.itemNameTH)}</b>
+                      <b>
+                        {itemDisplayNameByCode(p.itemCode, props.items, locale, p.itemNameTH)}
+                      </b>
                     </td>
-                    <td>
-                      {p.mainUnit} / {p.subUnit}
-                    </td>
-                    <td>
-                      {p.standardPriceAtSave != null ? `₩${fmt(p.standardPriceAtSave)}` : "—"}
-                    </td>
+                    <td>{fmt(p.qty)}</td>
+                    <td>{p.mainUnit || "—"}</td>
                     <td className="gval">₩{fmt(p.unitPrice)}</td>
                     <td className="gval">₩{fmt(p.totalPrice)}</td>
                   </tr>
@@ -429,11 +370,7 @@ export function ReportPriceCompare(props: {
             </table>
           </div>
         </>
-      )}
-
-      {atSelected && loaded && !priceHistory.length && !intakePoints.length && (
-        <p className="empty">{t("report.noData")}</p>
-      )}
+      ) : null}
     </div>
   );
 }

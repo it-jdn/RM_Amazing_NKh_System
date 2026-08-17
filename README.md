@@ -1,10 +1,12 @@
 # RM Amazing Nongkhai — Inventory System
 
-ระบบบันทึกการรับวัตถุดิบ (Raw Material Intake) สำหรับร้านอาหารไทย **Amazing Nongkhai** — สกุลเงิน ₩ (KRW), timezone **Asia/Bangkok**
+ระบบบันทึกการรับวัตถุดิบ (Raw Material Intake) สำหรับร้านอาหารไทย **Amazing Nongkhai** — สกุลเงิน ₩ (KRW)  
+วันที่ธุรกิจ (`txn_date`) ตาม **Asia/Bangkok** · เวลาที่แสดงบนหน้าจอตาม timezone ของเครื่องผู้ดู
 
 แอปที่ใช้งานจริงอยู่ใน [`web/`](web/) (Next.js + Supabase + Vercel)  
 ไฟล์ระบบเดิมเก็บไว้ใน [`Backup/`](Backup/) เพื่ออ้างอิงเท่านั้น
 
+**โครงสร้างระบบ + Business Logic ฉบับเต็ม:** [`docs/system.md`](docs/system.md)  
 รายละเอียด setup / deploy ฝั่งแอป: [`web/README.md`](web/README.md)
 
 ---
@@ -23,6 +25,7 @@ RM_Amazing_NKh_System/
 │   │   │   │   ├── intake/                           # redirect → /receiving
 │   │   │   │   ├── history/                          # ประวัติรับสินค้า
 │   │   │   │   ├── report/                           # รายงานต้นทุน
+│   │   │   │   │   └── item-price/                   # เทียบราคาสินค้า
 │   │   │   │   ├── profile/
 │   │   │   │   ├── admin/                            # การตั้งค่า (admin / manager)
 │   │   │   │   │   ├── shops/
@@ -48,14 +51,15 @@ RM_Amazing_NKh_System/
 │   │   │   │   ├── reports/                          # + price-history
 │   │   │   │   ├── users/                            # + [id], me
 │   │   │   │   └── admin/units/rebuild/
-│   │   │   ├── page.tsx                              # redirect ตาม role
+│   │   │   ├── page.tsx                              # redirect → /receiving
 │   │   │   ├── layout.tsx
 │   │   │   └── globals.css
 │   │   ├── components/
 │   │   │   ├── pages/
 │   │   │   │   ├── IntakeView.tsx                    # /receiving
 │   │   │   │   ├── HistoryView.tsx                   # รายการ + รายละเอียดใบ
-│   │   │   │   ├── ReportView.tsx, ReportPriceCompare.tsx
+│   │   │   │   ├── ReportView.tsx                    # /report
+│   │   │   │   ├── ReportItemPriceView.tsx, ReportPriceCompare.tsx  # /report/item-price
 │   │   │   │   ├── ProfileView.tsx
 │   │   │   │   └── admin/                            # Admin*Panel
 │   │   │   ├── history/
@@ -94,11 +98,12 @@ RM_Amazing_NKh_System/
 │   │   │   │   ├── history-slip-edit.ts              # แก้ไขประวัติต่อใบ
 │   │   │   │   ├── history-list-groups.ts            # รวมกลุ่มรายการประวัติ + audit
 │   │   │   │   ├── intake-row-key.ts, intake-row-draft.ts
+│   │   │   │   ├── intake-display-units.ts           # ชื่อหน่วยตาม locale
 │   │   │   │   └── item-filter.ts, item-linked-shops.ts, …
 │   │   │   ├── history/
 │   │   │   │   └── print-history-slip-document.ts    # HTML สำหรับพิมพ์/PDF
 │   │   │   ├── admin/                                # catalog list, unit row config
-│   │   │   ├── reports/                              # aggregate, export-excel
+│   │   │   ├── reports/                              # aggregate, export-excel, period, date-range
 │   │   │   ├── services/
 │   │   │   │   ├── data.ts                           # Supabase data layer หลัก
 │   │   │   │   ├── intake-slips.ts                   # บันทึก/ลบใบรับสินค้า
@@ -116,11 +121,15 @@ RM_Amazing_NKh_System/
 │   │   ├── fix-gramma-unit.mjs, item-category-mapping.csv
 │   │   └── team-pins.example.json
 │   ├── supabase/
-│   │   ├── migrations/                               # 001–014 (ดูตารางด้านล่าง)
+│   │   ├── migrations/                               # 001–017 (ดูตารางด้านล่าง)
 │   │   └── manual-fixes/                             # SQL แก้ข้อมูลครั้งคราว (ไม่รันอัตโนมัติ)
 │   ├── .env.example, .env.production.example
 │   ├── package.json, vercel.json
 │   └── README.md                                     # setup / deploy ฝั่ง web
+│
+├── docs/
+│   ├── system.md                                     # โครงสร้างระบบ + Business Logic
+│   └── historical-import.md                          # นำเข้าประวัติ Excel
 │
 ├── Backup/                                           # GAS + ข้อมูลต้นทาง (ไม่ใช้ runtime)
 │   ├── index.html, code.gs
@@ -128,7 +137,7 @@ RM_Amazing_NKh_System/
 │       ├── Ex Data/                                  # npm run import:csv
 │       └── RM Amazing Nongkhai - DB.xlsx             # npm run import:transactions
 │
-└── README.md                                         # ไฟล์นี้ — ภาพรวม repo
+└── README.md                                         # ไฟล์นี้ — ภาพรวม repo / setup
 ```
 
 > **สำคัญ:** `package.json` อยู่ใน `web/` — รันคำสั่ง `npm` จากโฟลเดอร์ `web` เสมอ (ไม่ใช่โฟลเดอร์ราก)
@@ -150,7 +159,8 @@ RM_Amazing_NKh_System/
 |------|------|--------|
 | รับสินค้า | `/receiving` (`/intake` redirect) | operator, admin, manager |
 | ประวัติรับสินค้า | `/history` | operator, admin, manager |
-| รายงาน | `/report` | manager, admin |
+| รายงานสรุปต้นทุน | `/report` | manager, admin |
+| รายงานเทียบราคา | `/report/item-price` | manager, admin |
 | โปรไฟล์ | `/profile` | ทุก role |
 | ตั้งค่า — ร้านค้า | `/admin/shops` | admin, manager |
 | ตั้งค่า — หน่วยสินค้า | `/admin/units` | admin |
@@ -159,10 +169,11 @@ RM_Amazing_NKh_System/
 | ตั้งค่า — ผู้ใช้ | `/admin/users` | admin |
 
 - ล็อกอิน **PIN** ที่ `/login`
-- หลังล็อกอิน: **operator** → `/receiving`, **admin/manager** → `/history`
+- หลังล็อกอิน **ทุก role** → `/receiving` (โลโก้กดแล้วกลับหน้านี้)
 - รายการสินค้าใน **สินค้า** และ **ผูกสินค้ากับร้าน**: กรองตามร้าน (รวม **ยังไม่ผูกร้าน**), ค้นหา, sort คอลัมน์ (รหัส · ชื่อ · หมวด · ร้านที่ผูก · หน่วย)
-- ภาษา UI: **ไทย / English / 한국어**
-- ชื่อสินค้า ร้านค้า และหน่วยแสดงตามภาษาที่เลือก (fallback ชื่อไทย)
+- ภาษา UI: **ไทย / English / 한국어** (เปลี่ยนจาก nav / hamburger)
+- ชื่อสินค้า ร้านค้า และหน่วยแสดงตามภาษาที่เลือก (fallback ตามลำดับ locale)
+- **วันที่รับสินค้า (`txn_date`)** = ปฏิทินกรุงเทพ · **เวลาบันทึกบนหน้าจอ** = timezone ของเครื่องผู้ดู · ปีที่แสดงเป็น **ค.ศ.**
 
 ### หน่วยซื้อเข้า (หลายแบบต่อสินค้า)
 
@@ -177,36 +188,51 @@ RM_Amazing_NKh_System/
 ### หน้ารับสินค้า (`/receiving`)
 
 - **หลายใบต่อวันต่อร้าน** — บันทึกแยกตามเวลา (ตาราง `intake_slips` + `transactions.slip_id`)
-- มือถือ: ภาพรวมร้านในวันที่เลือก (บันทึกแล้ว / draft ค้าง) ก่อนเข้ารายการสินค้า
+- ยังไม่เลือกร้าน: ภาพรวมร้านในวันที่เลือก เรียงตามกิจกรรมล่าสุด
+- **หลังบันทึกสำเร็จ:** กลับภาพรวมรายวัน
 - เลือก **วันที่รับ** + **ร้านค้า** แล้วกรอกจำนวน / ราคารวมต่อรายการ
-- สินค้าที่มีหลายหน่วยซื้อเข้า → เลือกหน่วยก่อนกรอกจำนวน
-- **มือถือ (≤768px):** การ์ดต่อสินค้า + แถบบันทึกติดล่าง + แท็บนำทางล่าง 2 ปุ่ม
+- สินค้าที่มีหลายหน่วยซื้อเข้า → เลือกหน่วยก่อนกรอกจำนวน (ชื่อหน่วยตามภาษา UI)
+- **มือถือ (≤768px):** การ์ดต่อสินค้า + แถบบันทึกติดล่าง + แท็บนำทางล่าง 2 ปุ่ม (operator)
 - **แท็บเล็ต (≤1024px):** การ์ด/ sticky save · ซ่อน sum-bar แบบ desktop
-- **Desktop (≥1025px):** ตาราง sticky header, hover/focus แถว, scroll สูงสุด ~70vh
+- **Desktop (≥1025px):** ตาราง sticky header, hover/focus แถว
 - หมายเหตุใบ (slip note), แท็บสลับใบ (`IntakeShopSlips`)
-- ลบทั้งใบหรือทั้งวัน+ร้าน (สิทธิ์ตาม role / ผู้บันทึก)
+- ออกจากหน้าขณะกรอกค้าง → ยืนยันทิ้ง/บันทึก (`useGuardedNavigation`)
+- ลบทั้งใบหรือทั้งวัน+ร้าน (สิทธิ์ตาม role / ผู้บันทึก / operator ภายใน 7 วัน)
 
 ### หน้าประวัติรับสินค้า (`/history`)
 
 - รายการแบบ **การ์ด** (มือถือ/แท็บเล็ต) หรือ **ตาราง** (desktop ≥1025px) — กรองช่วงวันที่ / ร้าน / เรียงลำดับ
-- ตาราง desktop แสดง **ผู้บันทึก · เวลาบันทึก · เวลาแก้ไขล่าสุด** (จาก `intake_slips` หรือ fallback จาก transaction)
-- รายละเอียดต่อ **ใบรับสินค้า** (`HistorySlipDetail`) — แท็บเมื่อมีหลายใบในวันเดียวกัน
+- ตาราง desktop แสดง **ผู้บันทึก · เวลาบันทึก · เวลาแก้ไขล่าสุด** (เวลาตามเครื่องผู้ดู)
+- แถวรายการ = **วัน+ร้าน** (หลายใบในวันเดียวกันรวมกัน) — เปิดรายละเอียดแล้วแท็บใบ
 - **แก้ไข** จำนวนและมูลค่า (operator แก้ได้เฉพาะใบตนเอง · manager/admin แก้ใบอื่นได้)
 - Desktop: **⌘/Ctrl+S** บันทึก · footer สไตล์ sum-bar
 - **พิมพ์ PDF** — เปิดหน้าพิมพ์ใบรับ แล้วบันทึกเป็น PDF จากเบราว์เซอร์
 - **ลบใบรับสินค้า** — มุมขวาบนรายละเอียดใบ
 
-### หน้ารายงาน (`/report`)
+### หน้ารายงาน (`/report`, `/report/item-price`) — manager, admin
 
-- KPI, กราฟแนวโน้ม, heatmap — กราฟพับได้บนมือถือ (`ReportChartsFold`)
-- กราฟสรุปตามหมวดหมู่: แสดง **มูลค่า + % + จำนวนรายการ** ใน legend/tooltip · 3 กราฟย่อยอยู่แถวเดียวกันบน desktop
-- ตารางสรุป (หมวด / สินค้า / รายละเอียด): **แบ่งหน้า 50 / 100 / ทั้งหมด** เมื่อแถว >50 · **Export Excel ส่งออกครบทุกแถว**
-- กรองช่วงวันที่, ร้าน, หมวด, สินค้า · พิมพ์รายงาน
+รายละเอียดสูตรและการจำกัดแถว: [`docs/system.md`](docs/system.md) §7
+
+**สรุปต้นทุน `/report`**
+- มูลค่า = ผลรวม `total_price` ที่จ่ายจริง · จำนวน = `qty` ตามหน่วยซื้อเข้า (ไม่แปลงหน่วยย่อย)
+- KPI: ต้นทุนรวม · เฉลี่ยต่อวันที่มีการรับ · จำนวนสินค้าที่ไม่ซ้ำ
+- กราฟ: ยอดรายวัน, สะสม, ตามร้าน, Top 10 ตามมูลค่า
+- ตารางสรุป (หมวด / สินค้า / รายละเอียด): แบ่งหน้า 50 / 100 / ทั้งหมด เมื่อแถว >50
+- Excel หมวดและสินค้าส่งออกครบ · Excel รายละเอียดสูงสุด **200 แถว** (cap ของ API)
+- กรองช่วงวันที่, ร้าน, หมวด (รวม MISC), สินค้า · พิมพ์รายงาน
+
+**เทียบราคา `/report/item-price`**
+- เลือกสินค้าในช่วงที่กรอง แล้วดูกราฟราคาต่อหน่วยจากประวัติรับของ
 
 ### Admin — สินค้า
 
-- **Admin** แก้ **รหัสสินค้า** ได้ (ตรวจซ้ำก่อนบันทึก · อัปเดต FK ทุกตารางที่อ้างอิง)
-- Manager แก้ชื่อ/หมวด/หน่วยมาตรฐาน แต่ไม่เปลี่ยนรหัส
+- เพิ่มสินค้า: กำหนด **หลายหน่วยมาตรฐานได้ก่อนบันทึก**
+- ชื่อสินค้า: อย่างน้อยหนึ่งภาษา (TH / EN / KR)
+- หมวดรวม **MISC ของใช้อื่นๆ**
+- หลังบันทึกสินค้าใหม่: เปิดแผงผูกร้าน + เน้นปุ่มโซ่
+- **Admin** ลบสินค้าได้จากรายการ (confirm) — ห้ามลบถ้ายังผูกร้านหรือมีประวัติรับ
+- **Admin** แก้ **รหัสสินค้า** ได้ (ตรวจซ้ำก่อนบันทึก · อัปเดต FK)
+- Manager แก้ชื่อ/หมวด/หน่วยมาตรฐาน แต่ไม่เปลี่ยนรหัส / ไม่ลบ
 
 ### Operator UX
 
@@ -218,7 +244,7 @@ RM_Amazing_NKh_System/
 | แท็บเล็ต | drawer nav · การ์ด + sticky footer · ตัวกรองพับได้ |
 | Desktop | nav ด้านบนเต็ม · ตาราง intake/history · bottom nav ซ่อน |
 
-- หลังล็อกอิน **operator** → `/receiving` · **admin/manager** → `/history`
+- หลังล็อกอิน **ทุก role** → `/receiving`
 - เปลี่ยนหน้าระหว่างกรอก intake ที่ยังไม่บันทึก → ยืนยันก่อนออก (`useGuardedNavigation`)
 
 ---
@@ -226,6 +252,8 @@ RM_Amazing_NKh_System/
 ## ฐานข้อมูล (Supabase)
 
 รัน migration **ตามลำดับเลข** ใน **SQL Editor** (หรือ `cd web && DEPLOY_ENV=production npm run db:migrate` เมื่อมี `DATABASE_URL`) แล้ว **Reload schema** ถ้า PostgREST ยังไม่เห็นตารางใหม่
+
+รายการไฟล์ 001–017 และกฎธุรกิจ: [`docs/system.md`](docs/system.md) §11
 
 | ไฟล์ | เนื้อหาหลัก |
 |------|----------------|
@@ -244,13 +272,16 @@ RM_Amazing_NKh_System/
 | [`012_item_purchase_units.sql`](web/supabase/migrations/012_item_purchase_units.sql) | หน่วยซื้อเข้ามาตรฐานต่อสินค้า |
 | [`013_intake_slips.sql`](web/supabase/migrations/013_intake_slips.sql) | ใบรับหลายใบ/วัน/ร้าน + `transactions.slip_id` |
 | [`014_supplier_business_reg_no.sql`](web/supabase/migrations/014_supplier_business_reg_no.sql) | เลขทะเบียนกิจการซัพพลายเออร์ (optional) |
+| [`015_txn_slip_item_unit_unique.sql`](web/supabase/migrations/015_txn_slip_item_unit_unique.sql) | unique บรรทัดใบ (สินค้า + หน่วย) |
+| [`016_convert_buddhist_era_txn_dates.sql`](web/supabase/migrations/016_convert_buddhist_era_txn_dates.sql) | แปลง `txn_date` พ.ศ. → ค.ศ. |
+| [`017_add_misc_item_category.sql`](web/supabase/migrations/017_add_misc_item_category.sql) | หมวด **MISC** ของใช้อื่นๆ |
 
 | ตาราง | คำอธิบาย |
 |--------|----------|
 | `suppliers` | ร้านค้า (+ `supp_business_reg_no` ถ้ารัน 014) |
 | `items` | สินค้า — ชื่อ TH/EN/KR, หน่วยหลัก/ย่อย, หมวดหมู่ |
 | `units` | หน่วยมาตรฐานในระบบ |
-| `item_categories` | หมวดหมู่รายงาน (PROT, PROD, SEA, PANTRY, BEV) |
+| `item_categories` | หมวดหมู่รายงาน (PROT, PROD, SEA, PANTRY, BEV, **MISC**) |
 | `item_purchase_units` | หน่วยซื้อเข้ามาตรฐานต่อสินค้า (PK: item + main unit) |
 | `supplier_item_purchase_units` | หน่วยที่ร้านเปิดใช้ + ราคามาตรฐาน |
 | `supplier_item_mapping` | mapping หลักต่อร้าน (ซิงค์จากหน่วย default) |
@@ -265,7 +296,7 @@ RM_Amazing_NKh_System/
 ### 1. Supabase + env
 
 1. สร้างโปรเจกต์ที่ [supabase.com](https://supabase.com)
-2. รัน migration `001` → `014` ตามลำดับ (ข้าม `002_seed_pins` ได้ถ้าใช้ `npm run seed:pins`)
+2. รัน migration `001` → `017` ตามลำดับ (ข้าม `002_seed_pins` ได้ถ้าใช้ `npm run seed:pins`)
 3. คัดลอก `web/.env.example` → `web/.env.local`
 
 | ตัวแปร | หาได้จาก |
@@ -382,7 +413,8 @@ Logic หลักถูกย้ายไป:
 - [`web/src/lib/domain/purchase-units.ts`](web/src/lib/domain/purchase-units.ts) — ตัวเลือกหน่วยตอนรับของ
 - [`web/src/lib/history/print-history-slip-document.ts`](web/src/lib/history/print-history-slip-document.ts) — พิมพ์ใบรับ PDF
 - [`web/src/lib/domain/history-list-groups.ts`](web/src/lib/domain/history-list-groups.ts) — รวมกลุ่มประวัติ + audit สำหรับตาราง desktop
-- [`web/src/lib/reports/aggregate.ts`](web/src/lib/reports/aggregate.ts) — สรุปรายงานต้นทุน
+- [`web/src/lib/reports/aggregate.ts`](web/src/lib/reports/aggregate.ts) — สรุปรายงานต้นทุน (`total_price` จริง, ไม่แปลงหน่วย)
+- [`web/src/lib/domain/intake-display-units.ts`](web/src/lib/domain/intake-display-units.ts) — ชื่อหน่วยตามภาษา UI
 - [`web/src/lib/admin/items-catalog-list.ts`](web/src/lib/admin/items-catalog-list.ts) — กรอง/เรียงรายการสินค้าใน admin
 
 ---
@@ -402,4 +434,6 @@ Logic หลักถูกย้ายไป:
 | PATCH | `/api/items/[code]/purchase-standards` | หน่วยซื้อเข้ามาตรฐาน |
 | POST | `/api/products/setup` | ผูกร้าน + หน่วย/ราคาต่อร้าน |
 | GET/PATCH | `/api/units` | หน่วยมาตรฐาน |
-| GET | `/api/reports` | รายงาน (filter หมวดหมู่ได้) |
+| GET | `/api/reports` | รายงานสรุปต้นทุน (filter หมวดได้ · รายละเอียดสูงสุด 200 แถวต่อหน้า) |
+| GET | `/api/reports/price-history` | ประวัติราคา mapping + จุดรับของ (หน้าเทียบราคา) |
+| DELETE | `/api/items/[code]` | ลบสินค้า (admin · ห้ามถ้ามี mapping หรือประวัติรับ) |
