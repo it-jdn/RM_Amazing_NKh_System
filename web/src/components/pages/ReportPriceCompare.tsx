@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,7 +14,8 @@ import { Line } from "react-chartjs-2";
 import type { ChartData, Plugin } from "chart.js";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
-import { itemDisplayNameByCode } from "@/lib/i18n/item-name";
+import { IconCheck, IconChevronDown, IconX } from "@/components/icons/AppIcons";
+import { itemDisplayName, itemDisplayNameByCode } from "@/lib/i18n/item-name";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { pickLatestReceivedItemCodes } from "@/lib/reports/price-trend";
 import { fmt, formatAppDate } from "@/lib/utils/format";
@@ -22,10 +23,70 @@ import type { Item, Supplier } from "@/lib/types";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend);
 
+const PRICE_LABEL_FONT = "600 11px var(--font-ui), system-ui, sans-serif";
+const PRICE_LABEL_LINE_HEIGHT = 14;
+const PRICE_LABEL_BASE_OFFSET = 8;
+const PRICE_LABEL_MAX_TIERS = 6;
+
+type PricePointLabel = {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  width: number;
+  height: number;
+  offsetY: number;
+};
+
+function priceLabelBox(label: PricePointLabel) {
+  const bottom = label.y - label.offsetY;
+  return {
+    left: label.x - label.width / 2 - 2,
+    right: label.x + label.width / 2 + 2,
+    top: bottom - label.height - 2,
+    bottom: bottom + 2,
+  };
+}
+
+function priceLabelsOverlap(a: PricePointLabel, b: PricePointLabel) {
+  const boxA = priceLabelBox(a);
+  const boxB = priceLabelBox(b);
+  return !(
+    boxA.right < boxB.left ||
+    boxA.left > boxB.right ||
+    boxA.bottom < boxB.top ||
+    boxA.top > boxB.bottom
+  );
+}
+
+/** Stack labels vertically when values sit close together on the chart. */
+function layoutPricePointLabels(labels: PricePointLabel[]) {
+  const sorted = [...labels].sort((a, b) => a.x - b.x || a.y - b.y);
+  const placed: PricePointLabel[] = [];
+
+  for (const label of sorted) {
+    let chosen = PRICE_LABEL_BASE_OFFSET;
+    for (let tier = 0; tier < PRICE_LABEL_MAX_TIERS; tier++) {
+      label.offsetY = PRICE_LABEL_BASE_OFFSET + tier * PRICE_LABEL_LINE_HEIGHT;
+      if (!placed.some((other) => priceLabelsOverlap(label, other))) {
+        chosen = label.offsetY;
+        break;
+      }
+    }
+    label.offsetY = chosen;
+    placed.push(label);
+  }
+}
+
 const pricePointLabelPlugin: Plugin<"line"> = {
   id: "pricePointLabel",
   afterDatasetsDraw(chart) {
     const { ctx } = chart;
+    const labels: PricePointLabel[] = [];
+
+    ctx.save();
+    ctx.font = PRICE_LABEL_FONT;
+
     chart.data.datasets.forEach((dataset, datasetIndex) => {
       const meta = chart.getDatasetMeta(datasetIndex);
       if (meta.hidden) return;
@@ -35,15 +96,30 @@ const pricePointLabelPlugin: Plugin<"line"> = {
         const raw = dataset.data[index];
         const value = typeof raw === "number" ? raw : null;
         if (value == null || !Number.isFinite(value)) return;
-        ctx.save();
-        ctx.font = "600 11px var(--font-ui), system-ui, sans-serif";
-        ctx.fillStyle = color;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(`₩${fmt(value)}`, point.x, point.y - 8);
-        ctx.restore();
+        const text = `₩${fmt(value)}`;
+        const width = ctx.measureText(text).width;
+        labels.push({
+          x: point.x,
+          y: point.y,
+          text,
+          color,
+          width,
+          height: PRICE_LABEL_LINE_HEIGHT,
+          offsetY: PRICE_LABEL_BASE_OFFSET,
+        });
       });
     });
+
+    layoutPricePointLabels(labels);
+
+    for (const label of labels) {
+      ctx.fillStyle = label.color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(label.text, label.x, label.y - label.offsetY);
+    }
+
+    ctx.restore();
   },
 };
 
@@ -69,7 +145,44 @@ const LINE_COLORS = [
   "rgba(140,120,90,.95)",
 ];
 
-const LATEST_ITEM_COUNT = 5;
+const MAX_CHART_ITEMS = 5;
+
+type CatalogPickerRow = {
+  item: Item;
+  intakeCount: number;
+  latestDate: string | null;
+};
+
+function buildCatalogPickerRows(items: Item[], intakePoints: IntakePoint[]): CatalogPickerRow[] {
+  const intakeCount = new Map<string, number>();
+  const latestDate = new Map<string, string>();
+  for (const p of intakePoints) {
+    const code = p.itemCode.trim();
+    if (!code) continue;
+    intakeCount.set(code, (intakeCount.get(code) ?? 0) + 1);
+    const prev = latestDate.get(code);
+    if (!prev || p.date > prev) latestDate.set(code, p.date);
+  }
+
+  return items.map((item) => ({
+    item,
+    intakeCount: intakeCount.get(item.code) ?? 0,
+    latestDate: latestDate.get(item.code) ?? null,
+  }));
+}
+
+function sortCatalogPickerRows(a: CatalogPickerRow, b: CatalogPickerRow, locale: "th" | "en" | "kr") {
+  if (a.intakeCount && !b.intakeCount) return -1;
+  if (!a.intakeCount && b.intakeCount) return 1;
+  if (a.latestDate && b.latestDate) {
+    const byDate = b.latestDate.localeCompare(a.latestDate);
+    if (byDate) return byDate;
+  } else if (a.latestDate) return -1;
+  else if (b.latestDate) return 1;
+  return itemDisplayName(a.item, locale).localeCompare(itemDisplayName(b.item, locale), locale, {
+    sensitivity: "base",
+  });
+}
 
 /** Prefer the purchase unit used most often for a stable line per product. */
 function dominantUnit(points: IntakePoint[]): string {
@@ -134,9 +247,35 @@ export function ReportPriceCompare(props: {
   items: Item[];
 }) {
   const { locale, t } = useLocale();
+  const listId = useId();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const filterInputRef = useRef<HTMLInputElement>(null);
   const [intakePoints, setIntakePoints] = useState<IntakePoint[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setSearch("");
+    setOpen(false);
+  }, [props.dateFrom, props.dateTo, props.suppCode]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) filterInputRef.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,9 +293,8 @@ export function ReportPriceCompare(props: {
         if (cancelled) return;
         const points = d.success ? d.intakePoints ?? [] : [];
         setIntakePoints(points);
-        // Default to the single latest item so the Y-axis is readable; expand via chips.
-        const latest = pickLatestReceivedItemCodes(points, LATEST_ITEM_COUNT);
-        setSelectedCodes(latest.slice(0, 1));
+        const latest = pickLatestReceivedItemCodes(points, MAX_CHART_ITEMS);
+        setSelectedCodes(latest);
         setLoaded(true);
       })
       .catch(() => {
@@ -171,21 +309,38 @@ export function ReportPriceCompare(props: {
     };
   }, [props.dateFrom, props.dateTo, props.suppCode]);
 
-  const latestItems = useMemo(() => {
-    const codes = pickLatestReceivedItemCodes(intakePoints, LATEST_ITEM_COUNT);
-    return codes.map((code, index) => {
-      const points = intakePoints.filter((p) => p.itemCode === code);
-      const snapshot = points.find((p) => p.itemNameTH)?.itemNameTH;
-      const title = itemDisplayNameByCode(code, props.items, locale, snapshot);
-      const unit = dominantUnit(points);
-      return { code, title, unit, points, color: LINE_COLORS[index % LINE_COLORS.length] };
-    });
-  }, [intakePoints, props.items, locale]);
-
-  const selectedSeries = useMemo(
-    () => latestItems.filter((item) => selectedCodes.includes(item.code)),
-    [latestItems, selectedCodes]
+  const catalogRows = useMemo(
+    () => buildCatalogPickerRows(props.items, intakePoints),
+    [props.items, intakePoints]
   );
+
+  const sortedCatalogRows = useMemo(
+    () => [...catalogRows].sort((a, b) => sortCatalogPickerRows(a, b, locale)),
+    [catalogRows, locale]
+  );
+
+  const filteredCatalogRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return sortedCatalogRows;
+    return sortedCatalogRows.filter(({ item }) => {
+      const label = itemDisplayName(item, locale).toLowerCase();
+      return label.includes(q) || item.code.toLowerCase().includes(q);
+    });
+  }, [sortedCatalogRows, search, locale]);
+
+  const chartItems = useMemo(
+    () =>
+      selectedCodes.map((code, index) => {
+        const points = intakePoints.filter((p) => p.itemCode === code);
+        const snapshot = points.find((p) => p.itemNameTH)?.itemNameTH;
+        const title = itemDisplayNameByCode(code, props.items, locale, snapshot);
+        const unit = dominantUnit(points);
+        return { code, title, unit, points, color: LINE_COLORS[index % LINE_COLORS.length] };
+      }),
+    [selectedCodes, intakePoints, props.items, locale]
+  );
+
+  const selectedSeries = chartItems;
 
   const chart = useMemo(
     () => buildCombinedChart(selectedSeries, locale),
@@ -205,9 +360,6 @@ export function ReportPriceCompare(props: {
       .slice(0, 80);
   }, [intakePoints, selectedCodes]);
 
-  const allSelected =
-    latestItems.length > 0 && latestItems.every((item) => selectedCodes.includes(item.code));
-
   const mixedScale = useMemo(() => {
     const values = selectedSeries.flatMap((s) =>
       s.points.filter((p) => p.unitPrice > 0 && (p.mainUnit.trim() || "—") === s.unit).map((p) => p.unitPrice)
@@ -218,18 +370,27 @@ export function ReportPriceCompare(props: {
     return min > 0 && max / min >= 8;
   }, [selectedSeries]);
 
-  function selectAll() {
-    setSelectedCodes(latestItems.map((item) => item.code));
-  }
+  const atLimit = selectedCodes.length >= MAX_CHART_ITEMS;
 
   function toggleItem(code: string) {
     setSelectedCodes((prev) => {
-      if (prev.includes(code)) {
-        const next = prev.filter((c) => c !== code);
-        return next.length ? next : prev;
-      }
+      if (prev.includes(code)) return prev.filter((c) => c !== code);
+      if (prev.length >= MAX_CHART_ITEMS) return prev;
       return [...prev, code];
     });
+  }
+
+  function removeItem(code: string) {
+    setSelectedCodes((prev) => prev.filter((c) => c !== code));
+  }
+
+  function colorForCode(code: string) {
+    const index = selectedCodes.indexOf(code);
+    return index >= 0 ? LINE_COLORS[index % LINE_COLORS.length] : LINE_COLORS[0];
+  }
+
+  function clearSelection() {
+    setSelectedCodes(pickLatestReceivedItemCodes(intakePoints, MAX_CHART_ITEMS));
   }
 
   function shopLabel(code: string) {
@@ -247,52 +408,158 @@ export function ReportPriceCompare(props: {
 
       {!loaded ? (
         <p className="empty">{t("report.loading")}</p>
-      ) : !latestItems.length ? (
+      ) : !props.items.length ? (
         <p className="empty">{t("report.noData")}</p>
       ) : (
         <>
-          <div
-            className="report-price-chips"
-            role="group"
-            aria-label={t("report.priceTrendItems")}
-          >
-            <button
-              type="button"
-              className={`report-price-chip report-price-chip--all${allSelected ? " is-active" : ""}`}
-              aria-pressed={allSelected}
-              onClick={selectAll}
-            >
-              {t("report.priceTrendAll")}
-            </button>
-            {latestItems.map((item) => {
-              const on = selectedCodes.includes(item.code);
-              const unitLabel = item.unit && item.unit !== "—" ? item.unit : "";
-              return (
+          <div className="report-price-compare__controls">
+            <label className="lbl" htmlFor="report-price-trend-dropdown">
+              {t("report.priceTrendPicker")}
+            </label>
+            <div className="report-price-compare__row">
+              <div
+                ref={dropdownRef}
+                className={`report-price-multiselect report-price-compare__dropdown${open ? " report-price-multiselect--open" : ""}`}
+              >
                 <button
-                  key={item.code}
                   type="button"
-                  className={`report-price-chip${on ? " is-active" : ""}`}
-                  aria-pressed={on}
-                  title={unitLabel ? `${item.title} (${unitLabel})` : item.title}
-                  onClick={() => toggleItem(item.code)}
+                  id="report-price-trend-dropdown"
+                  className={`report-price-multiselect__trigger${open ? " report-price-multiselect__trigger--open" : ""}`}
+                  aria-expanded={open}
+                  aria-haspopup="listbox"
+                  aria-controls={open ? listId : undefined}
+                  onClick={() => {
+                    setOpen((prev) => {
+                      if (prev) setSearch("");
+                      return !prev;
+                    });
+                  }}
                 >
                   <span
-                    className="report-price-chip__swatch"
-                    style={{ background: item.color }}
-                    aria-hidden
-                  />
-                  <span className="report-price-chip__label">{item.title}</span>
-                  {unitLabel ? <span className="report-price-chip__unit">({unitLabel})</span> : null}
+                    className={`report-price-multiselect__trigger-label${selectedCodes.length ? "" : " is-placeholder"}`}
+                  >
+                    {selectedCodes.length > 0
+                      ? t("report.priceTrendSelected", {
+                          n: String(selectedCodes.length),
+                          max: String(MAX_CHART_ITEMS),
+                        })
+                      : t("report.priceTrendDropdownPlaceholder")}
+                  </span>
+                  <IconChevronDown className="report-price-multiselect__chev" size={16} aria-hidden />
                 </button>
-              );
-            })}
+
+                {open ? (
+                  <div className="report-price-multiselect__panel">
+                    <input
+                      ref={filterInputRef}
+                      type="search"
+                      className="report-price-multiselect__filter"
+                      value={search}
+                      placeholder={t("report.priceTrendFilter")}
+                      autoComplete="off"
+                      aria-label={t("report.priceTrendFilter")}
+                      onChange={(e) => setSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setOpen(false);
+                          setSearch("");
+                        }
+                      }}
+                    />
+                    {filteredCatalogRows.length > 0 ? (
+                      <ul
+                        id={listId}
+                        className="report-price-multiselect__list"
+                        role="listbox"
+                        aria-multiselectable="true"
+                        aria-label={t("report.priceTrendPicker")}
+                      >
+                        {filteredCatalogRows.map(({ item, intakeCount }) => {
+                          const checked = selectedCodes.includes(item.code);
+                          const disabled = !checked && atLimit;
+                          return (
+                            <li key={item.code} role="presentation">
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={checked}
+                                className={`report-price-multiselect__option${checked ? " is-checked" : ""}`}
+                                disabled={disabled}
+                                title={disabled ? t("report.priceTrendMax") : undefined}
+                                onClick={() => toggleItem(item.code)}
+                              >
+                                <span className="report-price-multiselect__check" aria-hidden>
+                                  {checked ? <IconCheck size={12} /> : null}
+                                </span>
+                                <span className="report-price-multiselect__option-body">
+                                  <span className="report-price-multiselect__option-label">
+                                    {itemDisplayName(item, locale)}
+                                  </span>
+                                  <span className="report-price-multiselect__option-meta">
+                                    {intakeCount > 0
+                                      ? t("report.priceTrendSamples", { n: intakeCount })
+                                      : t("report.priceTrendNoIntake")}
+                                  </span>
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="report-price-multiselect__empty">{t("report.priceTrendNoMatch")}</p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+              {selectedCodes.length > 0 ? (
+                <button type="button" className="filter-clear" onClick={clearSelection}>
+                  {t("report.priceTrendClear")}
+                </button>
+              ) : null}
+
+              {selectedCodes.length > 0 ? (
+                <div className="report-price-compare__pills">
+                  {selectedCodes.map((code) => {
+                    const row = catalogRows.find((x) => x.item.code === code);
+                    const unit = dominantUnit(intakePoints.filter((p) => p.itemCode === code));
+                    const unitLabel = unit && unit !== "—" ? ` (${unit})` : "";
+                    const title = row
+                      ? itemDisplayName(row.item, locale)
+                      : itemDisplayNameByCode(code, props.items, locale);
+                    return (
+                      <span key={code} className="report-price-chip">
+                        <span
+                          className="report-price-chip__swatch"
+                          style={{ background: colorForCode(code) }}
+                          aria-hidden
+                        />
+                        <span className="report-price-chip__label">
+                          {title}
+                          {unitLabel}
+                        </span>
+                        <button
+                          type="button"
+                          className="report-price-chip__remove"
+                          onClick={() => removeItem(code)}
+                          aria-label={t("report.priceTrendRemove")}
+                        >
+                          <IconX size={14} aria-hidden />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           {mixedScale ? (
             <p className="report-price-scale-hint">{t("report.priceTrendScaleHint")}</p>
           ) : null}
 
-          {chart ? (
+          {selectedCodes.length > 0 && chart ? (
             <div className="report-price-combined-chart">
               <Line
                 data={chart}
@@ -301,7 +568,7 @@ export function ReportPriceCompare(props: {
                   responsive: true,
                   maintainAspectRatio: false,
                   interaction: { mode: "index", intersect: false },
-                  layout: { padding: { top: 18, right: 8 } },
+                  layout: { padding: { top: 36, right: 8 } },
                   plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -328,6 +595,8 @@ export function ReportPriceCompare(props: {
                 }}
               />
             </div>
+          ) : selectedCodes.length === 0 ? (
+            <p className="empty">{t("report.priceTrendSelect")}</p>
           ) : (
             <p className="empty">{t("report.noData")}</p>
           )}

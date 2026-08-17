@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "@/context/LocaleContext";
 import { apiGet } from "@/lib/api/client";
 import { IntakeLoadPanel } from "@/components/intake/IntakeLoadPanel";
-import { IconDocument, IconPlus } from "@/components/icons/AppIcons";
+import { IconDocument } from "@/components/icons/AppIcons";
 import {
   buildDayOverviewFromSlips,
   groupSlipsByShop,
@@ -204,12 +204,10 @@ function SavedSlipSection({
                 </div>
                 <button
                   type="button"
-                  className="btn btn-sm intake-day-shop-group__add intake-day-shop-group__add--icon"
+                  className="btn btn-sm intake-day-shop-group__add"
                   onClick={() => onSelectShop(group.suppCode)}
-                  aria-label={t("intake.addIntake")}
-                  title={t("intake.addIntake")}
                 >
-                  <IconPlus size={22} aria-hidden />
+                  {t("intake.addIntake")}
                 </button>
               </div>
               <div className="intake-day-slip-table">

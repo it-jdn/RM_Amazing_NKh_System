@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -47,6 +48,28 @@ interface AppDataContextValue {
   reload: () => Promise<void>;
 }
 
+const INITIAL_LOAD_ATTEMPTS = 3;
+const INITIAL_LOAD_RETRY_MS = 700;
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchInitialData(): Promise<InitialData> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= INITIAL_LOAD_ATTEMPTS; attempt++) {
+    try {
+      return await apiGet<InitialData>("/api/data/initial");
+    } catch (e) {
+      lastError = e;
+      if (attempt < INITIAL_LOAD_ATTEMPTS) {
+        await wait(INITIAL_LOAD_RETRY_MS * attempt);
+      }
+    }
+  }
+  throw lastError;
+}
+
 const AppDataContext = createContext<AppDataContextValue | null>(null);
 
 export function AppDataProvider({
@@ -65,10 +88,14 @@ export function AppDataProvider({
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [itemCategories, setItemCategories] = useState<ItemCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadSeqRef = useRef(0);
 
   const reload = useCallback(async () => {
+    const loadId = ++loadSeqRef.current;
+    setLoading(true);
     try {
-      const d = await apiGet<InitialData>("/api/data/initial");
+      const d = await fetchInitialData();
+      if (loadId !== loadSeqRef.current) return;
       if (!d.success) {
         toast("โหลดข้อมูลผิดพลาด");
         return;
@@ -81,9 +108,11 @@ export function AppDataProvider({
       setUnits(d.units || []);
       setItemCategories(d.itemCategories || []);
     } catch (e) {
-      toast("เชื่อมต่อ Server ไม่ได้: " + (e instanceof Error ? e.message : String(e)));
+      if (loadId !== loadSeqRef.current) return;
+      const detail = e instanceof Error ? e.message : String(e);
+      toast(`โหลดข้อมูลไม่สำเร็จ: ${detail}`);
     } finally {
-      setLoading(false);
+      if (loadId === loadSeqRef.current) setLoading(false);
     }
   }, [toast]);
 

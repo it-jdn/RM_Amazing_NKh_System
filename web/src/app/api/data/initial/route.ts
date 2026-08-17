@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/auth/api";
 import { jsonError, jsonOk } from "@/lib/api/response";
+import { formatPostgresError } from "@/lib/db/postgres-error";
 import { getInitialData } from "@/lib/services/data";
 
 export async function GET() {
@@ -11,6 +12,7 @@ export async function GET() {
     const data = await getInitialData({ includeInactiveSuppliers: includeInactive });
     return jsonOk(data);
   } catch (e) {
-    return jsonError(e instanceof Error ? e.message : "Error", 500);
+    console.error("[api/data/initial]", e);
+    return jsonError(formatPostgresError(e), 500);
   }
 }

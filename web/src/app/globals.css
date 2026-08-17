@@ -1,5 +1,5 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
-@import url("https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -53,6 +53,86 @@
 html[lang="ko"],
 html[lang="en"] {
   --font-ui: "Pretendard Variable", Pretendard, "Sarabun", system-ui, sans-serif;
+}
+
+/* Thai: IBM Plex Sans Thai for headings + table headers; Sarabun for table body */
+html[lang="th"] {
+  --font-heading: "IBM Plex Sans Thai", "Sarabun", system-ui, sans-serif;
+  --font-table-data: "Sarabun", system-ui, sans-serif;
+}
+
+html[lang="th"] :where(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .card-title,
+  .lbl,
+  .page-title,
+  .report-filters__title,
+  .report-table-section__title,
+  .report-price-latest__label,
+  .hist-presets__label,
+  .admin-section-title,
+  .admin-form-section__title,
+  .admin-side-form__title,
+  .admin-units-heading,
+  .users-panel__title,
+  .intake-doc-header__title-th,
+  .intake-slip-head__title,
+  .intake-day-overview__section-title,
+  table thead th,
+  .dtbl th,
+  table.itbl thead th
+) {
+  font-family: var(--font-heading);
+}
+
+html[lang="th"] :where(table tbody td, table tfoot td, .dtbl td, table.itbl td) {
+  font-family: var(--font-table-data);
+}
+
+/* Thai: IBM Plex Sans Thai for button labels */
+html[lang="th"] :where(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .btn,
+  .btn-icon-action,
+  .sort-toggle,
+  .filter-clear,
+  .hist-preset-btn,
+  .nav-tab,
+  .del-row-btn,
+  .report-price-multiselect__trigger,
+  select,
+  .supplier-picker__trigger,
+  .supplier-picker__value
+) {
+  font-family: var(--font-heading);
+}
+
+/* Thai: table sub-headings (secondary headers, card labels, sort labels) */
+html[lang="th"] :where(
+  .intake-day-slip-list__thead,
+  .intake-day-slip-list__th,
+  table thead .admin-items-table__sub,
+  table thead .admin-shop-table__sub,
+  table.itbl thead .itbl__th-sub,
+  table.itbl thead .itbl__sort-btn,
+  table.itbl thead .itbl__sort-btn__label,
+  .report-page .dtbl--cards td::before,
+  .admin-shop-table--cards td::before,
+  .admin-items-table--cards td::before,
+  .users-table--cards td::before,
+  .intake-day-slip-list__cell--meta::before,
+  .intake-day-slip-list__cell--lines::before,
+  .intake-day-slip-list__cell--amt::before
+) {
+  font-family: var(--font-heading);
 }
 
 * {
@@ -3442,16 +3522,6 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     padding: 8px 2px 12px;
     gap: 10px;
   }
-  .btn.intake-day-shop-group__add--icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    min-height: 36px;
-    padding: 0;
-    border-radius: 8px;
-  }
 
   /* Shop slip form (มี .intake-cards-section) */
   .intake-page.wrap:has(.intake-cards-section) {
@@ -6720,9 +6790,9 @@ input.intake-touch-input,
   flex-shrink: 0;
   white-space: nowrap;
   padding: 6px 12px;
-  min-height: 32px;
-  font-size: 11px;
-  line-height: 1.2;
+  min-height: 34px;
+  font-size: 12px;
+  line-height: 1.25;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.45);
@@ -6747,15 +6817,14 @@ input.intake-touch-input,
   grid-template-columns: var(--intake-day-slip-cols);
   gap: 8px 16px;
   align-items: center;
-  padding: 9px 16px;
+  padding: 10px 16px;
   background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
   color: #1a3a6b;
   border-bottom: 1px solid #c5d9f7;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   font-family: var(--font-ui);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   min-width: min(100%, 640px);
 }
 .intake-day-slip-list__th {
@@ -6904,15 +6973,10 @@ input.intake-touch-input,
   .intake-day-shop-group__shop {
     font-size: 15px;
   }
-  .btn.intake-day-shop-group__add--icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
+  .btn.intake-day-shop-group__add {
     min-height: 36px;
-    padding: 0;
-    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
   }
 
   /* Day overview slips — card rows (no horizontal table scroll) */
@@ -6957,10 +7021,9 @@ input.intake-touch-input,
   .intake-day-slip-list__cell--meta::before {
     display: block;
     margin-bottom: 4px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
     color: #64748b;
     content: attr(data-label);
   }
@@ -6981,10 +7044,9 @@ input.intake-touch-input,
   }
   .intake-day-slip-list__cell--lines::before {
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
     color: #64748b;
     content: attr(data-label);
   }
@@ -7000,10 +7062,9 @@ input.intake-touch-input,
   }
   .intake-day-slip-list__cell--amt::before {
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
     color: #64748b;
     content: attr(data-label);
   }
@@ -10266,49 +10327,45 @@ input.intake-touch-input,
 .report-price-compare__hint {
   margin: 0 0 10px;
 }
-.report-price-chips {
+.report-price-compare__controls {
+  margin-bottom: 12px;
+}
+.report-price-compare__row {
   display: flex;
-  flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  margin: 0 0 12px;
+}
+.report-price-compare__dropdown {
+  flex: 0 1 220px;
+  min-width: 180px;
+  max-width: 280px;
+}
+.report-price-compare__pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.report-price-compare__row .filter-clear {
+  flex-shrink: 0;
 }
 .report-price-chip {
   display: inline-flex;
-  flex: 0 0 auto;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  width: auto;
   max-width: 100%;
-  min-height: 36px;
-  padding: 6px 12px;
-  margin: 0;
-  border: 1.5px solid var(--border);
+  padding: 3px 6px 3px 10px;
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--muted);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.25;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-}
-.report-price-chip:hover {
-  border-color: var(--brand-blue);
-  color: var(--brand-blue);
-}
-.report-price-chip.is-active {
-  border-color: var(--brand-blue);
   background: var(--bllt);
+  border: 1px solid rgba(41, 121, 255, 0.35);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
   color: var(--brand-dark);
-}
-.report-price-chip--all {
-  font-weight: 700;
+  line-height: 1.3;
 }
 .report-price-chip__swatch {
   width: 8px;
@@ -10320,16 +10377,182 @@ input.intake-touch-input,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: min(220px, 55vw);
+  max-width: 14rem;
 }
-.report-price-chip__unit {
+.report-price-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.report-price-chip__remove:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+.report-price-multiselect {
+  position: relative;
+}
+.report-price-multiselect__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+  font-family: var(--font-ui);
+  font-size: var(--control-font-size);
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.report-price-multiselect__trigger:hover {
+  border-color: var(--brand-blue);
+}
+.report-price-multiselect__trigger--open,
+.report-price-multiselect__trigger:focus-visible {
+  outline: none;
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.1);
+}
+.report-price-multiselect__trigger-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.report-price-multiselect__trigger-label.is-placeholder {
   color: var(--muted);
   font-weight: 500;
+}
+.report-price-multiselect__chev {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+.report-price-multiselect__trigger--open .report-price-multiselect__chev {
+  transform: rotate(180deg);
+}
+.report-price-multiselect__panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+.report-price-multiselect__filter {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2, #f5f7fc);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  box-sizing: border-box;
+}
+.report-price-multiselect__filter:focus {
+  outline: none;
+  background: var(--surface);
+}
+.report-price-multiselect__list {
+  max-height: 280px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.report-price-multiselect__empty {
+  margin: 0;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.report-price-multiselect__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--control-font-size);
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.report-price-multiselect__option:hover:not(:disabled) {
+  background: var(--bllt);
+}
+.report-price-multiselect__option.is-checked {
+  background: rgba(41, 121, 255, 0.08);
+  color: var(--brand-dark);
+}
+.report-price-multiselect__option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.report-price-multiselect__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: #fff;
+}
+.report-price-multiselect__option.is-checked .report-price-multiselect__check {
+  border-color: var(--brand-blue);
+  background: var(--brand-blue);
+}
+.report-price-multiselect__option-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.report-price-multiselect__option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.report-price-chip.is-active .report-price-chip__unit {
-  color: inherit;
-  opacity: 0.75;
+.report-price-multiselect__option-meta {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.report-price-multiselect__option.is-checked .report-price-multiselect__option-meta {
+  color: var(--brand-blue);
 }
 .report-price-scale-hint {
   margin: 0 0 8px;
@@ -10346,9 +10569,6 @@ input.intake-touch-input,
 @media (min-width: 1025px) {
   .report-price-combined-chart {
     height: 440px;
-  }
-  .report-price-chip__label {
-    max-width: 260px;
   }
 }
 .report-item-cumulative__toolbar {
