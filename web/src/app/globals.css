@@ -796,7 +796,8 @@ input[type="radio"] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  width: 100%;
+  width: auto;
+  flex: 0 1 480px;
 }
 .hist-filters__dates .filter-group {
   min-width: 0;
@@ -806,7 +807,8 @@ input[type="radio"] {
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 10px;
-  width: 100%;
+  width: auto;
+  flex: 1 1 420px;
 }
 .hist-filters__shop,
 .hist-filters__receiver {
@@ -837,7 +839,11 @@ input[type="radio"] {
   display: none;
 }
 .hist-filters__collapsible {
-  display: contents;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
 }
 .hist-filters__tool--icon .hist-filters__tool-icon-svg {
   display: none;
@@ -11364,13 +11370,33 @@ input.intake-touch-input,
     width: 100%;
   }
   .hist-filters {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: flex-end;
     gap: 12px;
   }
   .hist-filters .filter-group,
   .hist-filters .filter-group.grow {
+    min-width: 0;
+  }
+  .hist-filters__collapsible {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
     width: 100%;
+  }
+  .hist-filters__dates {
+    width: auto;
+    flex: 0 1 440px;
+  }
+  .hist-filters__bottom {
+    width: auto;
+    flex: 1 1 360px;
+  }
+  .hist-filters__dates .filter-group,
+  .hist-filters__bottom .filter-group,
+  .hist-filters__bottom .filter-group.grow {
+    width: auto;
     min-width: 0;
   }
   .hist-presets__chips {

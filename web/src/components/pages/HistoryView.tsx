@@ -293,10 +293,6 @@ function HistFilters(props: {
   setHistSort: (value: HistoryListSortState | ((prev: HistoryListSortState) => HistoryListSortState)) => void;
   itemCount: number;
 }) {
-  const dateSortAsc = props.histSort.column === "date" && props.histSort.direction === "asc";
-  const dateSortNewestFirst =
-    props.histSort.column === "date" && props.histSort.direction === "desc";
-
   const { locale, t } = useLocale();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -434,25 +430,6 @@ function HistFilters(props: {
           <span className="hist-filters__count">{t("hist.itemsCount", { n: props.itemCount })}</span>
         ) : null}
         <div className="hist-filters__tools">
-          <button
-            type="button"
-            className={`sort-toggle hist-filters__tool ${dateSortNewestFirst ? "active" : ""}`}
-            onClick={() =>
-              props.setHistSort({
-                column: "date",
-                direction: dateSortNewestFirst ? "asc" : "desc",
-              })
-            }
-            aria-label={dateSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
-            title={dateSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
-          >
-            <span className="hist-filters__tool-text">
-              {dateSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
-            </span>
-            <span className="hist-filters__tool-icon" aria-hidden>
-              {dateSortAsc ? "↑" : "↓"}
-            </span>
-          </button>
           <button
             type="button"
             className="filter-clear hist-filters__tool hist-filters__tool--icon"
