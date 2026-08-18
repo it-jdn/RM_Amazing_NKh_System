@@ -388,7 +388,7 @@ export function HistorySlipDetail({
             <div className="hist-detail-hdr__actions">
               <button
                 type="button"
-                className="hist-detail-hdr__icon-btn"
+                className="btn-icon-action hist-detail-hdr__icon-btn"
                 disabled={loadingMeta || receivedCount === 0}
                 onClick={handlePrintPdf}
                 aria-label={t("hist.printPdf")}
@@ -403,7 +403,7 @@ export function HistorySlipDetail({
                 slipId={legacyMode ? undefined : selectedSlipId || undefined}
                 role={role}
                 iconOnly
-                className="hist-detail-hdr__icon-btn hist-detail-hdr__icon-btn--danger"
+                className="btn-icon-action btn-icon-action--danger hist-detail-hdr__icon-btn hist-detail-hdr__icon-btn--danger"
                 onDeleted={onDeleted}
               />
             </div>

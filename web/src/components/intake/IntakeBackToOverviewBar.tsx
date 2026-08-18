@@ -10,7 +10,7 @@ type Props = {
 export function IntakeBackToOverviewBar({ label, onBack }: Props) {
   return (
     <nav className="intake-back-bar" aria-label={label}>
-      <button type="button" className="intake-back-bar__btn" onClick={onBack}>
+      <button type="button" className="btn btn-secondary intake-back-bar__btn" onClick={onBack}>
         <IconChevronLeft size={18} className="intake-back-bar__icon" aria-hidden />
         <span className="intake-back-bar__label">{label}</span>
       </button>

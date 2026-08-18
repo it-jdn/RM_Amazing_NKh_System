@@ -3,6 +3,7 @@ type PriceIntakePoint = {
   date: string;
   unitPrice: number;
   mainUnit: string;
+  totalPrice?: number;
 };
 
 function dominantUnit(points: PriceIntakePoint[]): string {
@@ -90,6 +91,42 @@ export function pickMostVolatileItemCodes(points: PriceIntakePoint[], limit = 5)
   );
 
   const picked = ranked.slice(0, Math.max(0, limit)).map((row) => row.code);
+  if (picked.length >= limit) return picked;
+
+  const exclude = new Set(picked);
+  const fallback = pickLatestReceivedItemCodes(points, limit).filter((code) => !exclude.has(code));
+  return [...picked, ...fallback].slice(0, Math.max(0, limit));
+}
+
+/** Item codes with the highest intake value (sum of totalPrice) in the selected period. */
+export function pickHighestValueItemCodes(
+  points: PriceIntakePoint[],
+  limit = 5
+): string[] {
+  const grouped = new Map<string, { total: number; latestDate: string }>();
+  for (const p of points) {
+    const code = p.itemCode.trim();
+    if (!code) continue;
+    const add = Number.isFinite(p.totalPrice) ? Math.max(0, p.totalPrice ?? 0) : 0;
+    const prev = grouped.get(code);
+    if (!prev) {
+      grouped.set(code, { total: add, latestDate: p.date });
+    } else {
+      prev.total += add;
+      if (p.date > prev.latestDate) prev.latestDate = p.date;
+    }
+  }
+
+  const ranked = [...grouped.entries()]
+    .filter(([, row]) => row.total > 0)
+    .sort(
+      (a, b) =>
+        b[1].total - a[1].total ||
+        b[1].latestDate.localeCompare(a[1].latestDate) ||
+        a[0].localeCompare(b[0])
+    );
+
+  const picked = ranked.slice(0, Math.max(0, limit)).map(([code]) => code);
   if (picked.length >= limit) return picked;
 
   const exclude = new Set(picked);

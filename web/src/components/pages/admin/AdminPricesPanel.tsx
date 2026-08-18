@@ -73,7 +73,7 @@ export function AdminPricesPanel() {
                   value={val}
                   onChange={(e) => setPrices({ ...prices, [key]: e.target.value })}
                 />
-                <button type="button" className="btn-xs" onClick={() => savePrice(m.suppCode, m.itemCode)}>
+                <button type="button" className="btn btn-primary btn-xs" onClick={() => savePrice(m.suppCode, m.itemCode)}>
                   {t("admin.prices.save")}
                 </button>
               </div>

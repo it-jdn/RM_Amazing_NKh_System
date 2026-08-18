@@ -33,6 +33,7 @@ export function ReportItemPriceView() {
   const [rCategory, setRCategory] = useState("");
   const [rSupp, setRSupp] = useState("");
   const [datePreset, setDatePreset] = useState("thisMonth");
+  const [reportTab, setReportTab] = useState<"volatile" | "value">("volatile");
 
   const visibleSuppliers = useMemo(() => {
     if (!rCategory) return suppliers;
@@ -48,18 +49,57 @@ export function ReportItemPriceView() {
     setRTo(to);
   }
 
+  function resetFilters() {
+    applyPreset("thisMonth");
+    setRCategory("");
+    setRSupp("");
+  }
+
   return (
     <div className="wrap report-page">
       <div className="report-filters no-print">
-        <div className="report-filters__top">
+        <div className="report-filters__top report-filters__top--with-tabs">
           <div className="report-filters__title-wrap">
-            <h1 className="report-filters__title">{t("nav.report.itemPrice")}</h1>
+            <h1 className="report-filters__title">{t("report.itemPriceTitle")}</h1>
+          </div>
+        </div>
+        <div className="report-price-tabs-wrap">
+          <span className="hist-presets__label" id="report-price-tabs-label">
+            {t("report.selectReport")}
+          </span>
+          <div
+            className="report-price-tabs"
+            role="tablist"
+            aria-labelledby="report-price-tabs-label"
+          >
+          <button
+            type="button"
+            role="tab"
+            id="report-price-tab-volatile"
+            aria-selected={reportTab === "volatile"}
+            aria-controls="report-price-panel-volatile"
+            className={`report-price-tabs__btn${reportTab === "volatile" ? " report-price-tabs__btn--active" : ""}`}
+            onClick={() => setReportTab("volatile")}
+          >
+            {t("report.priceCompare")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="report-price-tab-value"
+            aria-selected={reportTab === "value"}
+            aria-controls="report-price-panel-value"
+            className={`report-price-tabs__btn${reportTab === "value" ? " report-price-tabs__btn--active" : ""}`}
+            onClick={() => setReportTab("value")}
+          >
+            {t("report.priceCompareValue")}
+          </button>
           </div>
         </div>
         <div className="report-filters__body">
           <div className="report-filters__body-inner">
             <div className="hist-presets report-filters__presets">
-              <span className="hist-presets__label">{t("hist.period")}</span>
+              <span className="hist-presets__label">{t("report.selectPeriod")}</span>
               <div className="hist-presets__chips">
                 {PRESETS.map((p) => (
                   <button
@@ -139,19 +179,53 @@ export function ReportItemPriceView() {
                   ))}
                 </select>
               </div>
+              <div className="filter-group report-filters__reset">
+                <span className="lbl" aria-hidden="true">
+                  &nbsp;
+                </span>
+                <button type="button" className="btn btn-secondary filter-clear" onClick={resetFilters}>
+                  {t("report.resetFilters")}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <ReportPriceCompare
-        dateFrom={rFrom}
-        dateTo={rTo}
-        categoryCode={rCategory}
-        suppCode={rSupp}
-        suppliers={suppliers}
-        items={items}
-      />
+      {reportTab === "volatile" ? (
+        <div
+          id="report-price-panel-volatile"
+          role="tabpanel"
+          aria-labelledby="report-price-tab-volatile"
+        >
+          <ReportPriceCompare
+            hideTitle
+            dateFrom={rFrom}
+            dateTo={rTo}
+            categoryCode={rCategory}
+            suppCode={rSupp}
+            suppliers={suppliers}
+            items={items}
+          />
+        </div>
+      ) : (
+        <div
+          id="report-price-panel-value"
+          role="tabpanel"
+          aria-labelledby="report-price-tab-value"
+        >
+          <ReportPriceCompare
+            hideTitle
+            variant="value"
+            dateFrom={rFrom}
+            dateTo={rTo}
+            categoryCode={rCategory}
+            suppCode={rSupp}
+            suppliers={suppliers}
+            items={items}
+          />
+        </div>
+      )}
     </div>
   );
 }

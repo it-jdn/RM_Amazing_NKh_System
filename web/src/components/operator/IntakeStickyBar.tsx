@@ -56,7 +56,7 @@ export function IntakeStickyBar({
             <div className="intake-sticky-bar__icon-group">
               <button
                 type="button"
-                className="intake-sticky-bar__icon-btn"
+                className="btn-icon-action intake-sticky-bar__icon-btn"
                 onClick={slipActions.onReset}
                 disabled={saving}
                 aria-label={t("intake.resetForm")}
@@ -72,7 +72,7 @@ export function IntakeStickyBar({
                 role={slipActions.delete.role}
                 onDeleted={slipActions.delete.onDeleted}
                 iconOnly
-                className="intake-sticky-bar__icon-btn intake-sticky-bar__icon-btn--danger"
+                className="btn-icon-action btn-icon-action--danger intake-sticky-bar__icon-btn intake-sticky-bar__icon-btn--danger"
               />
             </div>
           ) : null}

@@ -165,13 +165,20 @@ export function ReportFilters({
     }
   }
 
+  function resetFilters() {
+    applyPreset("thisMonth");
+    onCategoryCode("");
+    onSuppCode("");
+    onItemCode("");
+  }
+
   function renderPrintBtn(key: string) {
     if (!hasData) return null;
     return (
       <button
         key={key}
         type="button"
-        className="report-filters__icon-btn report-filters__print-btn"
+        className="btn-icon-action report-filters__icon-btn report-filters__print-btn"
         onClick={onPrint}
         aria-label={t("report.print")}
         title={t("report.print")}
@@ -256,7 +263,7 @@ export function ReportFilters({
                 <button
                   key={p.id}
                   type="button"
-                  className={`sort-toggle hist-preset-btn ${datePreset === p.id ? "active" : ""}`}
+                  className={`btn btn-secondary sort-toggle hist-preset-btn ${datePreset === p.id ? "active" : ""}`}
                   onClick={() => applyPreset(p.id)}
                 >
                   {t(p.key)}
@@ -353,6 +360,14 @@ export function ReportFilters({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="filter-group report-filters__reset">
+              <span className="lbl" aria-hidden="true">
+                &nbsp;
+              </span>
+              <button type="button" className="btn btn-secondary filter-clear" onClick={resetFilters}>
+                {t("report.resetFilters")}
+              </button>
             </div>
           </div>
         </div>

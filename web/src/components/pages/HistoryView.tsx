@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppData } from "@/context/AppDataContext";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
+import { itemDisplayName, sortItemsByDisplayName } from "@/lib/i18n/item-name";
 import { supplierDisplayName, supplierDisplayNameByCode } from "@/lib/i18n/supplier-name";
-import type { IntakeSlipSummary, Supplier } from "@/lib/types";
+import type { IntakeSlipSummary, Item, ItemCategory, Supplier } from "@/lib/types";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { useToast } from "@/components/Toast";
 import { AppDateField } from "@/components/ui/AppDateField";
@@ -24,6 +25,11 @@ import {
   ReportTablePager,
   useReportTablePaging,
 } from "@/components/reports/ReportTablePager";
+import {
+  FALLBACK_ITEM_CATEGORIES,
+  itemCategoryDisplayName,
+} from "@/lib/catalog/item-categories";
+import { filterHistoryTransactions } from "@/lib/domain/history-list-filter";
 import { buildHistoryListGroups } from "@/lib/domain/history-list-groups";
 import {
   DEFAULT_HISTORY_LIST_SORT,
@@ -45,7 +51,7 @@ const HIST_PRESET_KEYS: Record<string, MessageKey> = {
 };
 
 export function HistoryView() {
-  const { suppliers, items, mapping, role } = useAppData();
+  const { suppliers, items, mapping, role, itemCategories } = useAppData();
   const { locale, t } = useLocale();
   const toast = useToast();
   const [histTxns, setHistTxns] = useState<TransactionRow[]>([]);
@@ -55,7 +61,9 @@ export function HistoryView() {
   const [hFrom, setHFrom] = useState(() => histDatePresetRange("thisMonth").from);
   const [hTo, setHTo] = useState(() => histDatePresetRange("thisMonth").to);
   const [hSupp, setHSupp] = useState("");
-  const [hReceiver, setHReceiver] = useState("");
+  const [hCategory, setHCategory] = useState("");
+  const [hItemSearch, setHItemSearch] = useState("");
+  const [hItemCode, setHItemCode] = useState("");
   const [datePreset, setDatePreset] = useState("thisMonth");
   const [detail, setDetail] = useState<{ date: string; suppCode: string } | null>(null);
 
@@ -118,37 +126,29 @@ export function HistoryView() {
   }, [histTxns, hFrom, hTo]);
 
   const baseGroups = useMemo(() => {
-    const filtered = histTxns.filter((txn) => {
-      if (hFrom && txn.date < hFrom) return false;
-      if (hTo && txn.date > hTo) return false;
-      if (hSupp && txn.suppCode !== hSupp) return false;
-      return true;
-    });
+    const filtered = filterHistoryTransactions(
+      histTxns.filter((txn) => {
+        if (hFrom && txn.date < hFrom) return false;
+        if (hTo && txn.date > hTo) return false;
+        if (hSupp && txn.suppCode !== hSupp) return false;
+        return true;
+      }),
+      {
+        categoryCode: hCategory,
+        itemSearch: hItemSearch,
+        itemCode: hItemCode,
+        items,
+        locale,
+      }
+    );
 
     return buildHistoryListGroups(filtered, histSlips);
-  }, [histTxns, histSlips, hFrom, hTo, hSupp]);
+  }, [histTxns, histSlips, hFrom, hTo, hSupp, hCategory, hItemSearch, hItemCode, items, locale]);
 
-  const receiverOptions = useMemo(() => {
-    const names = new Set<string>();
-    for (const group of baseGroups) {
-      const name = group.savedByName?.trim();
-      if (name) names.add(name);
-    }
-    return [...names].sort((a, b) => a.localeCompare(b, locale));
-  }, [baseGroups, locale]);
-
-  useEffect(() => {
-    if (hReceiver && !receiverOptions.includes(hReceiver)) {
-      setHReceiver("");
-    }
-  }, [hReceiver, receiverOptions]);
-
-  const sorted = useMemo(() => {
-    const groups = hReceiver
-      ? baseGroups.filter((group) => (group.savedByName?.trim() || "") === hReceiver)
-      : baseGroups;
-    return sortHistoryListGroups(groups, histSort, suppliers, locale);
-  }, [baseGroups, hReceiver, histSort, suppliers, locale]);
+  const sorted = useMemo(
+    () => sortHistoryListGroups(baseGroups, histSort, suppliers, locale),
+    [baseGroups, histSort, suppliers, locale]
+  );
 
   const paging = useReportTablePaging(sorted.length, 50);
   const visibleRows = useMemo(
@@ -191,14 +191,17 @@ export function HistoryView() {
         setHTo={setHTo}
         hSupp={hSupp}
         setHSupp={setHSupp}
-        hReceiver={hReceiver}
-        setHReceiver={setHReceiver}
-        receiverOptions={receiverOptions}
+        hCategory={hCategory}
+        setHCategory={setHCategory}
+        hItemSearch={hItemSearch}
+        setHItemSearch={setHItemSearch}
+        hItemCode={hItemCode}
+        setHItemCode={setHItemCode}
+        items={items}
+        itemCategories={itemCategories}
         datePreset={datePreset}
         setDatePreset={setDatePreset}
         suppliers={suppliers}
-        histSort={histSort}
-        setHistSort={setHistSort}
         itemCount={sorted.length}
       />
       {sorted.length > 0 && (
@@ -283,18 +286,56 @@ function HistFilters(props: {
   setHTo: (v: string) => void;
   hSupp: string;
   setHSupp: (v: string) => void;
-  hReceiver: string;
-  setHReceiver: (v: string) => void;
-  receiverOptions: string[];
+  hCategory: string;
+  setHCategory: (v: string) => void;
+  hItemSearch: string;
+  setHItemSearch: (v: string) => void;
+  hItemCode: string;
+  setHItemCode: (v: string) => void;
+  items: Item[];
+  itemCategories: ItemCategory[];
   datePreset: string;
   setDatePreset: (v: string) => void;
   suppliers: Supplier[];
-  histSort: HistoryListSortState;
-  setHistSort: (value: HistoryListSortState | ((prev: HistoryListSortState) => HistoryListSortState)) => void;
   itemCount: number;
 }) {
   const { locale, t } = useLocale();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [itemListOpen, setItemListOpen] = useState(false);
+  const itemPickerRef = useRef<HTMLDivElement>(null);
+  const categories = props.itemCategories.length ? props.itemCategories : FALLBACK_ITEM_CATEGORIES;
+  const itemListId = "hist-item-search-list";
+
+  const itemOptions = useMemo(() => {
+    const list = props.hCategory
+      ? props.items.filter((item) => item.categoryCode === props.hCategory)
+      : props.items;
+    const q = props.hItemSearch.trim().toLowerCase();
+    const filtered = q
+      ? list.filter((item) => {
+          const name = itemDisplayName(item, locale).toLowerCase();
+          return (
+            item.code.toLowerCase().includes(q) ||
+            name.includes(q) ||
+            item.nameTH.toLowerCase().includes(q) ||
+            item.nameEN.toLowerCase().includes(q) ||
+            item.nameKR.toLowerCase().includes(q)
+          );
+        })
+      : list;
+    return sortItemsByDisplayName(filtered, locale);
+  }, [locale, props.hCategory, props.hItemSearch, props.items]);
+
+  useEffect(() => {
+    if (!itemListOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (itemPickerRef.current && !itemPickerRef.current.contains(e.target as Node)) {
+        setItemListOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [itemListOpen]);
 
   function applyPreset(id: string) {
     const { from, to } = histDatePresetRange(id);
@@ -371,7 +412,7 @@ function HistFilters(props: {
               <button
                 key={p.id}
                 type="button"
-                className={`sort-toggle hist-preset-btn ${props.datePreset === p.id ? "active" : ""}`}
+                className={`btn btn-secondary sort-toggle hist-preset-btn ${props.datePreset === p.id ? "active" : ""}`}
                 onClick={() => applyPreset(p.id)}
               >
                 {t(HIST_PRESET_KEYS[p.id] ?? "hist.preset.all")}
@@ -415,16 +456,94 @@ function HistFilters(props: {
             ))}
           </select>
         </div>
-        <div className="filter-group grow hist-filters__receiver">
-          <label className="lbl">{t("hist.receiver")}</label>
-          <select value={props.hReceiver} onChange={(e) => props.setHReceiver(e.target.value)}>
-            <option value="">{t("hist.allReceivers")}</option>
-            {props.receiverOptions.map((name) => (
-              <option key={name} value={name}>
-                {name}
+        <div className="filter-group grow hist-filters__category">
+          <label className="lbl" htmlFor="hist-category">
+            {t("hist.category")}
+          </label>
+          <select
+            id="hist-category"
+            value={props.hCategory}
+            onChange={(e) => {
+              const next = e.target.value;
+              props.setHCategory(next);
+              if (next && props.hItemCode) {
+                const selected = props.items.find((item) => item.code === props.hItemCode);
+                if (selected && selected.categoryCode !== next) {
+                  props.setHItemCode("");
+                  props.setHItemSearch("");
+                }
+              }
+            }}
+          >
+            <option value="">{t("hist.categoryAll")}</option>
+            {categories.map((cat) => (
+              <option key={cat.code} value={cat.code}>
+                {itemCategoryDisplayName(cat, locale)}
               </option>
             ))}
           </select>
+        </div>
+        <div className="filter-group grow hist-filters__item-search">
+          <label className="lbl" htmlFor="hist-item-search">
+            {t("hist.product")}
+          </label>
+          <div
+            ref={itemPickerRef}
+            className={`hist-item-picker${itemListOpen ? " hist-item-picker--open" : ""}`}
+          >
+            <input
+              id="hist-item-search"
+              className="hist-filters__item-search-input"
+              type="text"
+              role="combobox"
+              aria-expanded={itemListOpen}
+              aria-controls={itemListOpen ? itemListId : undefined}
+              aria-autocomplete="list"
+              value={props.hItemSearch}
+              onChange={(e) => {
+                props.setHItemCode("");
+                props.setHItemSearch(e.target.value);
+                setItemListOpen(true);
+              }}
+              onFocus={() => setItemListOpen(true)}
+              onClick={() => setItemListOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setItemListOpen(false);
+              }}
+              placeholder={t("hist.itemSearch")}
+              aria-label={t("hist.itemSearch")}
+              autoComplete="off"
+            />
+            {itemListOpen ? (
+              itemOptions.length > 0 ? (
+                <ul id={itemListId} className="hist-item-picker__list" role="listbox">
+                  {itemOptions.map((item) => {
+                    const label = itemDisplayName(item, locale);
+                    const selected = props.hItemCode === item.code;
+                    return (
+                      <li key={item.code} role="option" aria-selected={selected}>
+                        <button
+                          type="button"
+                          className={`hist-item-picker__option${selected ? " hist-item-picker__option--on" : ""}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            props.setHItemCode(item.code);
+                            props.setHItemSearch(label);
+                            setItemListOpen(false);
+                          }}
+                        >
+                          <span className="hist-item-picker__option-label">{label}</span>
+                          <span className="hist-item-picker__option-meta">{item.code}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="hist-item-picker__empty">{t("hist.itemSearchNoMatch")}</p>
+              )
+            ) : null}
+          </div>
         </div>
         {filtersOpen && props.itemCount > 0 ? (
           <span className="hist-filters__count">{t("hist.itemsCount", { n: props.itemCount })}</span>
@@ -432,11 +551,13 @@ function HistFilters(props: {
         <div className="hist-filters__tools">
           <button
             type="button"
-            className="filter-clear hist-filters__tool hist-filters__tool--icon"
+            className="btn btn-secondary filter-clear hist-filters__tool hist-filters__tool--icon"
             onClick={() => {
               applyPreset("today");
               props.setHSupp("");
-              props.setHReceiver("");
+              props.setHCategory("");
+              props.setHItemSearch("");
+              props.setHItemCode("");
             }}
             aria-label={t("hist.reset")}
             title={t("hist.reset")}

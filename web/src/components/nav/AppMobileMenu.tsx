@@ -297,7 +297,7 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
                   <span className="operator-menu__account-role">{roleLabel(role, t)}</span>
                 </div>
               </div>
-              <button type="button" className="operator-menu__logout-btn" onClick={handleLogout}>
+              <button type="button" className="btn btn-danger-outline operator-menu__logout-btn" onClick={handleLogout}>
                 <IconLogOut size={16} className="operator-menu__logout-icon" aria-hidden />
                 <span>{t("nav.logout")}</span>
               </button>
