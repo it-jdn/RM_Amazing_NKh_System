@@ -2269,7 +2269,7 @@ table.itbl--intake .intake-ref-price--inline {
 }
 table.itbl--intake .itbl__th-num,
 table.itbl--intake .itbl__num {
-  width: 4%;
+  width: 72px;
   text-align: center;
   padding-left: 8px;
   padding-right: 8px;
@@ -2283,7 +2283,7 @@ table.itbl--intake tbody .itbl__num {
 }
 table.itbl--intake .itbl__th-code,
 table.itbl--intake .itbl__code-cell {
-  width: 10%;
+  width: 8%;
   overflow: hidden;
 }
 table.itbl--intake .itbl__code-mono {
@@ -2297,7 +2297,7 @@ table.itbl--intake .itbl__code-mono {
 }
 table.itbl--intake .itbl__th-product,
 table.itbl--intake .itbl__product {
-  width: 26%;
+  width: 25%;
   overflow: hidden;
 }
 table.itbl--intake .itbl__product .name-th {
@@ -2315,7 +2315,7 @@ table.itbl--intake .itbl__product .name-sub {
 }
 table.itbl--intake .itbl__th-qty,
 table.itbl--intake .itbl__qty {
-  width: 14%;
+  width: 13%;
   text-align: right;
 }
 table.itbl--intake .itbl__th-unit,
@@ -2324,12 +2324,12 @@ table.itbl--intake .itbl__unit {
 }
 table.itbl--intake .itbl__th-total,
 table.itbl--intake .itbl__total {
-  width: 21%;
+  width: 16%;
   text-align: right;
 }
 table.itbl--intake .itbl__th-sub,
 table.itbl--intake .itbl__sub {
-  width: 11%;
+  width: 17%;
 }
 table.itbl--intake thead .itbl__th-sub {
   text-align: left;
@@ -2341,7 +2341,7 @@ table.itbl--intake thead .itbl__th-sub .itbl__sort-btn {
 table.itbl--intake .itbl__sub {
   text-align: left;
   vertical-align: middle;
-  white-space: normal;
+  white-space: nowrap;
 }
 table.itbl--intake .itbl__unit .itbl__purchase-unit,
 table.itbl--intake .itbl__unit .intake-purchase-unit-select {
@@ -2390,19 +2390,19 @@ table.itbl--intake .itbl__unit .intake-purchase-unit-static {
 table.itbl--intake .itbl__qty .inp-qty,
 table.itbl--intake .itbl__total .inp-total {
   width: 100% !important;
-  max-width: none;
+  max-width: 108px;
   margin-left: auto;
   display: block;
   box-sizing: border-box;
 }
 table.itbl--intake .itbl__unit-conversion {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--muted);
   line-height: 1.35;
   text-align: left;
-  white-space: normal;
+  white-space: nowrap;
 }
 .intake-item-card__unit-conversion {
   display: inline-block;
@@ -6057,7 +6057,7 @@ input.intake-touch-input,
 }
 .intake-document__body .tbl-scroll {
   overflow-x: auto;
-  overflow-y: clip;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
 }
 .intake-document:not(.intake-document--overview) .intake-document__sheet {
@@ -6885,10 +6885,6 @@ input.intake-touch-input,
     padding-bottom: var(--page-gutter-desktop);
   }
 
-  .intake-desktop-only .tbl-scroll {
-    max-height: min(70vh, 720px);
-    overflow: auto;
-  }
   table.itbl--intake thead th {
     position: sticky;
     top: 0;
