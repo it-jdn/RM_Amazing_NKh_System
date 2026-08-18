@@ -789,29 +789,24 @@ export function ReportPriceCompare(props: {
                 <div className="report-price-compare__pills">
                   {selectedCodes.map((code) => {
                     const row = catalogRows.find((x) => x.item.code === code);
-                    const unit = dominantUnit(intakePoints.filter((p) => p.itemCode === code));
-                    const unitLabel = unit && unit !== "—" ? ` (${unit})` : "";
                     const title = row
                       ? itemDisplayName(row.item, locale)
                       : itemDisplayNameByCode(code, props.items, locale);
+                    const color = colorForCode(code);
                     return (
-                      <span key={code} className="report-price-chip">
-                        <span
-                          className="report-price-chip__swatch"
-                          style={{ background: colorForCode(code) }}
-                          aria-hidden
-                        />
-                        <span className="report-price-chip__label">
-                          {title}
-                          {unitLabel}
-                        </span>
+                      <span
+                        key={code}
+                        className="report-price-chip"
+                        style={{ borderColor: color, color }}
+                      >
+                        <span className="report-price-chip__label">{title}</span>
                         <button
                           type="button"
                           className="report-price-chip__remove"
                           onClick={() => removeItem(code)}
                           aria-label={t("report.priceTrendRemove")}
                         >
-                          <IconX size={14} aria-hidden />
+                          <IconX size={12} aria-hidden />
                         </button>
                       </span>
                     );
