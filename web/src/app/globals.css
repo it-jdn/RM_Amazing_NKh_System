@@ -646,6 +646,9 @@ input[type="radio"] {
   color: #c62828;
   border: 1.5px solid #e57373;
 }
+.intake-delete-icon-btn {
+  background: #fff;
+}
 .btn-danger-outline:hover:not(:disabled) {
   background: #ffebee;
 }

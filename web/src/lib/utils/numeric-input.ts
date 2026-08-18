@@ -19,5 +19,17 @@ export function loadedNumericField(n: number | string | null | undefined): strin
 /** ไม่แสดงเลข 0 ลอยในช่อง (แต่ยังพิมพ์ 0.5 ได้) */
 export function displayNumericField(s: string): string {
   if (s === "0") return "";
-  return s;
+  if (!s) return "";
+
+  const negative = s.startsWith("-");
+  const raw = negative ? s.slice(1) : s;
+  const hasTrailingDot = raw.endsWith(".");
+  const [intPartRaw, fracPart] = raw.split(".", 2);
+  const intPart = intPartRaw.replace(/^0+(?=\d)/, "") || intPartRaw || "0";
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const prefix = negative ? "-" : "";
+
+  if (hasTrailingDot) return `${prefix}${grouped}.`;
+  if (fracPart !== undefined) return `${prefix}${grouped}.${fracPart}`;
+  return `${prefix}${grouped}`;
 }

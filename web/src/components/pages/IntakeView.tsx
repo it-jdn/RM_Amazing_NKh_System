@@ -1001,7 +1001,8 @@ export function IntakeView() {
                   suppName={shopName}
                   slipId={activeSlipId}
                   role={role}
-                  className="btn btn-danger-outline btn-sm"
+                  iconOnly
+                  className="btn btn-danger-outline btn-sm intake-delete-icon-btn"
                   onDeleted={() => {
                     setActiveSlipId("");
                     setActiveSlipNo(null);

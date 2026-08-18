@@ -77,11 +77,12 @@ export function DeleteIntakeBatchButton({
   }
 
   const label = slipId ? t("intake.deleteSlip") : t("intake.deleteBatch");
+  const buttonClassName = `${className}${iconOnly ? " intake-delete-icon-btn" : ""}`;
 
   return (
     <button
       type="button"
-      className={className}
+      className={buttonClassName}
       disabled={deleting || !allowed}
       title={!allowed ? deniedMessage() : iconOnly ? label : undefined}
       aria-label={iconOnly ? label : undefined}
