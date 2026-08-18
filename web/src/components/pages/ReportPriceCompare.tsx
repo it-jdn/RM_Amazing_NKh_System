@@ -14,7 +14,7 @@ import { Line } from "react-chartjs-2";
 import type { ChartData, Plugin } from "chart.js";
 import { apiGet } from "@/lib/api/client";
 import { useLocale } from "@/context/LocaleContext";
-import { IconCheck, IconChevronDown, IconX } from "@/components/icons/AppIcons";
+import { IconCheck, IconChevronDown, IconChevronUp, IconX } from "@/components/icons/AppIcons";
 import { itemDisplayName, itemDisplayNameByCode } from "@/lib/i18n/item-name";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { pickMostVolatileItemCodes } from "@/lib/reports/price-trend";
@@ -34,6 +34,13 @@ type PricePointLabel = {
   width: number;
   height: number;
   offsetY: number;
+};
+
+type LabelCollisionBox = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
 };
 
 function priceLabelBox(label: PricePointLabel) {
@@ -57,8 +64,12 @@ function priceLabelsOverlap(a: PricePointLabel, b: PricePointLabel) {
   );
 }
 
+function boxesOverlap(a: LabelCollisionBox, b: LabelCollisionBox) {
+  return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+}
+
 /** Stack labels vertically when values sit close together on the chart. */
-function layoutPricePointLabels(labels: PricePointLabel[]) {
+function layoutPricePointLabels(labels: PricePointLabel[], blocked: LabelCollisionBox[] = []) {
   const sorted = [...labels].sort((a, b) => a.x - b.x || a.y - b.y);
   const placed: PricePointLabel[] = [];
 
@@ -66,7 +77,11 @@ function layoutPricePointLabels(labels: PricePointLabel[]) {
     let chosen = PRICE_LABEL_BASE_OFFSET;
     for (let tier = 0; tier < PRICE_LABEL_MAX_TIERS; tier++) {
       label.offsetY = PRICE_LABEL_BASE_OFFSET + tier * PRICE_LABEL_LINE_HEIGHT;
-      if (!placed.some((other) => priceLabelsOverlap(label, other))) {
+      const nextBox = priceLabelBox(label);
+      if (
+        !placed.some((other) => priceLabelsOverlap(label, other)) &&
+        !blocked.some((box) => boxesOverlap(nextBox, box))
+      ) {
         chosen = label.offsetY;
         break;
       }
@@ -204,6 +219,7 @@ const priceLineNamePlugin: Plugin<"line"> = {
   afterDraw(chart) {
     const { ctx, chartArea } = chart;
     if (!chartArea) return;
+    const chartWithState = chart as typeof chart & { $priceLinePillBoxes?: LabelCollisionBox[] };
 
     const labels: LineNamePill[] = [];
 
@@ -251,6 +267,7 @@ const priceLineNamePlugin: Plugin<"line"> = {
     });
 
     layoutLineNamePills(labels);
+    const blockedBoxes: LabelCollisionBox[] = [];
 
     for (const label of labels) {
       const cx = label.x + label.offsetX;
@@ -259,6 +276,12 @@ const priceLineNamePlugin: Plugin<"line"> = {
       const h = PILL_HEIGHT;
       const left = cx - w / 2;
       const top = cy - h / 2;
+      blockedBoxes.push({
+        left,
+        right: left + w,
+        top,
+        bottom: top + h,
+      });
 
       drawPillPath(ctx, left, top, w, h);
       ctx.fillStyle = "#fff";
@@ -272,13 +295,15 @@ const priceLineNamePlugin: Plugin<"line"> = {
       ctx.fillText(label.text, cx, cy + 0.5);
     }
 
+    chartWithState.$priceLinePillBoxes = blockedBoxes;
+
     ctx.restore();
   },
 };
 
 const pricePointLabelPlugin: Plugin<"line"> = {
   id: "pricePointLabel",
-  afterDraw(chart) {
+  afterDatasetsDraw(chart) {
     const { ctx } = chart;
     const labels: PricePointLabel[] = [];
 
@@ -414,6 +439,61 @@ type CombinedChartResult = {
   dates: string[];
 };
 
+type DetailSortColumn = "date" | "shop" | "item" | "qty" | "unit" | "unitPrice" | "totalPrice";
+
+type DetailSortState = {
+  column: DetailSortColumn;
+  direction: "asc" | "desc";
+};
+
+const DEFAULT_DETAIL_SORT: DetailSortState = {
+  column: "date",
+  direction: "asc",
+};
+
+function compareDetailRows(
+  a: IntakePoint,
+  b: IntakePoint,
+  sort: DetailSortState,
+  getShopLabel: (code: string) => string,
+  getItemLabel: (point: IntakePoint) => string
+) {
+  const mult = sort.direction === "asc" ? 1 : -1;
+  let base = 0;
+  switch (sort.column) {
+    case "date":
+      base = a.date.localeCompare(b.date);
+      break;
+    case "shop":
+      base = getShopLabel(a.suppCode).localeCompare(getShopLabel(b.suppCode), undefined, {
+        sensitivity: "base",
+      });
+      break;
+    case "item":
+      base = getItemLabel(a).localeCompare(getItemLabel(b), undefined, { sensitivity: "base" });
+      break;
+    case "qty":
+      base = a.qty - b.qty;
+      break;
+    case "unit":
+      base = (a.mainUnit || "").localeCompare(b.mainUnit || "", undefined, { sensitivity: "base" });
+      break;
+    case "unitPrice":
+      base = a.unitPrice - b.unitPrice;
+      break;
+    case "totalPrice":
+      base = a.totalPrice - b.totalPrice;
+      break;
+  }
+  if (base !== 0) return base * mult;
+  return (
+    a.date.localeCompare(b.date) ||
+    a.itemCode.localeCompare(b.itemCode) ||
+    a.mainUnit.localeCompare(b.mainUnit) ||
+    a.suppCode.localeCompare(b.suppCode)
+  );
+}
+
 function buildPricePointTooltipLines(
   ctx: {
     parsed: { y: number | null };
@@ -423,16 +503,24 @@ function buildPricePointTooltipLines(
   chartDates: string[],
   intakePoints: IntakePoint[],
   shopLabel: (code: string) => string,
-  qtyLabel: string
+  qtyLabel: string,
+  totalValueLabel: string,
+  shopFieldLabel: string
 ): string[] {
   const value = ctx.parsed.y;
   if (value == null) return [];
-  const { itemCode, chartUnit, label } = ctx.dataset;
+  const { itemCode, chartUnit, label, lineTitle } = ctx.dataset;
   const isoDate = chartDates[ctx.dataIndex];
-  const lines: string[] = [label ?? ""];
+  const itemTitle =
+    typeof lineTitle === "string" && lineTitle.trim()
+      ? lineTitle.trim()
+      : typeof label === "string"
+        ? label.replace(/\s*\([^)]*\)\s*$/, "").trim()
+        : "";
+  const lines: string[] = itemTitle ? [itemTitle] : [];
 
   if (!isoDate || !itemCode) {
-    lines.push(`₩${fmt(value)}`);
+    lines.push(`${totalValueLabel} ₩${fmt(value)}`);
     return lines;
   }
 
@@ -445,11 +533,16 @@ function buildPricePointTooltipLines(
       (p.mainUnit.trim() || "—") === unit
   );
 
-  lines.push(`₩${fmt(value)}`);
-  for (const point of matches) {
-    const qtyText = `${fmt(point.qty)} ${point.mainUnit || unit}`.trim();
-    lines.push(`${qtyLabel} ${qtyText} · ${shopLabel(point.suppCode)}`);
+  const point = matches[matches.length - 1];
+  if (!point) {
+    lines.push(`${totalValueLabel} ₩${fmt(value)}`);
+    return lines;
   }
+
+  const qtyText = `${fmt(point.qty)} ${point.mainUnit || unit}`.trim();
+  lines.push(`${qtyLabel} ${qtyText}`);
+  lines.push(`${totalValueLabel} ₩${fmt(point.totalPrice)}`);
+  lines.push(`${shopFieldLabel} ${shopLabel(point.suppCode)}`);
 
   return lines;
 }
@@ -502,6 +595,7 @@ function buildCombinedChart(
 export function ReportPriceCompare(props: {
   dateFrom: string;
   dateTo: string;
+  categoryCode: string;
   suppCode: string;
   suppliers: Supplier[];
   items: Item[];
@@ -515,11 +609,12 @@ export function ReportPriceCompare(props: {
   const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [detailSort, setDetailSort] = useState<DetailSortState>(DEFAULT_DETAIL_SORT);
 
   useEffect(() => {
     setSearch("");
     setOpen(false);
-  }, [props.dateFrom, props.dateTo, props.suppCode]);
+  }, [props.dateFrom, props.dateTo, props.suppCode, props.categoryCode]);
 
   useEffect(() => {
     if (!open) return;
@@ -553,8 +648,6 @@ export function ReportPriceCompare(props: {
         if (cancelled) return;
         const points = d.success ? d.intakePoints ?? [] : [];
         setIntakePoints(points);
-        const defaults = pickMostVolatileItemCodes(points, MAX_CHART_ITEMS);
-        setSelectedCodes(defaults);
         setLoaded(true);
       })
       .catch(() => {
@@ -569,9 +662,32 @@ export function ReportPriceCompare(props: {
     };
   }, [props.dateFrom, props.dateTo, props.suppCode]);
 
+  const visibleItems = useMemo(
+    () =>
+      props.categoryCode
+        ? props.items.filter((item) => item.categoryCode === props.categoryCode)
+        : props.items,
+    [props.categoryCode, props.items]
+  );
+
+  const visibleItemCodes = useMemo(() => new Set(visibleItems.map((item) => item.code)), [visibleItems]);
+
+  const filteredIntakePoints = useMemo(
+    () => intakePoints.filter((point) => visibleItemCodes.has(point.itemCode)),
+    [intakePoints, visibleItemCodes]
+  );
+
+  useEffect(() => {
+    const defaults = pickMostVolatileItemCodes(filteredIntakePoints, MAX_CHART_ITEMS);
+    setSelectedCodes((prev) => {
+      const kept = prev.filter((code) => visibleItemCodes.has(code));
+      return kept.length ? kept : defaults;
+    });
+  }, [filteredIntakePoints, visibleItemCodes]);
+
   const catalogRows = useMemo(
-    () => buildCatalogPickerRows(props.items, intakePoints),
-    [props.items, intakePoints]
+    () => buildCatalogPickerRows(visibleItems, filteredIntakePoints),
+    [visibleItems, filteredIntakePoints]
   );
 
   const sortedCatalogRows = useMemo(
@@ -591,13 +707,13 @@ export function ReportPriceCompare(props: {
   const chartItems = useMemo(
     () =>
       selectedCodes.map((code, index) => {
-        const points = intakePoints.filter((p) => p.itemCode === code);
+        const points = filteredIntakePoints.filter((p) => p.itemCode === code);
         const snapshot = points.find((p) => p.itemNameTH)?.itemNameTH;
-        const title = itemDisplayNameByCode(code, props.items, locale, snapshot);
+        const title = itemDisplayNameByCode(code, visibleItems, locale, snapshot);
         const unit = dominantUnit(points);
         return { code, title, unit, points, color: LINE_COLORS[index % LINE_COLORS.length] };
       }),
-    [selectedCodes, intakePoints, props.items, locale]
+    [selectedCodes, filteredIntakePoints, visibleItems, locale]
   );
 
   const selectedSeries = chartItems;
@@ -615,16 +731,14 @@ export function ReportPriceCompare(props: {
 
   const detailRows = useMemo(() => {
     const set = new Set(selectedCodes);
+    const itemLabel = (p: IntakePoint) =>
+      itemDisplayNameByCode(p.itemCode, props.items, locale, p.itemNameTH);
     return [...intakePoints]
+      .filter((p) => visibleItemCodes.has(p.itemCode))
       .filter((p) => set.has(p.itemCode))
-      .sort(
-        (a, b) =>
-          b.date.localeCompare(a.date) ||
-          a.itemCode.localeCompare(b.itemCode) ||
-          a.mainUnit.localeCompare(b.mainUnit)
-      )
+      .sort((a, b) => compareDetailRows(a, b, detailSort, shopLabel, itemLabel))
       .slice(0, 80);
-  }, [intakePoints, selectedCodes]);
+  }, [detailSort, intakePoints, locale, props.items, selectedCodes, visibleItemCodes]);
 
   const mixedScale = useMemo(() => {
     const values = selectedSeries.flatMap((s) =>
@@ -656,7 +770,15 @@ export function ReportPriceCompare(props: {
   }
 
   function clearSelection() {
-    setSelectedCodes(pickMostVolatileItemCodes(intakePoints, MAX_CHART_ITEMS));
+    setSelectedCodes([]);
+  }
+
+  function toggleDetailSort(column: DetailSortColumn) {
+    setDetailSort((prev) =>
+      prev.column === column
+        ? { column, direction: prev.direction === "asc" ? "desc" : "asc" }
+        : { column, direction: "asc" }
+    );
   }
 
   function shopLabel(code: string) {
@@ -664,13 +786,45 @@ export function ReportPriceCompare(props: {
     return s ? supplierDisplayName(s, locale) : code;
   }
 
+  function DetailSortTh({ column, label }: { column: DetailSortColumn; label: string }) {
+    const active = detailSort.column === column;
+    const orderLabel = detailSort.direction === "asc" ? t("intake.sort.asc") : t("intake.sort.desc");
+    const ariaLabel = active
+      ? t("intake.table.sortState", { column: label, order: orderLabel })
+      : t("intake.table.sortHint", { column: label });
+
+    return (
+      <th
+        scope="col"
+        className="itbl__th-sort"
+        aria-sort={active ? (detailSort.direction === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <button
+          type="button"
+          className={`itbl__sort-btn${active ? " itbl__sort-btn--active" : ""}`}
+          aria-label={ariaLabel}
+          onClick={() => toggleDetailSort(column)}
+        >
+          <span className="itbl__sort-btn__label">{label}</span>
+          {active ? (
+            detailSort.direction === "asc" ? (
+              <IconChevronUp size={14} className="itbl__sort-btn__icon" aria-hidden />
+            ) : (
+              <IconChevronDown size={14} className="itbl__sort-btn__icon" aria-hidden />
+            )
+          ) : null}
+        </button>
+      </th>
+    );
+  }
+
   return (
     <div className="card report-price-compare">
-      <div className="card-title">
+      <div className="card-title report-price-compare__title">
         <span className="dot dot-orange" />
-        <span>{t("report.priceCompare")}</span>
+        <span className="report-price-compare__title-main">{t("report.priceCompare")}</span>
+        <span className="report-price-compare__title-note">{t("report.priceTrendHint")}</span>
       </div>
-      <p className="admin-hint report-price-compare__hint">{t("report.priceTrendHint")}</p>
 
       {!loaded ? (
         <p className="empty">{t("report.loading")}</p>
@@ -797,7 +951,7 @@ export function ReportPriceCompare(props: {
                       <span
                         key={code}
                         className="report-price-chip"
-                        style={{ borderColor: color, color }}
+                        style={{ backgroundColor: color, borderColor: color, color: "#fff" }}
                       >
                         <span className="report-price-chip__label">{title}</span>
                         <button
@@ -824,7 +978,7 @@ export function ReportPriceCompare(props: {
             <div className="report-price-combined-chart report-price-combined-chart--full">
               <Line
                 data={chart}
-                plugins={[priceLineNamePlugin, pricePointLabelPlugin]}
+                plugins={[pricePointLabelPlugin]}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
@@ -842,7 +996,19 @@ export function ReportPriceCompare(props: {
                     tooltip: {
                       mode: "nearest",
                       intersect: true,
+                      backgroundColor: "rgba(15, 23, 42, 1)",
+                      titleColor: "#fff",
+                      bodyColor: "#fff",
+                      borderColor: "rgba(255,255,255,0.14)",
+                      borderWidth: 1,
+                      padding: 10,
+                      displayColors: true,
+                      usePointStyle: true,
                       callbacks: {
+                        labelPointStyle: () => ({
+                          pointStyle: "circle",
+                          rotation: 0,
+                        }),
                         title: (items) => {
                           const ctx = items[0];
                           if (!ctx) return "";
@@ -855,7 +1021,9 @@ export function ReportPriceCompare(props: {
                             chartDates,
                             intakePoints,
                             shopLabel,
-                            t("report.qty")
+                            t("report.qty"),
+                            t("report.value"),
+                            t("report.shop")
                           ),
                       },
                     },
@@ -902,32 +1070,32 @@ export function ReportPriceCompare(props: {
         <>
           <p className="lbl report-price-compare__table-lbl">{t("report.intakePrices")}</p>
           <div className="tbl-scroll">
-            <table className="dtbl">
+            <table className="dtbl dtbl--cards">
               <thead>
                 <tr>
-                  <th>{t("report.dateFrom")}</th>
-                  <th>{t("report.shop")}</th>
-                  <th>{t("report.item")}</th>
-                  <th>{t("report.qty")}</th>
-                  <th>{t("report.purchaseUnit")}</th>
-                  <th>{t("report.unitPrice")}</th>
-                  <th>{t("report.value")}</th>
+                  <DetailSortTh column="date" label={t("report.dateFrom")} />
+                  <DetailSortTh column="shop" label={t("report.shop")} />
+                  <DetailSortTh column="item" label={t("report.item")} />
+                  <DetailSortTh column="qty" label={t("report.qty")} />
+                  <DetailSortTh column="unit" label={t("report.purchaseUnit")} />
+                  <DetailSortTh column="unitPrice" label={t("report.unitPrice")} />
+                  <DetailSortTh column="totalPrice" label={t("report.value")} />
                 </tr>
               </thead>
               <tbody>
                 {detailRows.map((p, i) => (
                   <tr key={`${p.date}-${p.suppCode}-${p.itemCode}-${p.mainUnit}-${i}`}>
-                    <td>{formatAppDate(p.date, locale)}</td>
-                    <td>{shopLabel(p.suppCode)}</td>
-                    <td>
+                    <td data-label={t("report.dateFrom")}>{formatAppDate(p.date, locale)}</td>
+                    <td data-label={t("report.shop")}>{shopLabel(p.suppCode)}</td>
+                    <td data-label={t("report.item")}>
                       <b>
                         {itemDisplayNameByCode(p.itemCode, props.items, locale, p.itemNameTH)}
                       </b>
                     </td>
-                    <td>{fmt(p.qty)}</td>
-                    <td>{p.mainUnit || "—"}</td>
-                    <td className="gval">₩{fmt(p.unitPrice)}</td>
-                    <td className="gval">₩{fmt(p.totalPrice)}</td>
+                    <td data-label={t("report.qty")}>{fmt(p.qty)}</td>
+                    <td data-label={t("report.purchaseUnit")}>{p.mainUnit || "—"}</td>
+                    <td className="gval" data-label={t("report.unitPrice")}>₩{fmt(p.unitPrice)}</td>
+                    <td className="gval" data-label={t("report.value")}>₩{fmt(p.totalPrice)}</td>
                   </tr>
                 ))}
               </tbody>

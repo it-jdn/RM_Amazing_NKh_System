@@ -37,7 +37,7 @@ export function AdminPricesPanel() {
   return (
     <div className="card">
       <AdminCardTitle title={t("admin.prices.title")} dot="blue" page />
-      <div className="form-row" style={{ maxWidth: 320 }}>
+      <div className="form-row admin-prices__filter-row">
         <div>
           <label className="lbl">{t("admin.prices.filter")}</label>
           <select value={filtSupp} onChange={(e) => setFiltSupp(e.target.value)}>

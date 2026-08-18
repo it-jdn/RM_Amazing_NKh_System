@@ -1,9 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-
-/** Admin settings: stack list + form sheet (matches globals.css admin split breakpoint). */
-export const COMPACT_ADMIN_MEDIA = "(max-width: 960px)";
+import { COMPACT_ADMIN_MEDIA } from "@/hooks/layoutBreakpoints";
 
 function subscribe(onChange: () => void) {
   const mq = window.matchMedia(COMPACT_ADMIN_MEDIA);

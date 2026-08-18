@@ -115,13 +115,13 @@ export function ReportFilters({
       parts.push(`${from} – ${to}`);
     }
 
-    if (suppCode) {
-      const shop = suppliers.find((s) => s.code === suppCode);
-      parts.push(shop ? supplierDisplayName(shop, locale) : suppCode);
-    }
     if (categoryCode) {
       const cat = categories.find((c) => c.code === categoryCode);
       parts.push(cat ? itemCategoryDisplayName(cat, locale) : categoryCode);
+    }
+    if (suppCode) {
+      const shop = suppliers.find((s) => s.code === suppCode);
+      parts.push(shop ? supplierDisplayName(shop, locale) : suppCode);
     }
     if (itemCode) {
       const item = items.find((i) => i.code === itemCode);
@@ -304,23 +304,6 @@ export function ReportFilters({
               />
             </div>
             <div className="filter-group">
-              <label className="lbl" htmlFor="report-supp">
-                {t("report.shop")}
-              </label>
-              <select
-                id="report-supp"
-                value={suppCode}
-                onChange={(e) => onSuppCode(e.target.value)}
-              >
-                <option value="">{t("report.all")}</option>
-                {suppliers.map((s) => (
-                  <option key={s.code} value={s.code}>
-                    {supplierDisplayName(s, locale)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
               <label className="lbl" htmlFor="report-cat">
                 {t("report.category")}
               </label>
@@ -333,6 +316,23 @@ export function ReportFilters({
                 {categories.map((c) => (
                   <option key={c.code} value={c.code}>
                     {itemCategoryDisplayName(c, locale)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="lbl" htmlFor="report-supp">
+                {t("report.shop")}
+              </label>
+              <select
+                id="report-supp"
+                value={suppCode}
+                onChange={(e) => onSuppCode(e.target.value)}
+              >
+                <option value="">{t("report.all")}</option>
+                {suppliers.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {supplierDisplayName(s, locale)}
                   </option>
                 ))}
               </select>

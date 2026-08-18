@@ -1,9 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-
-/** Desktop layout — top nav tabs, intake table, history table list (≥1025px). */
-export const DESKTOP_LAYOUT_MEDIA = "(min-width: 1025px)";
+import { DESKTOP_LAYOUT_MEDIA } from "@/hooks/layoutBreakpoints";
 
 function subscribeDesktopLayout(onChange: () => void) {
   const mq = window.matchMedia(DESKTOP_LAYOUT_MEDIA);

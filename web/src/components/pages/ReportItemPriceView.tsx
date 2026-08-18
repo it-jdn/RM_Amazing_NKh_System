@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppData } from "@/context/AppDataContext";
 import { useLocale } from "@/context/LocaleContext";
 import { AppDateField } from "@/components/ui/AppDateField";
+import {
+  FALLBACK_ITEM_CATEGORIES,
+  itemCategoryDisplayName,
+} from "@/lib/catalog/item-categories";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
 import { histDatePresetRange } from "@/lib/utils/format";
 import { ReportPriceCompare } from "@/components/pages/ReportPriceCompare";
@@ -20,13 +24,22 @@ const PRESETS = [
 ] as const;
 
 export function ReportItemPriceView() {
-  const { suppliers, items } = useAppData();
+  const { suppliers, items, mapping, itemCategories } = useAppData();
   const { locale, t } = useLocale();
+  const categories = itemCategories.length ? itemCategories : FALLBACK_ITEM_CATEGORIES;
 
   const [rFrom, setRFrom] = useState(() => histDatePresetRange("thisMonth").from);
   const [rTo, setRTo] = useState(() => histDatePresetRange("thisMonth").to);
+  const [rCategory, setRCategory] = useState("");
   const [rSupp, setRSupp] = useState("");
   const [datePreset, setDatePreset] = useState("thisMonth");
+
+  const visibleSuppliers = useMemo(() => {
+    if (!rCategory) return suppliers;
+    const allowedCodes = new Set(items.filter((item) => item.categoryCode === rCategory).map((item) => item.code));
+    const allowedShops = new Set(mapping.filter((row) => allowedCodes.has(row.itemCode)).map((row) => row.suppCode));
+    return suppliers.filter((supplier) => allowedShops.has(supplier.code));
+  }, [items, mapping, rCategory, suppliers]);
 
   function applyPreset(id: string) {
     const { from, to } = histDatePresetRange(id);
@@ -92,7 +105,24 @@ export function ReportItemPriceView() {
                   aria-label={t("report.dateTo")}
                 />
               </div>
-              <div className="filter-group">
+              <div className="filter-group report-filters__field-wide">
+                <label className="lbl" htmlFor="item-price-category">
+                  {t("report.category")}
+                </label>
+                <select
+                  id="item-price-category"
+                  value={rCategory}
+                  onChange={(e) => setRCategory(e.target.value)}
+                >
+                  <option value="">{t("report.categoryAll")}</option>
+                  {categories.map((category) => (
+                    <option key={category.code} value={category.code}>
+                      {itemCategoryDisplayName(category, locale)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-group report-filters__field-wide">
                 <label className="lbl" htmlFor="item-price-supp">
                   {t("report.shop")}
                 </label>
@@ -102,7 +132,7 @@ export function ReportItemPriceView() {
                   onChange={(e) => setRSupp(e.target.value)}
                 >
                   <option value="">{t("report.all")}</option>
-                  {suppliers.map((s) => (
+                  {visibleSuppliers.map((s) => (
                     <option key={s.code} value={s.code}>
                       {supplierDisplayName(s, locale)}
                     </option>
@@ -117,6 +147,7 @@ export function ReportItemPriceView() {
       <ReportPriceCompare
         dateFrom={rFrom}
         dateTo={rTo}
+        categoryCode={rCategory}
         suppCode={rSupp}
         suppliers={suppliers}
         items={items}

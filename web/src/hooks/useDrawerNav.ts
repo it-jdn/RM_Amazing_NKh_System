@@ -1,9 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-
-/** Matches tablet/mobile drawer nav (hamburger); desktop starts at 1025px — sync with globals.css. */
-export const DRAWER_NAV_MEDIA = "(max-width: 1024px)";
+import { DRAWER_NAV_MEDIA } from "@/hooks/layoutBreakpoints";
 
 function subscribeDrawerNav(onChange: () => void) {
   const mq = window.matchMedia(DRAWER_NAV_MEDIA);
