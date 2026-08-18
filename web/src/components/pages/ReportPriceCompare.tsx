@@ -79,11 +79,11 @@ function layoutPricePointLabels(labels: PricePointLabel[]) {
 const PRICE_LINE_NAME_FONT =
   '600 11px "IBM Plex Sans Thai", Sarabun, system-ui, sans-serif';
 const PRICE_LINE_NAME_MAX_LEN = 24;
-const PRICE_LINE_NAME_OFFSET_X = 8;
-const PRICE_LINE_NAME_LEFT_GUTTER = 140;
-const PRICE_LINE_NAME_LINE_HEIGHT = 16;
+const PILL_PAD_X = 10;
+const PILL_HEIGHT = 22;
+const PILL_ABOVE_LINE = 18;
 
-type LineEndLabel = {
+type LineNamePill = {
   x: number;
   y: number;
   text: string;
@@ -99,21 +99,64 @@ function truncateChartLabel(text: string, max = PRICE_LINE_NAME_MAX_LEN): string
   return `${text.slice(0, max - 1)}…`;
 }
 
-function lineEndLabelBox(label: LineEndLabel) {
-  const right = label.x - label.offsetX;
-  const left = right - label.width;
-  const top = label.y + label.offsetY - label.height / 2;
+function buildYScaleBounds(
+  series: { unit: string; points: IntakePoint[] }[]
+): { min: number; max: number; step: number } {
+  const values = series.flatMap((s) =>
+    s.points
+      .filter((p) => p.unitPrice > 0 && (p.mainUnit.trim() || "—") === s.unit)
+      .map((p) => p.unitPrice)
+  );
+  if (!values.length) return { min: 0, max: 5000, step: 1000 };
+  const max = Math.max(...values);
+  const padded = Math.max(max * 1.08, 1);
+  const steps = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000];
+  const target = padded / 5;
+  const step = steps.find((s) => s >= target) ?? steps[steps.length - 1]!;
+  return { min: 0, max: Math.ceil(padded / step) * step, step };
+}
+
+function pickSegmentAnchor(points: { x: number; y: number }[]): { x: number; y: number } {
+  if (points.length === 1) return points[0]!;
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  const xMid = (first.x + last.x) / 2;
+  let best = { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 };
+  let bestScore = -Infinity;
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i]!;
+    const b = points[i + 1]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const towardCenter = 1 / (1 + Math.abs(mid.x - xMid) / 80);
+    const flatness = Math.max(dx, 1) / (Math.abs(dy) + 1);
+    const score = len * towardCenter + flatness * 12;
+    if (score > bestScore) {
+      bestScore = score;
+      best = mid;
+    }
+  }
+  return best;
+}
+
+function lineNamePillBox(label: LineNamePill) {
+  const cx = label.x + label.offsetX;
+  const cy = label.y + label.offsetY;
+  const w = label.width + PILL_PAD_X * 2;
+  const h = PILL_HEIGHT;
   return {
-    left,
-    right,
-    top,
-    bottom: top + label.height,
+    left: cx - w / 2,
+    right: cx + w / 2,
+    top: cy - h / 2,
+    bottom: cy + h / 2,
   };
 }
 
-function lineEndLabelsOverlap(a: LineEndLabel, b: LineEndLabel) {
-  const boxA = lineEndLabelBox(a);
-  const boxB = lineEndLabelBox(b);
+function lineNamePillsOverlap(a: LineNamePill, b: LineNamePill) {
+  const boxA = lineNamePillBox(a);
+  const boxB = lineNamePillBox(b);
   return !(
     boxA.right < boxB.left ||
     boxA.left > boxB.right ||
@@ -122,16 +165,16 @@ function lineEndLabelsOverlap(a: LineEndLabel, b: LineEndLabel) {
   );
 }
 
-function layoutLineEndLabels(labels: LineEndLabel[]) {
+function layoutLineNamePills(labels: LineNamePill[]) {
   const sorted = [...labels].sort((a, b) => a.y - b.y || a.x - b.x);
-  const placed: LineEndLabel[] = [];
+  const placed: LineNamePill[] = [];
 
   for (const label of sorted) {
-    let chosen = 0;
-    label.offsetX = PRICE_LINE_NAME_OFFSET_X;
+    let chosen = -PILL_ABOVE_LINE;
+    label.offsetX = 0;
     for (let tier = 0; tier < PRICE_LABEL_MAX_TIERS; tier++) {
-      label.offsetY = tier * PRICE_LINE_NAME_LINE_HEIGHT;
-      if (!placed.some((other) => lineEndLabelsOverlap(label, other))) {
+      label.offsetY = -PILL_ABOVE_LINE - tier * (PILL_HEIGHT + 6);
+      if (!placed.some((other) => lineNamePillsOverlap(label, other))) {
         chosen = label.offsetY;
         break;
       }
@@ -141,13 +184,28 @@ function layoutLineEndLabels(labels: LineEndLabel[]) {
   }
 }
 
+function drawPillPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const r = Math.min(h / 2, w / 2, 999);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
 const priceLineNamePlugin: Plugin<"line"> = {
   id: "priceLineName",
   afterDraw(chart) {
     const { ctx, chartArea } = chart;
     if (!chartArea) return;
 
-    const labels: LineEndLabel[] = [];
+    const labels: LineNamePill[] = [];
 
     ctx.save();
     ctx.font = PRICE_LINE_NAME_FONT;
@@ -166,47 +224,52 @@ const priceLineNamePlugin: Plugin<"line"> = {
       const text = truncateChartLabel(rawTitle?.trim() || "");
       if (!text) return;
 
-      let anchorElement: { x: number; y: number } | null = null;
+      const linePoints: { x: number; y: number }[] = [];
       for (let i = 0; i < meta.data.length; i++) {
         const raw = dataset.data[i];
         if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
         const element = meta.data[i];
         if (!element || element.x == null || element.y == null) continue;
-        anchorElement = element;
-        break;
+        linePoints.push({ x: element.x, y: element.y });
       }
-      if (!anchorElement) return;
+      if (!linePoints.length) return;
 
+      const anchor = pickSegmentAnchor(linePoints);
+      const pillW = ctx.measureText(text).width;
+      const minX = chartArea.left + (pillW + PILL_PAD_X * 2) / 2 + 4;
+      const maxX = chartArea.right - (pillW + PILL_PAD_X * 2) / 2 - 4;
       labels.push({
-        x: anchorElement.x,
-        y: anchorElement.y,
+        x: Math.min(maxX, Math.max(minX, anchor.x)),
+        y: anchor.y,
         text,
         color,
-        width: ctx.measureText(text).width,
-        height: PRICE_LINE_NAME_LINE_HEIGHT,
-        offsetX: PRICE_LINE_NAME_OFFSET_X,
-        offsetY: 0,
+        width: pillW,
+        height: PILL_HEIGHT,
+        offsetX: 0,
+        offsetY: -PILL_ABOVE_LINE,
       });
     });
 
-    layoutLineEndLabels(labels);
+    layoutLineNamePills(labels);
 
     for (const label of labels) {
-      const x = label.x - label.offsetX;
-      const y = label.y + label.offsetY;
-      const padX = 4;
-      const padY = 2;
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
-      ctx.fillRect(
-        x - label.width - padX,
-        y - label.height / 2 - padY,
-        label.width + padX * 2,
-        label.height + padY * 2
-      );
+      const cx = label.x + label.offsetX;
+      const cy = Math.max(chartArea.top + PILL_HEIGHT / 2 + 2, label.y + label.offsetY);
+      const w = label.width + PILL_PAD_X * 2;
+      const h = PILL_HEIGHT;
+      const left = cx - w / 2;
+      const top = cy - h / 2;
+
+      drawPillPath(ctx, left, top, w, h);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.strokeStyle = label.color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
       ctx.fillStyle = label.color;
-      ctx.textAlign = "right";
+      ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(label.text, x, y);
+      ctx.fillText(label.text, cx, cy + 0.5);
     }
 
     ctx.restore();
@@ -417,8 +480,11 @@ function buildCombinedChart(
       data: allDates.map((d) => byDate.get(d) ?? null),
       borderColor: LINE_COLORS[i % LINE_COLORS.length],
       backgroundColor: "transparent",
-      pointRadius: 4,
-      pointHoverRadius: 5,
+      pointBackgroundColor: "#fff",
+      pointBorderColor: LINE_COLORS[i % LINE_COLORS.length],
+      pointBorderWidth: 2,
+      pointRadius: 5,
+      pointHoverRadius: 6,
       tension: 0.25,
       spanGaps: true,
     };
@@ -542,6 +608,10 @@ export function ReportPriceCompare(props: {
   );
   const chart = chartBundle?.data ?? null;
   const chartDates = chartBundle?.dates ?? [];
+  const xTickCount = chartDates.length;
+  const xTickRotation = xTickCount > 14 ? 55 : xTickCount > 8 ? 40 : xTickCount > 4 ? 25 : 0;
+  const xChartPaddingBottom = xTickCount > 14 ? 36 : xTickCount > 8 ? 24 : xTickCount > 4 ? 14 : 4;
+  const yScaleBounds = useMemo(() => buildYScaleBounds(selectedSeries), [selectedSeries]);
 
   const detailRows = useMemo(() => {
     const set = new Set(selectedCodes);
@@ -756,7 +826,7 @@ export function ReportPriceCompare(props: {
           ) : null}
 
           {selectedCodes.length > 0 && chart ? (
-            <div className="report-price-combined-chart">
+            <div className="report-price-combined-chart report-price-combined-chart--full">
               <Line
                 data={chart}
                 plugins={[pricePointLabelPlugin, priceLineNamePlugin]}
@@ -765,7 +835,12 @@ export function ReportPriceCompare(props: {
                   maintainAspectRatio: false,
                   interaction: { mode: "nearest", intersect: true },
                   layout: {
-                    padding: { top: 36, right: 12, left: PRICE_LINE_NAME_LEFT_GUTTER, bottom: 4 },
+                    padding: {
+                      top: 28,
+                      right: 8,
+                      left: 4,
+                      bottom: xChartPaddingBottom,
+                    },
                   },
                   plugins: {
                     legend: { display: false },
@@ -793,13 +868,28 @@ export function ReportPriceCompare(props: {
                   scales: {
                     x: {
                       grid: { display: false },
-                      ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+                      ticks: {
+                        autoSkip: false,
+                        maxRotation: xTickRotation,
+                        minRotation: xTickRotation,
+                        font: { size: xTickCount > 12 ? 10 : 11 },
+                      },
                       offset: true,
                     },
                     y: {
-                      beginAtZero: false,
-                      grace: "12%",
-                      ticks: { callback: (v) => "₩" + fmt(Number(v)) },
+                      min: 0,
+                      max: yScaleBounds.max,
+                      grace: 0,
+                      border: { display: false },
+                      grid: { color: "rgba(15, 23, 42, 0.08)" },
+                      ticks: {
+                        stepSize: yScaleBounds.step,
+                        callback: (v) => {
+                          const n = Number(v);
+                          if (!Number.isFinite(n) || n < 0) return "";
+                          return "₩" + fmt(n);
+                        },
+                      },
                     },
                   },
                 }}

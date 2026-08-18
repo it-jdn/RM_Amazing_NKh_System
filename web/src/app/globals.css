@@ -10840,8 +10840,15 @@ input.intake-touch-input,
   margin: 0;
   overflow: visible;
 }
+.report-price-combined-chart--full {
+  width: calc(100% + 32px);
+  max-width: none;
+  margin-left: -16px;
+  margin-right: -16px;
+}
 .report-price-combined-chart canvas {
   display: block;
+  width: 100% !important;
 }
 @media (min-width: 1025px) {
   .report-price-combined-chart {
