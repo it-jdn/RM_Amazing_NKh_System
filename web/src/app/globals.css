@@ -110,7 +110,9 @@ html[lang="th"] :where(
   .report-price-multiselect__trigger,
   select,
   .supplier-picker__trigger,
-  .supplier-picker__value
+  .supplier-picker__value,
+  .app-date-field__btn,
+  .app-date-field__label
 ) {
   font-family: var(--font-heading);
 }
