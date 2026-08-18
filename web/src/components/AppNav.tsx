@@ -73,7 +73,8 @@ export function AppNav({
         <div className="nav-left">
           <AppMobileMenu role={role} displayName={displayName} onLogout={logout} />
           <NavBrand
-            subtitle={t("brand.subtitle")}
+            fullTitle={t("brand.fullTitle")}
+            mobileTitle={t("brand.mobileTitle")}
             pageTitle={pageTitle}
             compact={isOperator}
             drawerNav={drawerNav}
@@ -112,26 +113,28 @@ export function AppNav({
 }
 
 function NavBrand({
-  subtitle,
+  fullTitle,
+  mobileTitle,
   pageTitle,
   compact,
   drawerNav,
   onLogoClick,
 }: {
-  subtitle: string;
+  fullTitle: string;
+  mobileTitle: string;
   pageTitle: string;
   compact?: boolean;
   drawerNav: boolean;
   onLogoClick: (e: React.MouseEvent) => void;
 }) {
-  const ariaLabel = drawerNav ? pageTitle : `Amazing Nongkhai — ${subtitle}`;
+  const ariaLabel = drawerNav ? `${mobileTitle} — ${pageTitle}` : fullTitle;
 
   return (
     <button
       type="button"
       className={`nav-brand${compact ? " nav-brand--compact" : ""}${drawerNav ? " nav-brand--drawer" : ""}`}
       aria-label={ariaLabel}
-      title={drawerNav ? pageTitle : undefined}
+      title={drawerNav ? mobileTitle : fullTitle}
       onClick={onLogoClick}
     >
       <Image
@@ -142,18 +145,13 @@ function NavBrand({
         className="nav-brand__logo"
         priority
       />
-      {!drawerNav ? (
-        <div className="nav-brand__text">
-          <div className="brand-text brand-text--desktop-title">
-            <span className="brand-name">Amazing Nongkhai</span>
-            <span className="brand-sep" aria-hidden>
-              {" "}
-              |{" "}
-            </span>
-            <span className="brand-tagline">{subtitle}</span>
-          </div>
-        </div>
-      ) : null}
+      <div className="nav-brand__text">
+        {drawerNav ? (
+          <span className="brand-text brand-text--mobile-title">{mobileTitle}</span>
+        ) : (
+          <span className="brand-text brand-text--desktop-title">{fullTitle}</span>
+        )}
+      </div>
     </button>
   );
 }

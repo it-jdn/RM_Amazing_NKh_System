@@ -599,7 +599,7 @@ export function AdminItemsPanel() {
           <div className="admin-items-list-head">
             <div className="admin-items-list-head__title-row">
               <div className="admin-items-list-head__title-group">
-                <AdminCardTitle title={t("admin.items.listTitle")} dot="blue" />
+                <AdminCardTitle title={t("admin.items.listTitle")} dot="blue" page />
                 {!compactLayout || !anyPanelOpen ? (
                   <button
                     type="button"

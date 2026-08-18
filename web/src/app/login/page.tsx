@@ -108,7 +108,7 @@ function LoginForm() {
         <div className="login-box__lang">
           <LocaleSwitcher variant="loginCorner" />
         </div>
-        <LoginTitle subtitle={t("brand.subtitle")} />
+        <LoginTitle subtitle={t("brand.fullTitle")} />
         <div className="login-box__fields">
           <div className="login-sub">{t("login.subtitle")}</div>
           <div className="role-select" role="group" aria-label={t("login.subtitle")}>

@@ -173,7 +173,7 @@ export const AdminItemShopLinkPanel = forwardRef<
   return (
     <>
       <div className="admin-settings-split__panel-scroll">
-        <AdminCardTitle title={t("admin.products.title")} dot="purple" />
+        <AdminCardTitle title={t("admin.products.title")} dot="purple" page />
         <div className="admin-product-names-readonly">
           <p className="admin-product-names-readonly__label">{t("admin.products.namesReadonly")}</p>
           <p className="admin-product-names-readonly__th">{nameTH}</p>

@@ -167,7 +167,7 @@ export function AdminUnitsPanel() {
     <div className="admin-settings-page">
       <div className="admin-settings-split">
         <div className="card admin-settings-split__list">
-          <AdminCardTitle title={t("admin.units.listTitle")} dot="purple" />
+          <AdminCardTitle title={t("admin.units.listTitle")} dot="purple" page />
           <p className="admin-hint">{t("admin.units.listHint")}</p>
             {sortedUnits.length ? (
               <div className="admin-shop-table-wrap">

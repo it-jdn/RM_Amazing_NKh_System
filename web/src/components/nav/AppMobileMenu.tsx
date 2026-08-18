@@ -167,8 +167,7 @@ export function AppMobileMenu({ role, displayName, onLogout }: Props) {
                 className="operator-menu__logo"
               />
               <div className="operator-menu__brand">
-                <span className="operator-menu__title">Amazing Nongkhai</span>
-                <span className="operator-menu__subtitle">{t("brand.subtitle")}</span>
+                <span className="operator-menu__title">{t("brand.fullTitle")}</span>
               </div>
             </button>
             <button type="button" className="operator-menu__close" onClick={close} aria-label={t("intake.cancel")}>

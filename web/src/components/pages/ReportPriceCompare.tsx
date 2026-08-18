@@ -17,11 +17,9 @@ import { useLocale } from "@/context/LocaleContext";
 import { IconCheck, IconChevronDown, IconX } from "@/components/icons/AppIcons";
 import { itemDisplayName, itemDisplayNameByCode } from "@/lib/i18n/item-name";
 import { supplierDisplayName } from "@/lib/i18n/supplier-name";
-import { pickLatestReceivedItemCodes } from "@/lib/reports/price-trend";
+import { pickMostVolatileItemCodes } from "@/lib/reports/price-trend";
 import { fmt, formatAppDate } from "@/lib/utils/format";
 import type { Item, Supplier } from "@/lib/types";
-
-ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend);
 
 const PRICE_LABEL_FONT = "600 11px var(--font-ui), system-ui, sans-serif";
 const PRICE_LABEL_LINE_HEIGHT = 14;
@@ -78,6 +76,143 @@ function layoutPricePointLabels(labels: PricePointLabel[]) {
   }
 }
 
+const PRICE_LINE_NAME_FONT =
+  '600 11px "IBM Plex Sans Thai", Sarabun, system-ui, sans-serif';
+const PRICE_LINE_NAME_MAX_LEN = 24;
+const PRICE_LINE_NAME_OFFSET_X = 8;
+const PRICE_LINE_NAME_LEFT_GUTTER = 140;
+const PRICE_LINE_NAME_LINE_HEIGHT = 16;
+
+type LineEndLabel = {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+};
+
+function truncateChartLabel(text: string, max = PRICE_LINE_NAME_MAX_LEN): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
+}
+
+function lineEndLabelBox(label: LineEndLabel) {
+  const right = label.x - label.offsetX;
+  const left = right - label.width;
+  const top = label.y + label.offsetY - label.height / 2;
+  return {
+    left,
+    right,
+    top,
+    bottom: top + label.height,
+  };
+}
+
+function lineEndLabelsOverlap(a: LineEndLabel, b: LineEndLabel) {
+  const boxA = lineEndLabelBox(a);
+  const boxB = lineEndLabelBox(b);
+  return !(
+    boxA.right < boxB.left ||
+    boxA.left > boxB.right ||
+    boxA.bottom < boxB.top ||
+    boxA.top > boxB.bottom
+  );
+}
+
+function layoutLineEndLabels(labels: LineEndLabel[]) {
+  const sorted = [...labels].sort((a, b) => a.y - b.y || a.x - b.x);
+  const placed: LineEndLabel[] = [];
+
+  for (const label of sorted) {
+    let chosen = 0;
+    label.offsetX = PRICE_LINE_NAME_OFFSET_X;
+    for (let tier = 0; tier < PRICE_LABEL_MAX_TIERS; tier++) {
+      label.offsetY = tier * PRICE_LINE_NAME_LINE_HEIGHT;
+      if (!placed.some((other) => lineEndLabelsOverlap(label, other))) {
+        chosen = label.offsetY;
+        break;
+      }
+    }
+    label.offsetY = chosen;
+    placed.push(label);
+  }
+}
+
+const priceLineNamePlugin: Plugin<"line"> = {
+  id: "priceLineName",
+  afterDraw(chart) {
+    const { ctx, chartArea } = chart;
+    if (!chartArea) return;
+
+    const labels: LineEndLabel[] = [];
+
+    ctx.save();
+    ctx.font = PRICE_LINE_NAME_FONT;
+
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (meta.hidden) return;
+      const color =
+        typeof dataset.borderColor === "string" ? dataset.borderColor : "rgba(30,40,70,.85)";
+      const rawTitle =
+        typeof (dataset as { lineTitle?: string }).lineTitle === "string"
+          ? (dataset as { lineTitle?: string }).lineTitle
+          : typeof dataset.label === "string"
+            ? dataset.label.replace(/\s*\([^)]*\)\s*$/, "")
+            : "";
+      const text = truncateChartLabel(rawTitle?.trim() || "");
+      if (!text) return;
+
+      let anchorElement: { x: number; y: number } | null = null;
+      for (let i = 0; i < meta.data.length; i++) {
+        const raw = dataset.data[i];
+        if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
+        const element = meta.data[i];
+        if (!element || element.x == null || element.y == null) continue;
+        anchorElement = element;
+        break;
+      }
+      if (!anchorElement) return;
+
+      labels.push({
+        x: anchorElement.x,
+        y: anchorElement.y,
+        text,
+        color,
+        width: ctx.measureText(text).width,
+        height: PRICE_LINE_NAME_LINE_HEIGHT,
+        offsetX: PRICE_LINE_NAME_OFFSET_X,
+        offsetY: 0,
+      });
+    });
+
+    layoutLineEndLabels(labels);
+
+    for (const label of labels) {
+      const x = label.x - label.offsetX;
+      const y = label.y + label.offsetY;
+      const padX = 4;
+      const padY = 2;
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillRect(
+        x - label.width - padX,
+        y - label.height / 2 - padY,
+        label.width + padX * 2,
+        label.height + padY * 2
+      );
+      ctx.fillStyle = label.color;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label.text, x, y);
+    }
+
+    ctx.restore();
+  },
+};
+
 const pricePointLabelPlugin: Plugin<"line"> = {
   id: "pricePointLabel",
   afterDatasetsDraw(chart) {
@@ -122,6 +257,8 @@ const pricePointLabelPlugin: Plugin<"line"> = {
     ctx.restore();
   },
 };
+
+ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Legend);
 
 interface IntakePoint {
   date: string;
@@ -203,10 +340,61 @@ function dominantUnit(points: IntakePoint[]): string {
   return best;
 }
 
+type PriceChartDatasetMeta = {
+  itemCode: string;
+  chartUnit: string;
+  lineTitle: string;
+};
+
+type CombinedChartResult = {
+  data: ChartData<"line", (number | null)[], string>;
+  dates: string[];
+};
+
+function buildPricePointTooltipLines(
+  ctx: {
+    parsed: { y: number | null };
+    dataIndex: number;
+    dataset: { label?: string } & Partial<PriceChartDatasetMeta>;
+  },
+  chartDates: string[],
+  intakePoints: IntakePoint[],
+  shopLabel: (code: string) => string,
+  qtyLabel: string
+): string[] {
+  const value = ctx.parsed.y;
+  if (value == null) return [];
+  const { itemCode, chartUnit, label } = ctx.dataset;
+  const isoDate = chartDates[ctx.dataIndex];
+  const lines: string[] = [label ?? ""];
+
+  if (!isoDate || !itemCode) {
+    lines.push(`₩${fmt(value)}`);
+    return lines;
+  }
+
+  const unit = chartUnit || "—";
+  const matches = intakePoints.filter(
+    (p) =>
+      p.itemCode === itemCode &&
+      p.date === isoDate &&
+      p.unitPrice > 0 &&
+      (p.mainUnit.trim() || "—") === unit
+  );
+
+  lines.push(`₩${fmt(value)}`);
+  for (const point of matches) {
+    const qtyText = `${fmt(point.qty)} ${point.mainUnit || unit}`.trim();
+    lines.push(`${qtyLabel} ${qtyText} · ${shopLabel(point.suppCode)}`);
+  }
+
+  return lines;
+}
+
 function buildCombinedChart(
   series: { code: string; title: string; unit: string; points: IntakePoint[] }[],
   locale: "th" | "en" | "kr"
-): ChartData<"line", (number | null)[], string> | null {
+): CombinedChartResult | null {
   const allDates = Array.from(
     new Set(series.flatMap((s) => s.points.filter((p) => p.unitPrice > 0).map((p) => p.date)))
   ).sort();
@@ -223,6 +411,9 @@ function buildCombinedChart(
     const unitSuffix = s.unit && s.unit !== "—" ? ` (${s.unit})` : "";
     return {
       label: `${s.title}${unitSuffix}`,
+      lineTitle: s.title,
+      itemCode: s.code,
+      chartUnit: s.unit,
       data: allDates.map((d) => byDate.get(d) ?? null),
       borderColor: LINE_COLORS[i % LINE_COLORS.length],
       backgroundColor: "transparent",
@@ -234,8 +425,11 @@ function buildCombinedChart(
   });
 
   return {
-    labels: allDates.map((d) => formatAppDate(d, locale)),
-    datasets,
+    data: {
+      labels: allDates.map((d) => formatAppDate(d, locale)),
+      datasets,
+    },
+    dates: allDates,
   };
 }
 
@@ -293,8 +487,8 @@ export function ReportPriceCompare(props: {
         if (cancelled) return;
         const points = d.success ? d.intakePoints ?? [] : [];
         setIntakePoints(points);
-        const latest = pickLatestReceivedItemCodes(points, MAX_CHART_ITEMS);
-        setSelectedCodes(latest);
+        const defaults = pickMostVolatileItemCodes(points, MAX_CHART_ITEMS);
+        setSelectedCodes(defaults);
         setLoaded(true);
       })
       .catch(() => {
@@ -342,10 +536,12 @@ export function ReportPriceCompare(props: {
 
   const selectedSeries = chartItems;
 
-  const chart = useMemo(
+  const chartBundle = useMemo(
     () => buildCombinedChart(selectedSeries, locale),
     [selectedSeries, locale]
   );
+  const chart = chartBundle?.data ?? null;
+  const chartDates = chartBundle?.dates ?? [];
 
   const detailRows = useMemo(() => {
     const set = new Set(selectedCodes);
@@ -390,7 +586,7 @@ export function ReportPriceCompare(props: {
   }
 
   function clearSelection() {
-    setSelectedCodes(pickLatestReceivedItemCodes(intakePoints, MAX_CHART_ITEMS));
+    setSelectedCodes(pickMostVolatileItemCodes(intakePoints, MAX_CHART_ITEMS));
   }
 
   function shopLabel(code: string) {
@@ -563,21 +759,34 @@ export function ReportPriceCompare(props: {
             <div className="report-price-combined-chart">
               <Line
                 data={chart}
-                plugins={[pricePointLabelPlugin]}
+                plugins={[pricePointLabelPlugin, priceLineNamePlugin]}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  interaction: { mode: "index", intersect: false },
-                  layout: { padding: { top: 36, right: 8 } },
+                  interaction: { mode: "nearest", intersect: true },
+                  layout: {
+                    padding: { top: 36, right: 12, left: PRICE_LINE_NAME_LEFT_GUTTER, bottom: 4 },
+                  },
                   plugins: {
                     legend: { display: false },
                     tooltip: {
+                      mode: "nearest",
+                      intersect: true,
                       callbacks: {
-                        label: (ctx) => {
-                          const v = ctx.parsed.y;
-                          if (v == null) return `${ctx.dataset.label ?? ""}: —`;
-                          return `${ctx.dataset.label ?? ""}: ₩${fmt(v)}`;
+                        title: (items) => {
+                          const ctx = items[0];
+                          if (!ctx) return "";
+                          const isoDate = chartDates[ctx.dataIndex];
+                          return isoDate ? formatAppDate(isoDate, locale) : "";
                         },
+                        label: (ctx) =>
+                          buildPricePointTooltipLines(
+                            ctx,
+                            chartDates,
+                            intakePoints,
+                            shopLabel,
+                            t("report.qty")
+                          ),
                       },
                     },
                   },
@@ -585,6 +794,7 @@ export function ReportPriceCompare(props: {
                     x: {
                       grid: { display: false },
                       ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+                      offset: true,
                     },
                     y: {
                       beginAtZero: false,

@@ -108,11 +108,35 @@ export function IntakeDayOverview({
       <div className="intake-document__sheet">
         <header className="intake-doc-header intake-doc-header--overview">
           <div className="intake-doc-header__letterhead">
-            <h2 className="intake-doc-header__title-th intake-doc-header__title-th--overview">
-              {t("intake.dayOverview.titleWithDate", {
-                date: formatAppDate(intakeDate, locale),
-              })}
-            </h2>
+            <div className="intake-doc-header__overview-head">
+              <h2 className="intake-doc-header__title-th intake-doc-header__title-th--overview">
+                {t("intake.dayOverview.titleWithDate", {
+                  date: formatAppDate(intakeDate, locale),
+                })}
+              </h2>
+
+              {!loading && !error ? (
+                <p
+                  className="intake-doc-header__overview-kpi"
+                  aria-label={t("intake.dayOverview.summarySlips", {
+                    count: overview.slipCount,
+                    shops: overview.savedShopCount,
+                    total: overview.totalShopCount,
+                    amount: fmt(overview.dayTotal),
+                  })}
+                >
+                  <span className="intake-doc-header__overview-kpi-amount">₩{fmt(overview.dayTotal)}</span>
+                  <span className="intake-doc-header__overview-kpi-sep" aria-hidden>
+                    ·
+                  </span>
+                  <span>{t("intake.dayOverview.slipCountCompact", { n: overview.slipCount })}</span>
+                  <span className="intake-doc-header__overview-kpi-sep" aria-hidden>
+                    ·
+                  </span>
+                  <span>{t("intake.dayOverview.shopCountCompact", { n: overview.savedShopCount })}</span>
+                </p>
+              ) : null}
+            </div>
 
             {loading ? (
               <IntakeLoadPanel message={t("intake.dayOverview.loading")} />
@@ -123,27 +147,7 @@ export function IntakeDayOverview({
                   {t("intake.dayOverview.retry")}
                 </button>
               </div>
-            ) : (
-              <p
-                className="intake-doc-header__overview-kpi"
-                aria-label={t("intake.dayOverview.summarySlips", {
-                  count: overview.slipCount,
-                  shops: overview.savedShopCount,
-                  total: overview.totalShopCount,
-                  amount: fmt(overview.dayTotal),
-                })}
-              >
-                <span className="intake-doc-header__overview-kpi-amount">₩{fmt(overview.dayTotal)}</span>
-                <span className="intake-doc-header__overview-kpi-sep" aria-hidden>
-                  ·
-                </span>
-                <span>{t("intake.dayOverview.slipCountCompact", { n: overview.slipCount })}</span>
-                <span className="intake-doc-header__overview-kpi-sep" aria-hidden>
-                  ·
-                </span>
-                <span>{t("intake.dayOverview.shopCountCompact", { n: overview.savedShopCount })}</span>
-              </p>
-            )}
+            ) : null}
           </div>
         </header>
 

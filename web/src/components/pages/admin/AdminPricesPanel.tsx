@@ -36,7 +36,7 @@ export function AdminPricesPanel() {
 
   return (
     <div className="card">
-      <AdminCardTitle title={t("admin.prices.title")} dot="blue" />
+      <AdminCardTitle title={t("admin.prices.title")} dot="blue" page />
       <div className="form-row" style={{ maxWidth: 320 }}>
         <div>
           <label className="lbl">{t("admin.prices.filter")}</label>

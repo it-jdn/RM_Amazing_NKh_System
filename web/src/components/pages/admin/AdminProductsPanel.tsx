@@ -298,7 +298,7 @@ export function AdminProductsPanel() {
     <div className="admin-settings-page">
       <div className="admin-settings-split">
         <div className="card admin-settings-split__list">
-          <AdminCardTitle title={t("admin.products.listTitle")} dot="green" />
+          <AdminCardTitle title={t("admin.products.listTitle")} dot="green" page />
           {!unitsReady && (
             <p className="admin-warn" style={{ marginTop: 8 }}>
               {t("admin.products.unitsMissing")}{" "}

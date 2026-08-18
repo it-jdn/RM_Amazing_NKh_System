@@ -115,7 +115,7 @@ export function AdminLinkPanel() {
 
   return (
     <div className="card">
-      <AdminCardTitle title={t("admin.link.title")} />
+      <AdminCardTitle title={t("admin.link.title")} page />
       <p className="admin-hint" style={{ marginBottom: 12, fontSize: 13, opacity: 0.85 }}>
         {t("admin.link.unitsFromHistory")}
       </p>

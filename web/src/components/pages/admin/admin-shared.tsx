@@ -6,12 +6,14 @@ import { UnitSelectFields } from "@/components/pages/admin/UnitSelectFields";
 export function AdminCardTitle({
   title,
   dot = "green",
+  page = false,
 }: {
   title: string;
   dot?: "green" | "orange" | "blue" | "purple";
+  page?: boolean;
 }) {
   return (
-    <div className="card-title">
+    <div className={`card-title${page ? " card-title--page" : ""}`}>
       <span className={`dot dot-${dot}`} />
       <span>{title}</span>
     </div>

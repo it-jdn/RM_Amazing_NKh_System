@@ -140,7 +140,7 @@ export function AdminUsersPanel() {
     <>
       <div className="card users-panel">
         <div className="users-panel__toolbar">
-          <div className="card-title users-panel__title">
+          <div className="card-title card-title--page users-panel__title">
             <span className="dot dot-orange" />
             <span>{t("admin.users.listTitle")}</span>
           </div>

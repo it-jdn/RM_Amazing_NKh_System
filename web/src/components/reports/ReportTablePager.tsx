@@ -44,6 +44,8 @@ type Props = {
   to: number;
   onPageSizeChange: (size: ReportPageSize) => void;
   onPageChange: (page: number) => void;
+  /** Show size selector even when totalRows ≤ 50 (e.g. history list default page size). */
+  alwaysShow?: boolean;
 };
 
 export function ReportTablePager({
@@ -55,10 +57,12 @@ export function ReportTablePager({
   to,
   onPageSizeChange,
   onPageChange,
+  alwaysShow = false,
 }: Props) {
   const { t } = useLocale();
 
-  if (totalRows <= 50) return null;
+  if (totalRows === 0) return null;
+  if (!alwaysShow && totalRows <= 50) return null;
 
   return (
     <div className="report-pagination no-print">

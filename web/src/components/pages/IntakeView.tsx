@@ -811,7 +811,7 @@ export function IntakeView() {
     <div className={wrapClass}>
       <div className="card intake-setup-card intake-desktop-only">
         <div className="intake-setup-card__head">
-          <div className="card-title">
+          <div className="card-title card-title--page">
             <span className="dot dot-green" />
             <span>{t("intake.title")}</span>
           </div>

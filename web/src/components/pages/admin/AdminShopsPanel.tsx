@@ -257,7 +257,7 @@ export function AdminShopsPanel() {
     <div className="admin-settings-page">
       <div className="admin-settings-split">
         <div className="card admin-settings-split__list">
-          <AdminCardTitle title={t("admin.shops.listTitle")} dot="blue" />
+          <AdminCardTitle title={t("admin.shops.listTitle")} dot="blue" page />
           {sortedShops.length ? (
             <div className="admin-shop-table-wrap">
               <table className="admin-shop-table admin-shop-table--cards">

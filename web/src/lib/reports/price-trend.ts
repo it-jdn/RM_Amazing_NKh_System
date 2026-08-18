@@ -1,3 +1,45 @@
+type PriceIntakePoint = {
+  itemCode: string;
+  date: string;
+  unitPrice: number;
+  mainUnit: string;
+};
+
+function dominantUnit(points: PriceIntakePoint[]): string {
+  const counts = new Map<string, number>();
+  for (const p of points) {
+    if (p.unitPrice <= 0) continue;
+    const u = p.mainUnit.trim() || "—";
+    counts.set(u, (counts.get(u) ?? 0) + 1);
+  }
+  let best = "—";
+  let bestN = -1;
+  for (const [u, n] of counts) {
+    if (n > bestN) {
+      best = u;
+      bestN = n;
+    }
+  }
+  return best;
+}
+
+function unitPricesForDominantUnit(points: PriceIntakePoint[]): number[] {
+  const unit = dominantUnit(points);
+  return points
+    .filter((p) => p.unitPrice > 0 && (p.mainUnit.trim() || "—") === unit)
+    .map((p) => p.unitPrice);
+}
+
+/** Relative price range (max − min) / mean — higher means more volatile. */
+export function priceVolatilityScore(prices: number[]): number {
+  if (prices.length < 2) return 0;
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const mean = prices.reduce((sum, value) => sum + value, 0) / prices.length;
+  if (mean <= 0) return 0;
+  return (max - min) / mean;
+}
+
 /** Most recently received item codes (by latest txn date), newest first. */
 export function pickLatestReceivedItemCodes(
   points: { itemCode: string; date: string }[],
@@ -14,6 +56,45 @@ export function pickLatestReceivedItemCodes(
     .sort((a, b) => b[1].localeCompare(a[1]) || a[0].localeCompare(b[0]))
     .slice(0, Math.max(0, limit))
     .map(([code]) => code);
+}
+
+/** Item codes with the widest relative unit-price swings in the selected period. */
+export function pickMostVolatileItemCodes(points: PriceIntakePoint[], limit = 5): string[] {
+  const grouped = new Map<string, PriceIntakePoint[]>();
+  for (const p of points) {
+    if (p.unitPrice <= 0) continue;
+    const code = p.itemCode.trim();
+    if (!code) continue;
+    const list = grouped.get(code) ?? [];
+    list.push(p);
+    grouped.set(code, list);
+  }
+
+  const ranked: { code: string; score: number; latestDate: string }[] = [];
+  for (const [code, itemPoints] of grouped) {
+    const prices = unitPricesForDominantUnit(itemPoints);
+    const score = priceVolatilityScore(prices);
+    if (score <= 0) continue;
+    const latestDate = itemPoints.reduce(
+      (max, point) => (point.date > max ? point.date : max),
+      itemPoints[0]!.date
+    );
+    ranked.push({ code, score, latestDate });
+  }
+
+  ranked.sort(
+    (a, b) =>
+      b.score - a.score ||
+      b.latestDate.localeCompare(a.latestDate) ||
+      a.code.localeCompare(b.code)
+  );
+
+  const picked = ranked.slice(0, Math.max(0, limit)).map((row) => row.code);
+  if (picked.length >= limit) return picked;
+
+  const exclude = new Set(picked);
+  const fallback = pickLatestReceivedItemCodes(points, limit).filter((code) => !exclude.has(code));
+  return [...picked, ...fallback].slice(0, Math.max(0, limit));
 }
 
 /** Cluster intake points by similar order quantity for comparable unit-price trends. */

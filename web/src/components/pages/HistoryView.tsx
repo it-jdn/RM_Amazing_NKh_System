@@ -20,7 +20,17 @@ import {
 } from "@/lib/utils/format";
 import { HistorySlipDetail } from "@/components/history/HistorySlipDetail";
 import { HistoryListTable } from "@/components/history/HistoryListTable";
+import {
+  ReportTablePager,
+  useReportTablePaging,
+} from "@/components/reports/ReportTablePager";
 import { buildHistoryListGroups } from "@/lib/domain/history-list-groups";
+import {
+  DEFAULT_HISTORY_LIST_SORT,
+  sortHistoryListGroups,
+  toggleHistoryListSort,
+  type HistoryListSortState,
+} from "@/lib/domain/history-list-sort";
 import type { Locale } from "@/lib/i18n/types";
 import type { TransactionRow } from "@/lib/types";
 
@@ -41,10 +51,11 @@ export function HistoryView() {
   const [histTxns, setHistTxns] = useState<TransactionRow[]>([]);
   const [histSlips, setHistSlips] = useState<IntakeSlipSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [histSortAsc, setHistSortAsc] = useState(false);
+  const [histSort, setHistSort] = useState<HistoryListSortState>(DEFAULT_HISTORY_LIST_SORT);
   const [hFrom, setHFrom] = useState(() => histDatePresetRange("thisMonth").from);
   const [hTo, setHTo] = useState(() => histDatePresetRange("thisMonth").to);
   const [hSupp, setHSupp] = useState("");
+  const [hReceiver, setHReceiver] = useState("");
   const [datePreset, setDatePreset] = useState("thisMonth");
   const [detail, setDetail] = useState<{ date: string; suppCode: string } | null>(null);
 
@@ -106,7 +117,7 @@ export function HistoryView() {
     };
   }, [histTxns, hFrom, hTo]);
 
-  const sorted = useMemo(() => {
+  const baseGroups = useMemo(() => {
     const filtered = histTxns.filter((txn) => {
       if (hFrom && txn.date < hFrom) return false;
       if (hTo && txn.date > hTo) return false;
@@ -114,12 +125,36 @@ export function HistoryView() {
       return true;
     });
 
-    const groups = buildHistoryListGroups(filtered, histSlips);
-    return groups.sort((a, b) => {
-      const cmp = String(a.date).localeCompare(String(b.date));
-      return histSortAsc ? cmp : -cmp;
-    });
-  }, [histTxns, histSlips, hFrom, hTo, hSupp, histSortAsc]);
+    return buildHistoryListGroups(filtered, histSlips);
+  }, [histTxns, histSlips, hFrom, hTo, hSupp]);
+
+  const receiverOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const group of baseGroups) {
+      const name = group.savedByName?.trim();
+      if (name) names.add(name);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, locale));
+  }, [baseGroups, locale]);
+
+  useEffect(() => {
+    if (hReceiver && !receiverOptions.includes(hReceiver)) {
+      setHReceiver("");
+    }
+  }, [hReceiver, receiverOptions]);
+
+  const sorted = useMemo(() => {
+    const groups = hReceiver
+      ? baseGroups.filter((group) => (group.savedByName?.trim() || "") === hReceiver)
+      : baseGroups;
+    return sortHistoryListGroups(groups, histSort, suppliers, locale);
+  }, [baseGroups, hReceiver, histSort, suppliers, locale]);
+
+  const paging = useReportTablePaging(sorted.length, 50);
+  const visibleRows = useMemo(
+    () => sorted.slice(paging.offset, paging.offset + paging.limit),
+    [sorted, paging.offset, paging.limit]
+  );
 
   if (detail) {
     return (
@@ -156,16 +191,30 @@ export function HistoryView() {
         setHTo={setHTo}
         hSupp={hSupp}
         setHSupp={setHSupp}
+        hReceiver={hReceiver}
+        setHReceiver={setHReceiver}
+        receiverOptions={receiverOptions}
         datePreset={datePreset}
         setDatePreset={setDatePreset}
         suppliers={suppliers}
-        histSortAsc={histSortAsc}
-        setHistSortAsc={setHistSortAsc}
+        histSort={histSort}
+        setHistSort={setHistSort}
         itemCount={sorted.length}
       />
       {sorted.length > 0 && (
-        <div className="hist-count-bar hist-count-bar--desktop">
-          {t("hist.itemsCount", { n: sorted.length })}
+        <div className="hist-list-toolbar hist-count-bar--desktop">
+          <span className="hist-list-toolbar__count">{t("hist.itemsCount", { n: sorted.length })}</span>
+          <ReportTablePager
+            alwaysShow
+            totalRows={sorted.length}
+            pageSize={paging.pageSize}
+            page={paging.page}
+            totalPages={paging.totalPages}
+            from={paging.from}
+            to={paging.to}
+            onPageSizeChange={paging.setPageSize}
+            onPageChange={paging.setPage}
+          />
         </div>
       )}
       {loading ? (
@@ -179,12 +228,15 @@ export function HistoryView() {
       ) : (
         <>
           <HistoryListTable
-            rows={sorted}
+            rows={visibleRows}
+            rowOffset={paging.offset}
             suppliers={suppliers}
+            sort={histSort}
+            onSortColumn={(column) => setHistSort((current) => toggleHistoryListSort(current, column))}
             onOpen={(g) => setDetail({ date: g.date, suppCode: g.suppCode })}
           />
           <div className="hist-list-groups hist-list-cards">
-            {sorted.map((g) => {
+            {visibleRows.map((g) => {
             const mo = String(g.date).substring(0, 7);
             const showMonth = mo !== lastMonth;
             if (showMonth) lastMonth = mo;
@@ -205,6 +257,19 @@ export function HistoryView() {
             );
           })}
           </div>
+          <div className="hist-list-toolbar hist-list-toolbar--bottom">
+            <ReportTablePager
+              alwaysShow
+              totalRows={sorted.length}
+              pageSize={paging.pageSize}
+              page={paging.page}
+              totalPages={paging.totalPages}
+              from={paging.from}
+              to={paging.to}
+              onPageSizeChange={paging.setPageSize}
+              onPageChange={paging.setPage}
+            />
+          </div>
         </>
       )}
     </div>
@@ -218,13 +283,20 @@ function HistFilters(props: {
   setHTo: (v: string) => void;
   hSupp: string;
   setHSupp: (v: string) => void;
+  hReceiver: string;
+  setHReceiver: (v: string) => void;
+  receiverOptions: string[];
   datePreset: string;
   setDatePreset: (v: string) => void;
   suppliers: Supplier[];
-  histSortAsc: boolean;
-  setHistSortAsc: (v: boolean) => void;
+  histSort: HistoryListSortState;
+  setHistSort: (value: HistoryListSortState | ((prev: HistoryListSortState) => HistoryListSortState)) => void;
   itemCount: number;
 }) {
+  const dateSortAsc = props.histSort.column === "date" && props.histSort.direction === "asc";
+  const dateSortNewestFirst =
+    props.histSort.column === "date" && props.histSort.direction === "desc";
+
   const { locale, t } = useLocale();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -347,22 +419,38 @@ function HistFilters(props: {
             ))}
           </select>
         </div>
+        <div className="filter-group grow hist-filters__receiver">
+          <label className="lbl">{t("hist.receiver")}</label>
+          <select value={props.hReceiver} onChange={(e) => props.setHReceiver(e.target.value)}>
+            <option value="">{t("hist.allReceivers")}</option>
+            {props.receiverOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
         {filtersOpen && props.itemCount > 0 ? (
           <span className="hist-filters__count">{t("hist.itemsCount", { n: props.itemCount })}</span>
         ) : null}
         <div className="hist-filters__tools">
           <button
             type="button"
-            className={`sort-toggle hist-filters__tool ${!props.histSortAsc ? "active" : ""}`}
-            onClick={() => props.setHistSortAsc(!props.histSortAsc)}
-            aria-label={props.histSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
-            title={props.histSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
+            className={`sort-toggle hist-filters__tool ${dateSortNewestFirst ? "active" : ""}`}
+            onClick={() =>
+              props.setHistSort({
+                column: "date",
+                direction: dateSortNewestFirst ? "asc" : "desc",
+              })
+            }
+            aria-label={dateSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
+            title={dateSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
           >
             <span className="hist-filters__tool-text">
-              {props.histSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
+              {dateSortAsc ? t("hist.sortOldest") : t("hist.sortNewest")}
             </span>
             <span className="hist-filters__tool-icon" aria-hidden>
-              {props.histSortAsc ? "↑" : "↓"}
+              {dateSortAsc ? "↑" : "↓"}
             </span>
           </button>
           <button
@@ -371,6 +459,7 @@ function HistFilters(props: {
             onClick={() => {
               applyPreset("today");
               props.setHSupp("");
+              props.setHReceiver("");
             }}
             aria-label={t("hist.reset")}
             title={t("hist.reset")}

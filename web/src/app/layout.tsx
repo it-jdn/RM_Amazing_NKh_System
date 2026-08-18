@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Amazing Nongkhai — Inventory System",
-  description: "ระบบจัดการสต็อกและรับสินค้า — Amazing Nongkhai",
+  title: "ระบบจัดการสินค้าคงคลังร้าน Amazing Nongkhai",
+  description: "ระบบจัดการสินค้าคงคลังร้าน Amazing Nongkhai",
 };
 
 export const viewport: Viewport = {

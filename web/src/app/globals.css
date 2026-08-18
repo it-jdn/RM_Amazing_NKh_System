@@ -48,6 +48,19 @@
   --z-toast: 999;
   --icon-btn-size: 36px;
   --bottom-nav-height: 56px;
+  --font-brand-title: 16px;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --font-brand-title: 14px;
+  }
+}
+
+@media (min-width: 1025px) {
+  :root {
+    --font-brand-title: 18px;
+  }
 }
 
 html[lang="ko"],
@@ -69,6 +82,7 @@ html[lang="th"] :where(
   h5,
   h6,
   .card-title,
+  .card-title--page,
   .lbl,
   .page-title,
   .report-filters__title,
@@ -83,14 +97,22 @@ html[lang="th"] :where(
   .intake-doc-header__title-th,
   .intake-slip-head__title,
   .intake-day-overview__section-title,
+  .brand-text,
+  .brand-text--desktop-title,
+  .brand-text--mobile-title,
+  .operator-menu__title,
+  .login-brand__sub,
+  .nav-center__title,
   table thead th,
   .dtbl th,
-  table.itbl thead th
+  table.itbl thead th,
+  table.itbl.hist-list-table thead th,
+  table.itbl.hist-edit-table thead th
 ) {
   font-family: var(--font-heading);
 }
 
-html[lang="th"] :where(table tbody td, table tfoot td, .dtbl td, table.itbl td) {
+html[lang="th"] :where(table tbody td, table tfoot td, .dtbl td, table.itbl td, table.itbl.hist-list-table td, table.itbl.hist-edit-table td) {
   font-family: var(--font-table-data);
 }
 
@@ -112,7 +134,11 @@ html[lang="th"] :where(
   .supplier-picker__trigger,
   .supplier-picker__value,
   .app-date-field__btn,
-  .app-date-field__label
+  .app-date-field__label,
+  .nav-settings__option,
+  .operator-menu__sublink,
+  .admin-subnav__link,
+  .lang-switch__option
 ) {
   font-family: var(--font-heading);
 }
@@ -214,26 +240,18 @@ button.nav-brand {
 .nav-brand__text { min-width: 0; line-height: 1.2; }
 .brand-text {
   font-family: var(--font-ui);
-  font-size: 16px;
+  font-size: var(--font-brand-title);
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
 }
 .brand-sub { font-size: 11px; opacity: 0.6; }
 .brand-text--desktop-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0;
+  display: block;
   min-width: 0;
-}
-.brand-sep {
-  font-weight: 500;
-  opacity: 0.72;
-  white-space: pre;
-}
-.brand-tagline {
-  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .nav-tabs { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; overflow: visible; }
 .nav-tab {
@@ -477,6 +495,15 @@ button.nav-brand {
   gap: 6px;
   text-transform: uppercase;
 }
+.card-title--page {
+  font-size: var(--font-brand-title);
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: 0;
+  text-transform: none;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
 .report-title-range {
   text-transform: none;
   font-weight: 500;
@@ -528,6 +555,20 @@ select {
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 16px;
+}
+
+/* Date picker + dropdown — shared typography token at all breakpoints */
+:is(
+  .app-date-field__btn,
+  .app-date-field__label,
+  select,
+  .supplier-picker__trigger,
+  .supplier-picker__value,
+  .report-price-multiselect__trigger,
+  .hist-preset-select,
+  .report-filters__preset-select
+) {
+  font-size: var(--control-font-size);
 }
 textarea {
   height: auto;
@@ -764,7 +805,8 @@ input[type="radio"] {
   gap: 10px;
   width: 100%;
 }
-.hist-filters__shop {
+.hist-filters__shop,
+.hist-filters__receiver {
   flex: 1 1 160px;
   min-width: 0;
 }
@@ -896,6 +938,32 @@ input[type="radio"] {
 }
 .hist-count-bar { font-size: 12px; color: var(--muted); padding: 0 2px 8px; }
 .hist-count-bar--desktop { display: block; }
+.hist-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 2px 10px;
+}
+.hist-list-toolbar__count {
+  flex-shrink: 0;
+}
+.hist-list-toolbar .report-pagination {
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+.hist-list-toolbar--bottom {
+  padding: 12px 2px 0;
+  justify-content: flex-end;
+}
+.hist-list-toolbar--bottom .report-pagination {
+  justify-content: flex-end;
+}
 /* History list — white cards + light blue accents (aligned with intake day overview) */
 .hist-list-groups {
   display: flex;
@@ -1501,23 +1569,46 @@ input[type="radio"] {
     border: 1px solid #e2e8f0;
   }
   .hist-list-table {
-    min-width: 1080px;
+    min-width: 1154px;
     font-size: 14px;
     table-layout: fixed;
     width: 100%;
   }
-  .hist-list-table__col-date { width: 118px; }
+  .hist-list-table__col-seq { width: 52px; }
+  .hist-list-table__col-dow { width: 72px; }
+  .hist-list-table__col-date { width: 192px; }
   .hist-list-table__col-shop { width: auto; }
   .hist-list-table__col-lines { width: 72px; }
   .hist-list-table__col-total { width: 132px; }
   .hist-list-table__col-who { width: 140px; }
   .hist-list-table__col-when { width: 168px; }
+  .hist-list-table__col-edit { width: 44px; }
   .hist-list-table thead th {
-    font-size: 12px;
     font-weight: 700;
     text-transform: none;
     letter-spacing: 0.02em;
-    cursor: default;
+  }
+  table.itbl.hist-list-table thead th.hist-list-table__th-seq,
+  table.itbl.hist-list-table tbody td.hist-list-table__seq {
+    text-align: center;
+    padding-left: 6px;
+    padding-right: 6px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: #64748b;
+  }
+  table.itbl.hist-list-table thead th.hist-list-table__th-dow,
+  table.itbl.hist-list-table tbody td.hist-list-table__dow {
+    text-align: center;
+    padding-left: 6px;
+    padding-right: 6px;
+    white-space: nowrap;
+  }
+  table.itbl.hist-list-table thead th.hist-list-table__th-date .itbl__sort-btn {
+    white-space: normal;
+    line-height: 1.35;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
   table.itbl.hist-list-table thead th.hist-list-table__th-lines,
   table.itbl.hist-list-table tbody td.hist-list-table__lines {
@@ -1526,6 +1617,10 @@ input[type="radio"] {
     padding-left: 8px;
     padding-right: 8px;
     white-space: nowrap;
+  }
+  table.itbl.hist-list-table thead th.hist-list-table__th-lines .itbl__sort-btn {
+    justify-content: center;
+    text-align: center;
   }
   table.itbl.hist-list-table thead th.hist-list-table__th-num,
   table.itbl.hist-list-table tbody td.hist-list-table__num {
@@ -1540,25 +1635,84 @@ input[type="radio"] {
     max-width: 420px;
   }
   .hist-list-table__total {
-    font-family: var(--font-mono);
     font-weight: 700;
     color: var(--green);
   }
   .hist-list-table__who {
     max-width: 140px;
-    font-size: 13px;
   }
   .hist-list-table__when {
-    font-size: 12px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     color: #475569;
   }
-  .hist-list-table__when-sub {
-    display: block;
-    margin-top: 2px;
-    font-size: 11px;
+  table.itbl.hist-list-table thead th.hist-list-table__th-edit,
+  table.itbl.hist-list-table tbody td.hist-list-table__edit {
+    width: 44px;
+    padding-left: 4px;
+    padding-right: 4px;
+    text-align: center;
+    vertical-align: middle;
+  }
+  table.itbl.hist-list-table thead th.hist-list-table__th-edit {
+    padding: 0;
+  }
+  .hist-list-table__edit {
+    position: relative;
+  }
+  .hist-list-table__edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
     color: #64748b;
+    cursor: pointer;
+  }
+  .hist-list-table__edit-btn:hover {
+    background: #e2e8f0;
+    color: var(--brand-blue);
+  }
+  .hist-list-table__edit-btn:focus-visible {
+    outline: 2px solid var(--brand-blue);
+    outline-offset: 1px;
+  }
+  .hist-list-table__edit-popover {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 220px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    text-align: left;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: #334155;
+  }
+  .hist-list-table__edit-popover-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .hist-list-table__edit-popover-row + .hist-list-table__edit-popover-row {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+  }
+  .hist-list-table__edit-popover-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #94a3b8;
   }
   .hist-list-table__row {
     cursor: pointer;
@@ -1898,8 +2052,87 @@ table.itbl thead th {
   text-align: left;
   font-size: 12px;
   font-weight: 700;
-  font-family: var(--font-ui);
+  font-family: var(--font-heading, var(--font-ui));
   cursor: pointer;
+}
+/* History tables — IBM headers + Sarabun body; must follow base itbl thead rules */
+table.itbl.hist-list-table thead th,
+table.itbl.hist-edit-table thead th {
+  font-family: var(--font-heading, var(--font-ui));
+  font-size: 13px;
+  cursor: default;
+}
+table.itbl.hist-list-table thead th.itbl__th-sort {
+  padding: 0;
+  vertical-align: bottom;
+  cursor: pointer;
+}
+table.itbl.hist-list-table .itbl__sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  margin: 0;
+  padding: 11px 10px;
+  border: none;
+  border-radius: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  background-color: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  justify-content: flex-start;
+  -webkit-tap-highlight-color: transparent;
+}
+table.itbl.hist-list-table .itbl__th-sort--end .itbl__sort-btn {
+  justify-content: flex-end;
+  text-align: right;
+}
+table.itbl.hist-list-table thead th .itbl__sort-btn:hover,
+table.itbl.hist-list-table thead th .itbl__sort-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+table.itbl.hist-list-table thead th .itbl__sort-btn--active .itbl__sort-btn__icon {
+  opacity: 1;
+}
+table.itbl.hist-list-table .itbl__sort-btn__icon {
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+table.itbl.hist-list-table .hist-list-table__edit-sort-btn {
+  justify-content: center;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+html[lang="th"] table.itbl.hist-list-table thead th,
+html[lang="th"] table.itbl.hist-edit-table thead th {
+  font-family: var(--font-heading);
+}
+table.itbl.hist-list-table tbody td,
+table.itbl.hist-edit-table tbody td {
+  font-family: var(--font-table-data, var(--font-ui));
+  font-size: 14px;
+  line-height: 1.4;
+}
+html[lang="th"] table.itbl.hist-list-table tbody td,
+html[lang="th"] table.itbl.hist-edit-table tbody td {
+  font-family: var(--font-table-data);
+}
+table.itbl.hist-edit-table tbody td .name-sub {
+  font-size: inherit;
+  line-height: 1.35;
+  color: var(--muted);
+}
+table.itbl.hist-list-table tbody td.hist-list-table__total {
+  font-family: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 table.itbl tbody tr { border-bottom: 1px solid var(--border); }
 table.itbl tbody tr.filled { background: #eef4ff; }
@@ -3250,8 +3483,25 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     min-width: 0;
   }
   .nav--drawer .nav-left {
-    flex: 0 0 auto;
+    flex: 1;
     min-width: 0;
+  }
+  .nav--drawer .nav-brand--drawer {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .nav--drawer .nav-brand__text {
+    min-width: 0;
+    flex: 1;
+  }
+  .nav--drawer .nav-brand .brand-text--mobile-title {
+    display: block;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .nav--drawer .nav-brand--drawer .nav-brand__logo {
     height: 40px;
@@ -3260,35 +3510,7 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     border-radius: 6px;
   }
   .nav-center {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 6px;
-    pointer-events: none;
-  }
-  .nav-center__title {
-    margin: 0;
-    font-family: var(--font-ui);
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1.25;
-    color: #fff;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-  }
-  .nav--operator .nav-center__title {
-    font-size: 19px;
-  }
-  .nav--drawer .nav-brand .brand-text--mobile-title {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    line-height: 1.25;
+    display: none;
   }
   .nav--drawer .nav-brand .brand-text--mobile-page {
     font-size: 15px;
@@ -3319,7 +3541,6 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     width: auto;
     border-radius: 6px;
   }
-  .brand-text { font-size: 14px; }
   .brand-sub { font-size: 10px; }
 }
 
@@ -3360,6 +3581,7 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   }
   .intake-mobile-setup--compact .app-date-field__btn,
   .intake-mobile-setup--compact .supplier-picker__trigger {
+    font-size: var(--control-font-size);
     line-height: 1.25;
     font-family: var(--font-ui);
   }
@@ -3510,8 +3732,8 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
     padding: 8px 10px 6px;
   }
   .intake-page.wrap:not(:has(.intake-cards-section)) .intake-doc-header__title-th--overview {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
     line-height: 1.3;
   }
   .intake-page.wrap:not(:has(.intake-cards-section)) .intake-doc-header__overview-kpi {
@@ -3818,6 +4040,7 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   }
   .intake-mobile-setup--compact .app-date-field__btn,
   .intake-mobile-setup--compact .supplier-picker__trigger {
+    font-size: var(--control-font-size);
     line-height: 1.25;
     font-family: var(--font-ui);
   }
@@ -4356,6 +4579,13 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   .hist-count-bar--desktop {
     display: none;
   }
+  .hist-list-toolbar--bottom {
+    padding: 10px 0 6px;
+  }
+  .hist-list-toolbar--bottom .report-pagination {
+    width: 100%;
+    gap: 8px;
+  }
   .hist-filters__bottom {
     flex-wrap: wrap;
     align-items: center;
@@ -4406,10 +4636,12 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   .hist-filters__bottom {
     gap: 6px;
   }
-  .hist-filters__shop {
+  .hist-filters__shop,
+  .hist-filters__receiver {
     flex: 1 1 auto;
   }
-  .hist-filters__shop select {
+  .hist-filters__shop select,
+  .hist-filters__receiver select {
     min-height: var(--control-height);
     font-size: var(--control-font-size);
   }
@@ -4454,7 +4686,8 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
   .hist-filters__dates .filter-group {
     width: auto;
   }
-  .hist-filters__bottom .hist-filters__shop {
+  .hist-filters__bottom .hist-filters__shop,
+  .hist-filters__bottom .hist-filters__receiver {
     width: auto;
     flex: 1 1 auto;
   }
@@ -4668,12 +4901,12 @@ tr.row-deleted td { opacity: 0.35; text-decoration: line-through; }
 .operator-menu__sublink {
   display: flex;
   align-items: center;
-  min-height: 46px;
-  padding: 10px 14px;
+  min-height: 52px;
+  padding: 12px 14px;
   border-radius: 10px;
   text-decoration: none;
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.35;
 }
@@ -5465,6 +5698,7 @@ input.intake-touch-input,
 }
 .intake-setup-card .app-date-field__btn,
 .intake-setup-card .intake-supplier-field select {
+  font-size: var(--control-font-size);
   line-height: 1.25;
 }
 .intake-setup-card .app-date-field__btn {
@@ -5879,25 +6113,43 @@ input.intake-touch-input,
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
 }
+.intake-doc-header__overview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+.intake-doc-header--overview .intake-load-panel,
+.intake-doc-header--overview .intake-day-overview__error-box {
+  margin-top: 8px;
+}
 .intake-doc-header__title-th--overview {
-  font-size: 13px;
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 18px;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.3;
   color: #0f2d52;
 }
 .intake-doc-header__overview-kpi {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
+  justify-content: flex-end;
   gap: 0 6px;
-  margin: 4px 0 0;
-  font-size: 12px;
+  margin: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 13px;
   font-weight: 600;
   color: #64748b;
   line-height: 1.35;
+  text-align: right;
+  white-space: nowrap;
 }
 .intake-doc-header__overview-kpi-amount {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   color: #166534;
   font-family: var(--font-mono);
@@ -5913,20 +6165,22 @@ input.intake-touch-input,
     padding: 8px 12px 6px;
   }
   .intake-doc-header__title-th--overview {
-    font-size: 12px;
+    font-size: 16px;
     font-weight: 700;
   }
   .intake-doc-header__overview-kpi {
-    margin-top: 4px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .intake-doc-header__overview-kpi-amount {
-    font-size: 13px;
+    font-size: 14px;
   }
 }
 @media (max-width: 768px) {
+  .intake-doc-header__overview-head {
+    gap: 8px 10px;
+  }
   .intake-doc-header__title-th--overview {
-    font-size: 12px;
+    font-size: 15px;
   }
   .intake-doc-header__overview-kpi {
     font-size: 11px;
@@ -6527,13 +6781,15 @@ input.intake-touch-input,
 }
 .intake-setup-card__head {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
   margin-bottom: 12px;
 }
 .intake-setup-card__head .card-title {
   margin-bottom: 0;
+  flex-shrink: 0;
 }
 .intake-setup-card__description,
 .intake-page__description {
@@ -6541,6 +6797,8 @@ input.intake-touch-input,
   font-size: 13px;
   line-height: 1.45;
   color: #64748b;
+  flex: 1 1 16rem;
+  min-width: 0;
   max-width: 42rem;
 }
 .intake-page__description {
@@ -6672,9 +6930,12 @@ input.intake-touch-input,
     padding: 14px 18px 16px;
     margin-bottom: 10px;
   }
-  .intake-page .intake-setup-card .card-title {
+  .intake-page .intake-setup-card .card-title:not(.card-title--page) {
     font-size: 12px;
     letter-spacing: 0.05em;
+  }
+  .intake-page .intake-setup-card .card-title--page {
+    margin-bottom: 0;
   }
   .intake-page .intake-setup-card__description {
     font-size: 12px;
@@ -6697,14 +6958,14 @@ input.intake-touch-input,
     padding: 10px 16px 9px;
   }
   .intake-page .intake-doc-header__title-th--overview {
-    font-size: 14px;
+    font-size: 18px;
   }
   .intake-page .intake-doc-header__overview-kpi {
-    font-size: 12px;
-    margin-top: 4px;
+    font-size: 13px;
+    margin-top: 0;
   }
   .intake-page .intake-doc-header__overview-kpi-amount {
-    font-size: 14px;
+    font-size: 15px;
   }
   .intake-page .intake-day-slip-list__empty {
     padding: 14px 16px 16px;
@@ -6752,8 +7013,9 @@ input.intake-touch-input,
   align-items: center;
   gap: 8px 12px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, var(--brand-dark) 0%, #2254cc 100%);
-  color: #fff;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+  color: var(--navy);
+  border-bottom: 1px solid #c5d9f7;
 }
 .intake-day-shop-group__head-main {
   grid-area: main;
@@ -6770,10 +7032,10 @@ input.intake-touch-input,
 }
 .intake-day-shop-group__shop {
   margin: 0;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1.3;
-  color: #fff;
+  color: var(--brand-dark);
   letter-spacing: 0.01em;
   word-break: break-word;
 }
@@ -6784,8 +7046,9 @@ input.intake-touch-input,
   font-size: 11px;
   font-weight: 600;
   line-height: 1.3;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.12);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #c5d9f7;
   border-radius: 999px;
 }
 .btn.intake-day-shop-group__add {
@@ -6796,13 +7059,14 @@ input.intake-touch-input,
   font-size: 12px;
   line-height: 1.25;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: var(--brand-blue);
+  border: 1.5px solid var(--brand-blue);
   color: #fff !important;
   font-weight: 700;
 }
 .btn.intake-day-shop-group__add:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.28);
+  background: #1f6ef5;
+  border-color: #1f6ef5;
 }
 .intake-day-slip-table {
   width: 100%;
@@ -6973,7 +7237,7 @@ input.intake-touch-input,
     padding: 10px 12px;
   }
   .intake-day-shop-group__shop {
-    font-size: 15px;
+    font-size: 17px;
   }
   .btn.intake-day-shop-group__add {
     min-height: 36px;
@@ -7284,7 +7548,7 @@ input.intake-touch-input,
   z-index: 800;
 }
 .nav-settings__menu--portal {
-  font-family: var(--font-ui);
+  font-family: var(--font-heading, var(--font-ui));
   opacity: 0;
   transform: translateY(-8px);
   transition:
@@ -7311,7 +7575,7 @@ input.intake-touch-input,
   border-radius: 8px;
   text-decoration: none;
   color: var(--text) !important;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.35;
   white-space: nowrap;
@@ -7398,7 +7662,7 @@ input.intake-touch-input,
   border-radius: 10px;
   text-decoration: none;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.3;
   color: var(--muted);
@@ -7452,10 +7716,11 @@ input.intake-touch-input,
   }
 }
 .page-title {
-  font-size: 22px;
+  font-size: var(--font-brand-title);
   font-weight: 700;
   margin: 0 0 16px;
   color: var(--navy);
+  line-height: 1.2;
 }
 .profile-dl {
   display: grid;
@@ -7709,7 +7974,6 @@ input.intake-touch-input,
     gap: 8px;
   }
   .brand-text--desktop-title {
-    font-size: 18px;
     white-space: nowrap;
   }
   .nav-brand__logo {
@@ -7722,7 +7986,6 @@ input.intake-touch-input,
     max-width: 120px;
   }
   .brand-text {
-    font-size: 18px;
     line-height: 1.2;
   }
   .nav-tab {
@@ -7755,8 +8018,7 @@ input.intake-touch-input,
   .lbl {
     font-size: 14px;
   }
-  input,
-  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not(.pin-input--masked),
   textarea {
     font-size: 16px;
   }
@@ -7771,11 +8033,19 @@ input.intake-touch-input,
   .card-title span:last-child {
     font-weight: 700;
   }
-  table.itbl,
+  table.itbl:not(.hist-list-table):not(.hist-edit-table),
   .dtbl {
     font-size: 15px;
   }
   table.itbl th {
+    font-size: 13px;
+  }
+  table.itbl.hist-list-table,
+  table.itbl.hist-edit-table {
+    font-size: 14px;
+  }
+  table.itbl.hist-list-table thead th,
+  table.itbl.hist-edit-table thead th {
     font-size: 13px;
   }
   .mi-name {
@@ -7789,12 +8059,12 @@ input.intake-touch-input,
     font-size: 14px;
   }
   .admin-subnav__link {
-    font-size: 15px;
+    font-size: 14px;
     padding: 9px 16px;
   }
   .nav-settings__option {
-    font-size: 16px;
-    min-height: 48px;
+    font-size: 14px;
+    min-height: 44px;
   }
   .hist-count-bar,
   .day-supp,
@@ -9761,7 +10031,7 @@ input.intake-touch-input,
   }
   .admin-layout .app-date-field__btn {
     min-height: 44px;
-    font-size: 16px;
+    font-size: var(--control-font-size);
   }
   .admin-catalog-filter__row {
     flex-direction: column;
@@ -10083,10 +10353,10 @@ input.intake-touch-input,
 }
 .report-filters__title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--font-brand-title);
   font-weight: 700;
   color: var(--navy);
-  line-height: 1.3;
+  line-height: 1.2;
 }
 .report-filters__summary {
   margin: 4px 0 0;
@@ -10168,6 +10438,7 @@ input.intake-touch-input,
 .report-filters__fields select,
 .report-filters__fields input {
   min-height: var(--control-height);
+  font-size: var(--control-font-size);
 }
 
 .report-kpi-grid {
@@ -10567,6 +10838,10 @@ input.intake-touch-input,
   height: min(420px, 55vh);
   min-height: 280px;
   margin: 0;
+  overflow: visible;
+}
+.report-price-combined-chart canvas {
+  display: block;
 }
 @media (min-width: 1025px) {
   .report-price-combined-chart {
@@ -10961,7 +11236,6 @@ input.intake-touch-input,
   .report-filters__title {
     flex: 1;
     min-width: 0;
-    font-size: 0.98rem;
   }
   .report-filters__actions--desktop {
     display: none;
@@ -11071,6 +11345,7 @@ input.intake-touch-input,
   }
   .main--operator select,
   .main--operator .app-date-field__btn,
+  .main--operator .supplier-picker__trigger,
   .main--operator .hist-preset-select--mobile {
     min-height: var(--control-height);
     font-size: var(--control-font-size);
