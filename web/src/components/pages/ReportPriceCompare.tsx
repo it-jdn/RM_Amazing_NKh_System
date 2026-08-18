@@ -970,10 +970,6 @@ export function ReportPriceCompare(props: {
             </div>
           </div>
 
-          {mixedScale ? (
-            <p className="report-price-scale-hint">{t("report.priceTrendScaleHint")}</p>
-          ) : null}
-
           {selectedCodes.length > 0 && chart ? (
             <div className="report-price-combined-chart report-price-combined-chart--full">
               <Line
