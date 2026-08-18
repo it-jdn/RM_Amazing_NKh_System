@@ -278,7 +278,7 @@ const priceLineNamePlugin: Plugin<"line"> = {
 
 const pricePointLabelPlugin: Plugin<"line"> = {
   id: "pricePointLabel",
-  afterDatasetsDraw(chart) {
+  afterDraw(chart) {
     const { ctx } = chart;
     const labels: PricePointLabel[] = [];
 
@@ -824,7 +824,7 @@ export function ReportPriceCompare(props: {
             <div className="report-price-combined-chart report-price-combined-chart--full">
               <Line
                 data={chart}
-                plugins={[pricePointLabelPlugin, priceLineNamePlugin]}
+                plugins={[priceLineNamePlugin, pricePointLabelPlugin]}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
